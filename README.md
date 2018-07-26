@@ -8,7 +8,7 @@ Uncomment once we enable travis
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Convert Jupyter notebook to Python code that can run as nuclio handler
+Convert Jupyter notebook to Python code that can run as [nuclio](https://nuclio.io/) handler
 
 ## Usage
 
