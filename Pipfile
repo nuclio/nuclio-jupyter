@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+ipython = ">=6.4.0"
+jupyter = ">=1.0.0"
+traitlets = ">=4.3.2"
+
+[dev-packages]
+flake8 = "*"
+pytest = "*"
+pyyaml = "*"
+
+[requires]
+python_version = "3.7"

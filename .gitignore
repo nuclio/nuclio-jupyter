@@ -1,0 +1,7 @@
+.eggs
+.pytest_cache
+README.html
+__pycache__
+build
+dist
+nb2nuclio.egg-info
