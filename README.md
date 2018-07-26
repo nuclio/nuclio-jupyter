@@ -73,6 +73,33 @@ def handler(context, event):
     return greeting(event.body)
 ```
 
+## Try It Out
+
+You can build a docker image and try it out
+
+### Build
+
+    $ docker build -t jupyter-nuclio .
+
+### Run
+
+    $ docker run -p 8888:8888 jupyter-nuclio
+
+Then open your browser at http://localhost:8888 and enter the password `nuclio`
+when prompted.
+
+
+## Developing
+
+We're using [pipenv](https://docs.pipenv.org/) as package manager. To install
+dependencies run
+
+    $ pipenv sync -d
+
+To run the tests run
+    
+    $ pipenv run python -m pytest -v tests
+
 ## Licence
 
 Apache 2.0 (see [LICENSE.txt](LICENSE.txt))

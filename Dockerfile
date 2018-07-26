@@ -12,15 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from nuclio import Context, Event
+FROM python:3.7-slim
+WORKDIR /nuclio
+COPY . .
+RUN python setup.py install
+RUN jupyter notebook --generate-config
+# Password is "nuclio", generated with "from notebook.auth import passwd; passwd()"
+RUN echo "c.NotebookApp.password = 'sha1:e43810d15203:2d6c0390b6eb9274061318e60315e2d045970509'" >> ~/.jupyter/jupyter_notebook_config.py
 
-
-def handler(context, event):
-    return 'Hi ' + event.body + '. How are you?'
-
-
-def test_handler():
-    context, event = Context(), Event(body='Dave')
-    context.logger.info_with('some information', x=1, y=2)
-    out = handler(context, event)
-    assert out == 'Hi Dave. How are you?'
+EXPOSE 8888
+WORKDIR /code
+VOLUME /code
+COPY tests/handler.ipynb example.ipynb
+CMD jupyter notebook --allow-root --no-browser --ip 0.0.0.0

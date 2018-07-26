@@ -12,6 +12,7 @@ traitlets = ">=4.3.2"
 flake8 = "*"
 pytest = "*"
 pyyaml = "*"
+twine = "*"
 
 [requires]
 python_version = "3.7"
