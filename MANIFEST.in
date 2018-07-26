@@ -2,4 +2,4 @@ include README.md LICENSE.txt
 include Pipfile Pipfile.lock
 recursive-include tests *.py
 recursive-include nuclio/templates/ *.tpl
-recursive-include doc/*
+recursive-include doc *
