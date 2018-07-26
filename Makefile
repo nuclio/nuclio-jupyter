@@ -18,3 +18,6 @@ all:
 upload:
 	python setup.py sdist bdist_wheel
 	pipenv run twine upload dist/*
+
+test:
+	pipenv run python -m pytest -v tests
