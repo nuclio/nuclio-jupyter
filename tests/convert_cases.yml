@@ -49,10 +49,7 @@ in: |
 
     ctx, evt = Context(), Event(body='Nuclio')
 out: |
-    # # nuclio: ignore
-    # from nuclio import Context, Event
-    # 
-    # ctx, evt = Context(), Event(body='Nuclio')
+
 name: Last return
 in: |
     # nuclio:handler

@@ -66,7 +66,7 @@ class NuclioExporter(HTMLExporter):
         code = ipython2python(text)
 
         if is_ignore(code):
-            return indent(code, '# ')
+            return ''
 
         if not is_handler(code):
             return code
@@ -103,9 +103,7 @@ class NuclioExporter(HTMLExporter):
 # Based on
 # https://github.com/jupyter/notebook/issues/1000#issuecomment-359875246
 def notebook_file_name():
-    """
-    Return the full path of the jupyter notebook.
-    """
+    """Return the full path of the jupyter notebook."""
     kernel_id = re.search('kernel-(.*).json',
                           ipykernel.connect.get_connection_file()).group(1)
     servers = list_running_servers()

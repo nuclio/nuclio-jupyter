@@ -12,24 +12,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+.PHONY: all
 all:
 	$(error please pick a target)
 
+.PHONY: upload
 upload:
 	rm -r dist
 	python setup.py sdist bdist_wheel
 	pipenv run twine upload dist/*
 
-test:
+.PHONY: clean_pyc
+clean_pyc:
+	find nuclio -name '*.pyc' -exec rm {} \;
+	find tests -name '*.pyc' -exec rm {} \;
+
+.PHONY: flask8
+flake8:
+	pipenv run flake8 nuclio tests
+
+.PHONY: test
+test: clean_pyc flake8
 	pipenv run python -m pytest -v tests
 
+.PHONY: build-docker
 build-docker:
 	docker build -t tebeka/nuclio-jupyter .
 
+.PHONY: upload-docker
 upload-docker: build-docker
 	docker push
 
-# testing ...
+# Testing markdown
 README.html: README.md
 	kramdown -i GFM $< > $@
-
