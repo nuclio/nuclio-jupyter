@@ -22,3 +22,14 @@ upload:
 
 test:
 	pipenv run python -m pytest -v tests
+
+build-docker:
+	docker build -t tebeka/nuclio-jupyter .
+
+upload-docker: build-docker
+	docker push
+
+# testing ...
+README.html: README.md
+	kramdown -i GFM $< > $@
+

@@ -12,12 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from os.path import join, dirname, abspath
-from textwrap import indent
+import json
 import re
+from os.path import abspath, dirname, join
+from subprocess import check_output
+from textwrap import indent
+from urllib.parse import urlencode, urljoin
+from urllib.request import urlopen
 
-from nbconvert.filters import ipython2python
+import ipykernel
 from nbconvert.exporters.html import HTMLExporter
+from nbconvert.filters import ipython2python
+from notebook.notebookapp import list_running_servers
 
 here = dirname(abspath(__file__))
 
@@ -92,3 +98,33 @@ class NuclioExporter(HTMLExporter):
     def add_return(self, line, prefix=indent_prefix):
         """Add return to a line"""
         return line.replace(prefix, prefix + 'return ', 1)
+
+
+# Based on
+# https://github.com/jupyter/notebook/issues/1000#issuecomment-359875246
+def notebook_file_name():
+    """
+    Return the full path of the jupyter notebook.
+    """
+    kernel_id = re.search('kernel-(.*).json',
+                          ipykernel.connect.get_connection_file()).group(1)
+    servers = list_running_servers()
+    for srv in servers:
+        query = {'token': srv.get('token', '')}
+        url = urljoin(srv['url'], 'api/sessions') + '?' + urlencode(query)
+        for session in json.load(urlopen(url)):
+            if session['kernel']['id'] == kernel_id:
+                relative_path = session['notebook']['path']
+                return join(srv['notebook_dir'], relative_path)
+
+
+def print_handler_code():
+    """Prints handler code (as it was exported)"""
+    cmd = [
+        'jupyter', 'nbconvert',
+        '--to', 'nuclio.export.NuclioExporter',
+        '--stdout',
+        notebook_file_name(),
+    ]
+    out = check_output(cmd).decode('utf-8')
+    print(out)

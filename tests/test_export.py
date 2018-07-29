@@ -62,3 +62,8 @@ def test_convert(case):
     exp = export.NuclioExporter()
     out = exp.convert(case['in'])
     assert out.strip() == case['out'].strip()
+
+
+@pytest.mark.skip(reason='TODO')
+def test_print_handler_code():
+    pass  # FIXME

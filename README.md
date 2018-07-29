@@ -44,8 +44,7 @@ added `# nuclio:return` at the end of it.
 Cells containing `# nuclio: ignore` comment will be commented out in the export
 process.
 
-Now choose `File/Download as/Nuclio` in Jupyter notebook (this feature is
-currently not supported custom notebooks such as Google Collaborator or Kaggle).
+Now choose `File/Download as/Nuclio` in Jupyter notebook
 
 ![](doc/menu.png)
 
@@ -86,6 +85,22 @@ def handler(context, event):
     # nuclio:handler
     return greeting(event.body)
 ```
+
+### Other Notebooks
+
+We currently don't support [Jupyter Lab][lab], [Google Colaboratory][colab],
+[Kaggle Notebooks][kaggle] and others.
+
+You can use `nuclio.print_handler_code` to print the handler code and then
+copy&paste it to [the nuclio dashboard][dashboard].
+
+![](doc/print_handler_code.png)
+
+
+[colab]: https://colab.research.google.com
+[dashboard]: https://nuclio.io/docs/latest/introduction/#dashboard
+[kaggle]: https://www.kaggle.com/kernels
+[lab]: http://jupyterlab.readthedocs.io
 
 ## Try It Out
 
