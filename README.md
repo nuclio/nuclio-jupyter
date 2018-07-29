@@ -14,6 +14,15 @@ Convert Jupyter notebook to Python code that can run as [nuclio](https://nuclio.
 
     pip install nuclio-jupyter
 
+### Install in Notebook
+
+Run the following in a cell
+
+```
+# nuclio: ignore
+!pip install nuclio-jupyter
+```
+
 ## Usage
 
 When developing, import `Context` and `Event` from `nucilo` and use it to
@@ -35,7 +44,8 @@ added `# nuclio:return` at the end of it.
 Cells containing `# nuclio: ignore` comment will be commented out in the export
 process.
 
-Now choose `File/Download as/Nuclio` in Jupyter notebook
+Now choose `File/Download as/Nuclio` in Jupyter notebook (this feature is
+currently not supported custom notebooks such as Google Collaborator or Kaggle).
 
 ![](doc/menu.png)
 
