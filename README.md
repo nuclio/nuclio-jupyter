@@ -10,6 +10,10 @@ Uncomment once we enable travis
 
 Convert Jupyter notebook to Python code that can run as [nuclio](https://nuclio.io/) handler
 
+## Installing
+
+    pip install nuclio-jupyter
+
 ## Usage
 
 When developing, import `Context` and `Event` from `nucilo` and use it to

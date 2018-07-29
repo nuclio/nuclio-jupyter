@@ -16,6 +16,7 @@ all:
 	$(error please pick a target)
 
 upload:
+	rm -r dist
 	python setup.py sdist bdist_wheel
 	pipenv run twine upload dist/*
 

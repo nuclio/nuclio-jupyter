@@ -57,7 +57,7 @@ def parse_deps():
 deps = parse_deps()
 
 setup(
-    name='nuclio',
+    name='nuclio-jupyter',
     version=version(),
     description='Convert Jupyter notebook to nuclio',
     long_description=open('README.md').read(),
