@@ -46,7 +46,7 @@ process.
 
 Now choose `File/Download as/Nuclio` in Jupyter notebook
 
-![](doc/menu.png)
+![](docs/menu.png)
 
 Or you can run
 
@@ -60,7 +60,7 @@ cells with `# nuclio: ignore` commented out.
 
 ### Example
 
-![](doc/example.png)
+![](docs/example.png)
 
 Will generate
 
@@ -90,7 +90,7 @@ We currently don't support [Jupyter Lab][lab], [Google Colaboratory][colab],
 You can use `nuclio.print_handler_code` to print the handler code and then
 copy&paste it to [the nuclio dashboard][dashboard].
 
-![](doc/print_handler_code.png)
+![](docs/print_handler_code.png)
 
 
 [colab]: https://colab.research.google.com
