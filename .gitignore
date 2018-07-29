@@ -4,4 +4,4 @@ README.html
 __pycache__
 build
 dist
-nuclio.egg-info
+nuclio_jupyter.egg-info
