@@ -23,7 +23,7 @@ from traitlets import HasTraits, Int, Unicode, Instance, Dict, default, Any
 class TriggerInfo(HasTraits):
     """Mock Trigger information
 
-    Attributes:
+    Args:
         klass (str): trigger class
         kind (str): trigger kind
     """
@@ -34,7 +34,7 @@ class TriggerInfo(HasTraits):
 class Event(HasTraits):
     """Mock nuclio event
 
-    Attributes:
+    Args:
         body: Event body
         content_type (string): body content type
         trigger (TriggerInfo): trigger information
@@ -137,10 +137,10 @@ class _Logger:
 class Context(HasTraits):
     """Mock nuclio context
 
-    Attributes:
-        platform: nuclio platform
-        logger: nuclio logger
-        user_data: User data
+    Args:
+        platform (str): nuclio platform
+        logger (logger): nuclio logger
+        user_data (object): User data
     """
     platform = Unicode('local')
     logger = Instance(_Logger, args=())  # args=() means default instance
