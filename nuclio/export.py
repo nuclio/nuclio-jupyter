@@ -117,7 +117,10 @@ def notebook_file_name():
 
 
 def print_handler_code():
-    """Prints handler code (as it was exported)"""
+    """Prints handler code (as it was exported).
+
+   You should save the notebook before calling this function.
+    """
     cmd = [
         'jupyter', 'nbconvert',
         '--to', 'nuclio.export.NuclioExporter',
