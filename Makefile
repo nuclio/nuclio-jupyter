@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+image_tag = nuclio/nuclio-jupyter
+
 .PHONY: all
 all:
 	$(error please pick a target)
@@ -37,11 +39,11 @@ test: clean_pyc flake8
 
 .PHONY: build-docker
 build-docker:
-	docker build -t tebeka/nuclio-jupyter .
+	docker build -t $(image_tag)
 
 .PHONY: upload-docker
 upload-docker: build-docker
-	docker push
+	docker push $(image_tag)
 
 # Testing markdown
 README.html: README.md
