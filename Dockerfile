@@ -16,9 +16,11 @@ FROM python:3.7-slim
 WORKDIR /nuclio
 COPY . .
 RUN python setup.py install
+
+# Disable notebook security
 RUN jupyter notebook --generate-config
-# Password is "nuclio", generated with "from notebook.auth import passwd; passwd()"
-RUN echo "c.NotebookApp.password = 'sha1:e43810d15203:2d6c0390b6eb9274061318e60315e2d045970509'" >> ~/.jupyter/jupyter_notebook_config.py
+RUN echo "c.NotebookApp.password = ''" >> ~/.jupyter/jupyter_notebook_config.py
+RUN echo "c.NotebookApp.token = ''" >> ~/.jupyter/jupyter_notebook_config.py
 
 EXPOSE 8888
 WORKDIR /code

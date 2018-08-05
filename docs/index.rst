@@ -94,8 +94,7 @@ You can build a docker image and try it out
     $ docker build -t jupyter-nuclio .
     $ docker run -p 8888:8888 jupyter-nuclio
 
-Then open your browser at http://localhost:8888 and enter the password ``nuclio``
-when prompted.
+Then open your browser at http://localhost:8888 
 
 Developing
 ----------
