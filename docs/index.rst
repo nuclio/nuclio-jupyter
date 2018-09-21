@@ -27,7 +27,8 @@ added ``# nuclio:return`` at the end of it.
 Cells containing ``# nuclio: ignore`` comment will be commented out in the export
 process.
 
-Now choose ``File/Download as/Nuclio`` in Jupyter notebook
+Now choose ``File/Download as/Nuclio`` in Jupyter notebook (you might need to
+mark the notebook as ``Trusted`` to make this option show)
 
 .. image:: menu.png
 
@@ -96,7 +97,7 @@ You can build a docker image and try it out
 
 Then open your browser at http://localhost:8888 
 
-Developing
+keveloping
 ----------
 
 We're using pipenv_ as package manager. To install dependencies run
