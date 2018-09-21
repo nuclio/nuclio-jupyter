@@ -87,8 +87,9 @@ def handler(context, event):
 We currently don't support [Jupyter Lab][lab], [Google Colaboratory][colab],
 [Kaggle Notebooks][kaggle] and others.
 
-You can use `nuclio.print_handler_code` to print the handler code and then
-copy&paste it to [the nuclio dashboard][dashboard].
+You can use `nuclio.print_handler_code` or `nuclio.save_handler_code` to
+print/save the handler code and then copy&paste it to [the nuclio
+dashboard][dashboard].
 
 ![](docs/print_handler_code.png)
 

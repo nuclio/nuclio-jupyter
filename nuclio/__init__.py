@@ -13,6 +13,6 @@
 # limitations under the License.
 
 from .request import Context, Event  # noqa
-from .export import print_handler_code  # noqa
+from .export import print_handler_code, save_handler_code  # noqa
 
 __version__ = '0.2.1'

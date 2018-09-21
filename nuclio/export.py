@@ -116,16 +116,31 @@ def notebook_file_name():
                 return join(srv['notebook_dir'], relative_path)
 
 
-def print_handler_code():
-    """Prints handler code (as it was exported).
-
-   You should save the notebook before calling this function.
-    """
+def _get_handler_code():
     cmd = [
         'jupyter', 'nbconvert',
         '--to', 'nuclio.export.NuclioExporter',
         '--stdout',
         notebook_file_name(),
     ]
-    out = check_output(cmd).decode('utf-8')
-    print(out)
+
+    return check_output(cmd).decode('utf-8')
+
+
+def print_handler_code():
+    """Prints handler code (as it was exported).
+
+   You should save the notebook before calling this function.
+    """
+    code = _get_handler_code()
+    print(code)
+
+
+def save_handler_code(path):
+    """Saves handler code to path.
+
+   You should save the notebook before calling this function.
+    """
+    code = _get_handler_code()
+    with open(path, 'w') as out:
+        out.write(code)
