@@ -44,7 +44,8 @@ added `# nuclio:return` at the end of it.
 Cells containing `# nuclio: ignore` comment will be commented out in the export
 process.
 
-Now choose `File/Download as/Nuclio` in Jupyter notebook
+Now choose `File/Download as/Nuclio` in Jupyter notebook (you might need to
+mark the notebook as `Trusted` in order for the Nuclio option to show)
 
 ![](docs/menu.png)
 
