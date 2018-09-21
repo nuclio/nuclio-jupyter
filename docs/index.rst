@@ -97,7 +97,7 @@ You can build a docker image and try it out
 
 Then open your browser at http://localhost:8888 
 
-keveloping
+Developing
 ----------
 
 We're using pipenv_ as package manager. To install dependencies run
