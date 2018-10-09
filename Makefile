@@ -39,7 +39,7 @@ test: clean_pyc flake8
 
 .PHONY: build-docker
 build-docker:
-	docker build -t $(image_tag)
+	docker build -t $(image_tag) .
 
 .PHONY: upload-docker
 upload-docker: build-docker
