@@ -26,4 +26,4 @@ EXPOSE 8888
 WORKDIR /code
 VOLUME /code
 COPY tests/handler.ipynb example.ipynb
-CMD jupyter notebook --allow-root --no-browser --ip 0.0.0.0
+CMD jupyter lab --core-mode --allow-root --no-browser --ip 0.0.0.0
