@@ -28,11 +28,11 @@ from notebook.notebookapp import list_running_servers
 here = dirname(abspath(__file__))
 
 #  '# nuclio: ignore'
-is_ignore = re.compile('#\s*nuclio:\s*ignore').search
+is_ignore = re.compile(r'#\s*nuclio:\s*ignore').search
 #  '# nuclio: handler'
-is_handler = re.compile('^\s*#\s*nuclio:\s*handler').search
+is_handler = re.compile(r'^\s*#\s*nuclio:\s*handler').search
 #  '# nuclio: return'
-is_return = re.compile('#\s*nuclio:\s*return').search
+is_return = re.compile(r'#\s*nuclio:\s*return').search
 handler_decl = 'def handler(context, event):'
 indent_prefix = '    '
 
