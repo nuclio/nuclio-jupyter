@@ -16,7 +16,7 @@ try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
-import re
+import json
 
 
 def version():
@@ -27,47 +27,33 @@ def version():
                 return version.replace("'", '').strip()
 
 
-def parse_deps():
-    deps = {}  # section -> deps
-    pkgs = None  # current section packages
-    with open('Pipfile') as fp:
-        for line in fp:
-            line = re.sub('#.*', '', line)  # Remove comment
+def load_deps(section):
+    with open('Pipfile.lock') as fp:
+        lock_data = json.load(fp)
 
-            if not line.strip():
-                continue
-
-            if pkgs is not None and '[' in line:
-                pkgs = None
-
-            if re.search(r'\[(dev-)?packages\]', line):
-                name = line[line.find('[')+1:line.find(']')]
-                pkgs = deps[name] = []
-                continue
-
-            if pkgs is not None:
-                pkg, version = [str.strip(val) for val in line.split('=', 1)]
-                version = version[1:-1]  # Trim ""
-                if version != '*':
-                    pkg = '{}{}'.format(pkg, version)
-                pkgs.append(pkg)
-    return deps
+    deps = lock_data.get(section, {})
+    return [name + data['version'] for name, data in deps.items()]
 
 
-deps = parse_deps()
+with open('README.md') as fp:
+    long_desc = fp.read()
+
+install_requires = load_deps('default')
+tests_require = load_deps('develop')
+
 
 setup(
     name='nuclio-jupyter',
     version=version(),
     description='Convert Jupyter notebook to nuclio',
-    long_description=open('README.md').read(),
+    long_description=long_desc,
     long_description_content_type='text/markdown',
     author='Miki Tebeka',
     author_email='miki@353solutions.com',
     license='MIT',
     url='https://github.com/nuclio/nuclio-jupyter',
     packages=['nuclio'],
-    install_requires=deps['packages'],
+    install_requires=install_requires,
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
@@ -83,7 +69,7 @@ setup(
         'Topic :: Software Development :: Libraries',
     ],
     setup_requires=['pytest-runner'],
-    tests_require=deps['dev-packages'],
+    tests_require=tests_require,
     entry_points={
         'nbconvert.exporters': [
             'nuclio=nuclio.export:NuclioExporter',
