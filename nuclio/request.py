@@ -21,12 +21,12 @@ from nuclio_sdk import Event  # noqa
 
 
 class Context(_Context):
+    """Wrapper around nuclio_sdk.Context to make automatically create
+    logger"""
     def __getattribute__(self, attr):
         value = object.__getattribute__(self, attr)
         if value is None and attr == 'logger':
-            value = self.__dict__['logger'] = Logger(level=logging.INFO)
+            value = self.logger = Logger(level=logging.INFO)
             value.set_handler(
                 'nuclio-jupyter', stdout, HumanReadableFormatter())
         return value
-
-
