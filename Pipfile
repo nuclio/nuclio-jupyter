@@ -4,10 +4,10 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-ipython = ">=6.5"
+ipython = ">=7.2"
 jupyterlab = ">=0.35.4"
 nbconvert = ">=5.4"
-notebook = ">=5.7"
+notebook = ">=5.7.2"
 nuclio-sdk = ">=0.0.3"
 
 [dev-packages]
@@ -16,6 +16,3 @@ pytest = "*"
 pyyaml = "*"
 sphinx = "*"
 twine = "*"
-
-[requires]
-python_version = "3.7"

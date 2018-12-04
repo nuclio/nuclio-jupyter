@@ -16,7 +16,6 @@ try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
-import json
 
 
 def version():
@@ -28,18 +27,41 @@ def version():
 
 
 def load_deps(section):
-    with open('Pipfile.lock') as fp:
-        lock_data = json.load(fp)
+    """Load dependencies from Pipfile, we can't assume toml is installed"""
+    # [packages]
+    header = '[{}]'.format(section)
+    with open('Pipfile') as fp:
+        in_section = False
+        for line in fp:
+            line = line.strip()
+            if not line:
+                continue
 
-    deps = lock_data.get(section, {})
-    return [name + data['version'] for name, data in deps.items()]
+            if line == header:
+                in_section = True
+                continue
+
+            if line.startswith('['):
+                in_section = False
+                continue
+
+            if in_section:
+                # ipython = ">=6.5"
+                i = line.find('=')
+                assert i != -1, 'bad dependency - {}'.format(line)
+                pkg = line[:i].strip()
+                version = line[i+1:].strip().replace('"', '')
+                if version == '*':
+                    yield pkg
+                else:
+                    yield '{}{}'.format(pkg, version.replace('"', ''))
 
 
 with open('README.md') as fp:
     long_desc = fp.read()
 
-install_requires = load_deps('default')
-tests_require = load_deps('develop')
+install_requires = list(load_deps('packages'))
+tests_require = list(load_deps('dev-packages'))
 
 
 setup(
