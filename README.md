@@ -1,11 +1,6 @@
 # nuclio Jupyter Export
 
-<!--
-Uncomment once we enable travis
-
-[![Build Status](https://travis-ci.org/nu/nuclio.svg?branch=master)](https://travis-ci.org/nuclio/nuclio-jupyter) 
--->
-
+[![Build Status](https://travis-ci.org/nuclio/nuclio-jupyter.svg?branch=master)](https://travis-ci.org/nuclio/nuclio-jupyter)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 Convert Jupyter notebook to Python code that can run as [nuclio](https://nuclio.io/) handler
