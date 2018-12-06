@@ -19,6 +19,10 @@ import yaml
 from IPython.core.magic import register_line_cell_magic
 from IPython import get_ipython
 
+if get_ipython() is None:
+    def register_line_cell_magic(fn):  # noqa
+        return fn
+
 # name -> function
 commands = {}
 
@@ -207,11 +211,19 @@ def cmd(line, cell):
 
 
 @command
-def export(line, cell):
-    """Export function .\n\nExamples:
-    In [1]: %nuclio export
-    nulcio: /tmp/handler.zip created
+def deploy(line, cell):
+    """Deploy function .\n\nExamples:
+    In [1]: %nuclio deploy
+    %nuclio: function deployed
+
+    In [2] %nuclio deploy http://localhost:8080
+    %nuclio: function deployed
     """
+    # TODO: Deploy parameters
+    # - dashboard URL
+    # - project name
+    # - function name
+    print('TBD ☺')
 
 
 @command
@@ -223,7 +235,7 @@ def ignore(line, call):
 
 @command
 def handler(line, cell):
-    """Mark this cell as handler function. Export will make it a function.
+    """Mark this cell as handler function.
 
     %%nuclio handler
     ctx.logger.info('handler called')

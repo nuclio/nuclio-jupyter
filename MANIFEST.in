@@ -16,6 +16,5 @@ include README.md LICENSE.txt Makefile
 include Pipfile Pipfile.lock
 recursive-include tests *
 prune tests/.ipynb_checkpoints/
-recursive-include nuclio/templates/ *.tpl
 recursive-include doc *
 global-exclude *.sw?

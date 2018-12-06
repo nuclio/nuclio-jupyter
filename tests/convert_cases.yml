@@ -31,20 +31,20 @@ out: |
 ---
 name: Simple
 in: |
-    # nuclio:handler
+    %nuclio handler
     x = 1
     
-    x  # nuclio:return
+    x  # nuclio: return
 out: |
     def handler(context, event):
-        # nuclio:handler
+        # %nuclio handler
         x = 1
 
-        return x  # nuclio:return
+        return x  # nuclio: return
 ---
 name: Remove
 in: |
-    # nuclio: ignore
+    %nuclio ignore
     from nuclio import Context, Event
 
     ctx, evt = Context(), Event(body='Nuclio')
@@ -52,11 +52,11 @@ out: |
 
 name: Last return
 in: |
-    # nuclio:handler
+    %nuclio handler
     x = 1
     x
 out: |
     def handler(context, event):
-        # nuclio:handler
+        # %nuclio handler
         x = 1
         return x
