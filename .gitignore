@@ -1,7 +1,8 @@
-.eggs
-.pytest_cache
-README.html
-__pycache__
 build
 dist
+.eggs
 nuclio_jupyter.egg-info
+__pycache__
+.pytest_cache
+README.html
+_t

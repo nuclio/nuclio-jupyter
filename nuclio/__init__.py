@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .request import Context, Event  # noqa
 from .export import print_handler_code, save_handler_code  # noqa
+from .request import Context, Event  # noqa
+from . import magic  # noqa
 
-__version__ = '0.2.2'
+__version__ = '0.3.0'
