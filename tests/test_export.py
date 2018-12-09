@@ -12,42 +12,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from subprocess import check_output
-from tempfile import mkdtemp
+from glob import glob
 from os.path import abspath, dirname
+from subprocess import run
+from sys import executable
+from tempfile import mkdtemp
+from zipfile import ZipFile
 
 import pytest
 import yaml
 
 from nuclio import export
 
-
 here = dirname(abspath(__file__))
 
 
 def test_export():
+    out_dir = mkdtemp(prefix='nuclio-jupyter-export-')
     cmd = [
-        'jupyter', 'nbconvert',
+        executable, '-m', 'nbconvert',
         '--to', 'nuclio.export.NuclioExporter',
-        '--stdout', 'tests/handler.ipynb',
+        '--output-dir', out_dir,
+        'tests/handler.ipynb',
     ]
-    out = check_output(cmd).decode('utf-8')
+    run(cmd, check=True)
+
+    files = glob('{}/*.zip'.format(out_dir))
+    assert len(files) == 1, 'wrong # of zip files in {}'.format(files)
+
+    with ZipFile(files[0]) as zf:
+        code = zf.read('handler.py').decode('utf-8')
 
     # Check we added handler
-    assert export.handler_decl in out
+    assert export.handler_decl in code, 'no handler in code'
 
 
 def test_install():
     venv = mkdtemp()
-    check_output(['virtualenv', venv])
+    run(['virtualenv', venv], check=True)
     python = '{}/bin/python'.format(venv)
-    check_output([python, 'setup.py', 'install'])
+    run([python, 'setup.py', 'install'], check=True)
 
     # Required for nbconvert to run
-    check_output(['{}/bin/pip'.format(venv), 'install', 'notebook'])
+    run(['{}/bin/pip'.format(venv), 'install', 'notebook'], check=True)
 
     py_cmd = 'import nbconvert.exporters as e; print(e.get_export_names())'
-    out = check_output([python, '-c', py_cmd]).decode('utf-8')
+    out = run([python, '-c', py_cmd], capture_output=True, check=True)
+    out = out.stdout.decode('utf-8')
     assert 'nuclio' in out
 
 

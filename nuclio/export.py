@@ -109,8 +109,13 @@ def gen_config(config):
     return header + yaml.dump(config, default_flow_style=False)
 
 
+def ok_cell_line(line):
+    line = line.strip()
+    return line and line[0] != '#'
+
+
 def parse_magic(code):
-    lines = [line.strip() for line in code.splitlines() if is_code_line(line)]
+    lines = [line.strip() for line in code.splitlines() if ok_cell_line(line)]
     if not lines:
         return None
 
