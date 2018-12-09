@@ -15,10 +15,12 @@
 from os import environ
 from sys import stderr
 
-import yaml
 from IPython.core.magic import register_line_cell_magic
 from IPython import get_ipython
 
+log_prefix = '%nuclio: '
+
+# Make sure we're working when not running under IPython/Jupyter
 if get_ipython() is None:
     def register_line_cell_magic(fn):  # noqa
         return fn
@@ -32,14 +34,14 @@ def noop_log(msg):
 
 
 def verbose_log(message):
-    print('%nuclio: {}'.format(message))
+    print('{}{}'.format(log_prefix, message))
 
 
 log = verbose_log
 
 
 def log_error(msg):
-    print('%nuclio: {}'.format(msg), file=stderr)
+    print('{}{}'.format(log_prefix, msg), file=stderr)
 
 
 def command(fn):
@@ -80,12 +82,19 @@ def verbose(line, cell):
     print('%nuclio: verbose {}'.format('on' if log is verbose_log else 'off'))
 
 
-def set_env(line):
+def parse_env(line):
     i = line.find('=')
     if i == -1:
+        return None, None
+    key, value = line[:i].strip(), line[i+1:].strip()
+    return key, value
+
+
+def set_env(line):
+    key, value = parse_env(line)
+    if key is None:
         log_error('cannot find "=" in line')
         return
-    key, value = line[:i].strip(), line[i+1:].strip()
     # We don't print the value since it might be password, API key ...
     log('setting {!r} environment variable'.format(key))
     environ[key] = value
@@ -154,18 +163,18 @@ def help(line, cell):
     print(fn.__doc__)
 
 
+def iter_env_lines(fp):
+    for line in fp:
+        line = line.strip()
+        if not line or line[0] == '#':
+            continue
+        yield line
+
+
 def env_from_file(path):
     with open(path) as fp:
-        data = yaml.safe_load(fp)
-
-    if isinstance(data, list):
-        for line in data:
+        for line in iter_env_lines(fp):
             set_env(line)
-    elif isinstance(data, dict):
-        for key, value in data.items():
-            set_env('{}={}'.format(key, value))
-    else:
-        log_error('wrong type for env_file: {}'.format(type(data)))
 
 
 @command
@@ -195,11 +204,11 @@ def cmd(line, cell):
     ...: pip install pyyaml==3.13
 
     If you'd like to only to add the instructions to function.yaml without
-    running it locally, use the '--config-only' flag
+    running it locally, use the '--config-only' or '-c' flag
 
     In [3]: %nuclio cmd --config-only apt-get install -y libyaml-dev
     """
-    if line.startswith('--config-only'):
+    if line.startswith('--config-only') or line.startswith('-c'):
         return
 
     ipy = get_ipython()
