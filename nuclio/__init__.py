@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .export import print_handler_code, save_handler_code  # noqa
+from .magic import print_handler_code # noqa
 from .request import Context, Event  # noqa
 from . import magic  # noqa
 

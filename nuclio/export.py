@@ -12,26 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import re
 import shlex
 from collections import namedtuple
 from datetime import datetime
-from io import StringIO
-from os import remove
-from os.path import abspath, dirname, join, isfile
-from subprocess import check_output
-from tempfile import gettempdir
+from io import StringIO, BytesIO
+from os.path import abspath, dirname
 from textwrap import indent
-from urllib.parse import urlencode, urljoin
-from urllib.request import urlopen
 from zipfile import ZipFile
 
 import yaml
-import ipykernel
 from nbconvert.exporters import Exporter
 from nbconvert.filters import ipython2python
-from notebook.notebookapp import list_running_servers
 
 from .magic import parse_env, iter_env_lines
 
@@ -41,7 +33,7 @@ Magic = namedtuple('Magic', 'name is_cell args lines')
 magic_handlers = {}  # name -> function
 
 #  '# nuclio:return'
-is_return = re.compile(r'#\s*nuclio:return').search
+is_return = re.compile(r'#\s*nuclio:\s*return').search
 handler_decl = 'def handler(context, event):'
 indent_prefix = '    '
 
@@ -55,11 +47,9 @@ function_config = {
         'env': {},
     },
     'build': {
-        'commands': {},
+        'commands': [],
     }
 }
-
-zip_file_name = '{}/nuclio_handler.zip'.format(gettempdir())
 
 
 class NuclioExporter(Exporter):
@@ -87,10 +77,12 @@ class NuclioExporter(Exporter):
                     raise NameError(
                         'unknown nuclio command: {}'.format(magic.name))
 
-                handler(magic)
-                # Comment out magic
+                out = handler(magic)
+                code = out or code
+
+                # Comment out nuclio magic
                 if '%%nuclio' in code:
-                    code = re.sub('^', '# ', code, flags=re.MULTILINE)
+                    code = comment_code(code)
                 else:
                     code = code.replace('%nuclio', '# %nuclio')
 
@@ -117,29 +109,8 @@ def gen_config(config):
     return header + yaml.dump(config, default_flow_style=False)
 
 
-def convert(code):
-    lines = [handler_decl]
-    code = indent(code, indent_prefix)
-    for line in code.splitlines():
-        if is_return(line):
-            line = add_return(line)
-        lines.append(line)
-
-    # Add return to last code line (if not there)
-    last_idx = len(lines) - 1
-    for i, line in enumerate(reversed(lines[1:])):
-        if not is_code_line(line):
-            continue
-
-            if 'return' not in line:
-                lines[last_idx-i] = add_return(line)
-            break
-
-        return '\n'.join(lines)
-
-
 def parse_magic(code):
-    lines = [line for line in code.splitlines() if line.strip()]
+    lines = [line.strip() for line in code.splitlines() if is_code_line(line)]
     if not lines:
         return None
 
@@ -172,6 +143,18 @@ def env(magic):
 
 
 @magic_handler
+def cmd(magic):
+    argline = ' '.join(shlex.quote(arg) for arg in magic.args)
+    for line in [argline] + magic.lines:
+        line = line.strip()
+        if not line or line[0] == '#':
+            continue
+
+        line = line.replace('--config-only', '').strip()
+        function_config['build']['commands'].append(line)
+
+
+@magic_handler
 def env_file(magic):
     for fname in filter(None, map(str.strip, magic.args + magic.lines)):
         with open(fname) as fp:
@@ -183,18 +166,20 @@ def env_file(magic):
                 function_config['spec']['env'][key] = value
 
 
-def gen_zip(py_code, config):
-    if isfile(zip_file_name):
-        remove(zip_file_name)
+@magic_handler
+def ignore(magic):
+    return '\n'.join('# ' + line for line in magic.lines)
 
-    with ZipFile(zip_file_name, 'w') as zf:
+
+def gen_zip(py_code, config):
+    io = BytesIO()
+    with ZipFile(io, 'w') as zf:
         with zf.open('handler.py', 'w') as out:
             out.write(py_code.encode('utf-8'))
         with zf.open('function.yaml', 'w') as out:
             out.write(config.encode('utf-8'))
 
-    with open(zip_file_name, 'rb') as fp:
-        return fp.read()
+    return io.getvalue()
 
 
 def is_code_cell(cell):
@@ -207,52 +192,45 @@ def is_code_line(line):
     return line and line[0] not in ('#', '%')
 
 
-def add_return(line, prefix=indent_prefix):
+def add_return(line):
     """Add return to a line"""
-    return line.replace(prefix, prefix + 'return ', 1)
+    match = re.search(r'\w', line)
+    if not match:
+        # TODO: raise?
+        return line
+
+    return line[:match.start()] + 'return ' + line[match.start():]
 
 
-# Based on
-# https://github.com/jupyter/notebook/issues/1000#issuecomment-359875246
-def notebook_file_name():
-    """Return the full path of the jupyter notebook."""
-    kernel_id = re.search('kernel-(.*).json',
-                          ipykernel.connect.get_connection_file()).group(1)
-    servers = list_running_servers()
-    for srv in servers:
-        query = {'token': srv.get('token', '')}
-        url = urljoin(srv['url'], 'api/sessions') + '?' + urlencode(query)
-        for session in json.load(urlopen(url)):
-            if session['kernel']['id'] == kernel_id:
-                relative_path = session['notebook']['path']
-                return join(srv['notebook_dir'], relative_path)
+@magic_handler
+def handler(magic):
+    return handler_code('\n'.join(magic.lines))
 
 
-def get_handler_code():
-    cmd = [
-        'jupyter', 'nbconvert',
-        '--to', 'nuclio.export.NuclioExporter',
-        '--stdout',
-        notebook_file_name(),
-    ]
+def handler_code(code):
+    lines = [handler_decl]
+    code = indent(code, indent_prefix)
+    for line in code.splitlines():
+        if is_return(line):
+            line = add_return(line)
+        lines.append(line)
 
-    return check_output(cmd).decode('utf-8')
+    # Add return to last code line (if not there)
+    for i, line in enumerate(lines[::-1]):
+        if not is_code_line(line):
+            continue
+
+        if 'return' not in line:
+            lines[len(lines)-i-1] = add_return(line)
+        break
+
+    return '\n'.join(lines)
 
 
-def print_handler_code():
-    """Prints handler code (as it was exported).
-
-   You should save the notebook before calling this function.
-    """
-    code = get_handler_code()
-    print(code)
+def comment_code(code):
+    return re.sub('^', '# ', code, flags=re.MULTILINE)
 
 
-def save_handler_code(path):
-    """Saves handler code to path.
-
-   You should save the notebook before calling this function.
-    """
-    code = get_handler_code()
-    with open(path, 'w') as out:
-        out.write(code)
+@magic_handler
+def export(magic):
+    return comment_code('\n'.join(magic.lines))
