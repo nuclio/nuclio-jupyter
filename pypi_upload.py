@@ -55,9 +55,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '--force', '-f', help='force upload', action='store_true')
     parser.add_argument(
-        '--user', '-u', help='pypi user (or V3IO_PYPI_USER)', default='')
+        '--user', '-u', help='pypi user (or PYPI_USER)', default='')
     parser.add_argument(
-        '--password', '-p', help='pypi password (or V3IO_PYPI_PASSWORD)',
+        '--password', '-p', help='pypi password (or PYPI_PASSWORD)',
         default='')
     args = parser.parse_args()
 
@@ -73,8 +73,8 @@ if __name__ == '__main__':
         if out.returncode != 0:
             raise SystemExit('error: cannot build {}'.format(dist))
 
-    user = args.user or environ.get('V3IO_PYPI_USER')
-    passwd = args.password or environ.get('V3IO_PYPI_PASSWORD')
+    user = args.user or environ.get('PYPI_USER')
+    passwd = args.password or environ.get('PYPI_PASSWORD')
 
     if not (user and passwd):
         print('warning: missing login information - skipping upload')
