@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from io import BytesIO
 from glob import glob
 from os.path import abspath, dirname
 from subprocess import run
@@ -47,14 +48,15 @@ def test_export():
     assert export.handler_decl in code, 'no handler in code'
 
 
+@pytest.mark.install
 def test_install():
     venv = mkdtemp()
-    run(['virtualenv', venv], check=True)
+    run(['virtualenv', '-p', executable, venv], check=True)
     python = '{}/bin/python'.format(venv)
     run([python, 'setup.py', 'install'], check=True)
 
     # Required for nbconvert to run
-    run(['{}/bin/pip'.format(venv), 'install', 'notebook'], check=True)
+    run([python, '-m', 'pip', 'install', 'notebook'], check=True)
 
     py_cmd = 'import nbconvert.exporters as e; print(e.get_export_names())'
     out = run([python, '-c', py_cmd], capture_output=True, check=True)
@@ -70,11 +72,18 @@ def iter_convert():
 
 @pytest.mark.parametrize('case', iter_convert())
 def test_convert(case):
+    nb = {'cells': [
+        {
+            'source': case['in'],
+            'cell_type': 'code',
+            }
+        ],
+    }
+
     exp = export.NuclioExporter()
-    out = exp.convert(case['in'])
-    assert out.strip() == case['out'].strip()
+    out, _ = exp.from_notebook_node(nb, {})
+    with ZipFile(BytesIO(out)) as zf:
+        out = zf.read('handler.py').decode('utf-8')
 
-
-@pytest.mark.skip(reason='TODO')
-def test_print_handler_code():
-    pass  # FIXME
+    out = out[out.find('\n'):].strip()  # Trim first line
+    assert out == case['out'].strip()

@@ -32,8 +32,10 @@ here = dirname(abspath(__file__))
 Magic = namedtuple('Magic', 'name is_cell args lines')
 magic_handlers = {}  # name -> function
 
-#  '# nuclio:return'
+# # nuclio: return
 is_return = re.compile(r'#\s*nuclio:\s*return').search
+# # nuclio: ignore
+has_ignore = re.compile(r'#\s*nuclio:\s*ignore').search
 handler_decl = 'def handler(context, event):'
 indent_prefix = '    '
 
@@ -70,6 +72,9 @@ class NuclioExporter(Exporter):
 
         for cell in filter(is_code_cell, nb['cells']):
             code = cell['source']
+            if has_ignore(code):
+                continue
+
             magic = parse_magic(code)
             if magic:
                 handler = magic_handlers.get(magic.name)
@@ -78,13 +83,7 @@ class NuclioExporter(Exporter):
                         'unknown nuclio command: {}'.format(magic.name))
 
                 out = handler(magic)
-                code = out or code
-
-                # Comment out nuclio magic
-                if '%%nuclio' in code:
-                    code = comment_code(code)
-                else:
-                    code = code.replace('%nuclio', '# %nuclio')
+                code = out
 
             print(ipython2python(code), file=io)
 
@@ -109,13 +108,8 @@ def gen_config(config):
     return header + yaml.dump(config, default_flow_style=False)
 
 
-def ok_cell_line(line):
-    line = line.strip()
-    return line and line[0] != '#'
-
-
 def parse_magic(code):
-    lines = [line.strip() for line in code.splitlines() if ok_cell_line(line)]
+    lines = code.strip().splitlines()
     if not lines:
         return None
 
@@ -145,6 +139,7 @@ def env(magic):
             raise ValueError(
                 'cannot parse environment value from: {}'.format(line))
         function_config['spec']['env'][key] = value
+    return ''
 
 
 @magic_handler
@@ -157,6 +152,7 @@ def cmd(magic):
 
         line = line.replace('--config-only', '').strip()
         function_config['build']['commands'].append(line)
+    return ''
 
 
 @magic_handler
@@ -169,11 +165,7 @@ def env_file(magic):
                     raise ValueError(
                         '%s: cannot parse environment: {}'.format(fname, line))
                 function_config['spec']['env'][key] = value
-
-
-@magic_handler
-def ignore(magic):
-    return '\n'.join('# ' + line for line in magic.lines)
+    return ''
 
 
 def gen_zip(py_code, config):

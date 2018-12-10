@@ -122,8 +122,9 @@ def cell_lines(cell):
 
 @command
 def env(line, cell):
-    """Set environment variable.\n\nExamples:
+    """Set environment variable. Will update "spec.env" in configuration.
 
+    Examples:
     In [1]: %nuclio env USER=iguzaio
     %nuclio: setting 'iguazio' environment variable
 
@@ -192,8 +193,9 @@ def env_from_file(path):
 
 @command
 def env_file(line, cell):
-    """Set environment from YAML file(s).\n\nExamples:
+    """Set environment from file(s). Will update "spec.env" in configuration.
 
+    Examples:
     In [1]: %nuclio env_file env.yml
 
     In [2]: %%nuclio env_file
@@ -209,7 +211,9 @@ def env_file(line, cell):
 
 @command
 def cmd(line, cell):
-    """Run a command.\n\nExamples:
+    """Run a command, add it to "build.Commands" in exported configuration.
+
+    Examples:
     In [1]: %nuclio cmd pip install chardet==1.0.1
 
     In [2]: %%nuclio cmd
@@ -232,7 +236,8 @@ def cmd(line, cell):
         ipy.system(line)
 
 
-@command
+# TODO
+# @command
 def deploy(line, cell):
     """Deploy function .\n\nExamples:
     In [1]: %nuclio deploy
@@ -246,13 +251,6 @@ def deploy(line, cell):
     # - project name
     # - function name
     print('TBD ☺')
-
-
-@command
-def ignore(line, cell):
-    """Mark this cell as ignored by nuclio. It won't be included in the
-    generated handler."""
-    kernel.run_cell(cell)
 
 
 @command
