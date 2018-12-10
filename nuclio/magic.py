@@ -346,6 +346,17 @@ def parse_export_line(line):
     return parser.parse_known_args(shlex.split(line))
 
 
+def print_on_of(pattern):
+    files = glob(pattern)
+    if not files:
+        raise ValueError('no match for {}'.format(pattern))
+
+    fname = files[0]
+    print('--- {} ---\n'.format(path.basename(fname)))
+    with open(fname) as fp:
+        print(fp.read())
+
+
 def print_handler_code(notebook_file=None):
     """Prints handler code (as it was exported).
 
@@ -355,13 +366,10 @@ def print_handler_code(notebook_file=None):
     if not notebook_file:
         raise ValueError('cannot find notebook file name')
 
-    out_dir = export(notebook_file, None, return_dir=True)
+    line = '--notebook {}'.format(notebook_file)
+    out_dir = export(line, None, return_dir=True)
     if not out_dir:
         raise ValueError('failed to export {}'.format(notebook_file))
 
-    files = glob('{}/*.py'.format(out_dir))
-    if not files:
-        raise ValueError('no python files in {}'.format(out_dir))
-
-    with open(files[0]) as fp:
-        print(fp.read())
+    print_on_of('{}/*.py'.format(out_dir))
+    print_on_of('{}/*.yaml'.format(out_dir))
