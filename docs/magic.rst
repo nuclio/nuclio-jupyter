@@ -10,22 +10,22 @@ added to IPython/Jupyter.
 Overview
 --------
 
-.. code-block::
+::
 
    In [1]: %nuclio help Overview
    Show help on command. Available commands:
-- cmd: Run a command, add it to "build
-- env: Set environment variable
-- env_file: Set environment from file(s)
-- export: Export notebook
-- handler: Mark this cell as handler function
-- help: Print help on command
-- verbose: Toggle verbose mode
+    - cmd: Run a command, add it to "build
+    - env: Set environment variable
+    - env_file: Set environment from file(s)
+    - export: Export notebook
+    - handler: Mark this cell as handler function
+    - help: Print help on command
+    - verbose: Toggle verbose mode
 
 cmd
 ---
 
-.. code-block::
+::
 
    In [1]: %nuclio help cmd
    Run a command, add it to "build.Commands" in exported configuration.
@@ -45,7 +45,7 @@ cmd
 env
 ---
 
-.. code-block::
+::
 
    In [1]: %nuclio help env
    Set environment variable. Will update "spec.env" in configuration.
@@ -65,7 +65,7 @@ env
 env_file
 --------
 
-.. code-block::
+::
 
    In [1]: %nuclio help env_file
    Set environment from file(s). Will update "spec.env" in configuration.
@@ -80,13 +80,12 @@ env_file
 export
 ------
 
-.. code-block::
+::
 
    In [1]: %nuclio help export
    Export notebook.
 
-Example:
-
+    Example:
     In [1] %nuclio export
     Notebook exported to handler at '/tmp/nuclio-handler-99'
     In [2] %nuclio export --output-dir /tmp/handler
@@ -97,7 +96,7 @@ Example:
 handler
 -------
 
-.. code-block::
+::
 
    In [1]: %nuclio help handler
    Mark this cell as handler function.
@@ -117,13 +116,12 @@ handler
 help
 ----
 
-.. code-block::
+::
 
    In [1]: %nuclio help help
    Print help on command.
 
-Example:
-
+    Example:
     In [1]: %nuclio help
     Available commands:
     - env
@@ -136,13 +134,12 @@ Example:
 verbose
 -------
 
-.. code-block::
+::
 
    In [1]: %nuclio help verbose
    Toggle verbose mode.
 
-Example:
-
+    Example:
     In [1]: %nuclio verobose
     %nuclio: verbose off
     In [2]: %nuclio verobose
