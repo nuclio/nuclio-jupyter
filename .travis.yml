@@ -22,3 +22,5 @@ script:
   - make test
 env:
   - PIPENV_IGNORE_VIRTUALENVS=1
+after_success:
+- pipenv run python pypi_upload.py
