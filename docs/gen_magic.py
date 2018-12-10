@@ -12,7 +12,7 @@ help_template = '''\
 {name}
 {underline}
 
-.. code-block::
+::
 
    In [1]: %nuclio help {name}
    {help}

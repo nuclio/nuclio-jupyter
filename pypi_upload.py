@@ -22,32 +22,11 @@ from subprocess import run
 from sys import executable
 
 
-def git_branch():
-    branch = environ.get('TRAVIS_BRANCH')
-    if branch:
-        return branch
-
-    cmd = ['git', 'rev-parse', '--abbrev-ref', 'HEAD']
-    out = run(cmd, capture_output=True)
-    if out.returncode != 0:
-        return ''
-
-    return out.stdout.decode('utf-8').strip()
-
-
 def should_upload():
-    repo = environ.get('TRAVIS_REPO_SLUG')
-    if repo != 'nuclio/nuclio-jupyter':
+    if environ.get('TRAVIS_REPO_SLUG') != 'nuclio/nuclio-jupyter':
         return False
 
-    return git_branch() == 'master'
-
-
-def git_sha():
-    out = run(['git', 'rev-parse', '--short', 'HEAD'], capture_output=True)
-    if out.returncode != 0:
-        return ''
-    return out.stdout.decode('utf-8').strip()
+    return environ.get('TRAVIS_TAG')
 
 
 if __name__ == '__main__':
@@ -63,7 +42,7 @@ if __name__ == '__main__':
 
     ok = args.force or should_upload()
     if not ok:
-        raise SystemExit('error: wrong branch or repo (try with --force)')
+        raise SystemExit('error: wrong repo or no tag (try with --force)')
 
     if path.exists('dist'):
         rmtree('dist')

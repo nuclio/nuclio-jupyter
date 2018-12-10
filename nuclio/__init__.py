@@ -16,4 +16,4 @@ from .magic import print_handler_code # noqa
 from .request import Context, Event  # noqa
 from . import magic  # noqa
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'

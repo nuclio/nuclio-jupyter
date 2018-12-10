@@ -82,8 +82,9 @@ def nuclio(line, cell=None):
 
 @command
 def verbose(line, cell):
-    """Toggle verbose mode.\n\nExample:
+    """Toggle verbose mode.
 
+    Example:
     In [1]: %nuclio verobose
     %nuclio: verbose off
     In [2]: %nuclio verobose
@@ -145,8 +146,9 @@ def env(line, cell):
 
 @command
 def help(line, cell):
-    """Print help on command.\n\nExample:
+    """Print help on command.
 
+    Example:
     In [1]: %nuclio help
     Available commands:
     - env
@@ -166,7 +168,7 @@ def help(line, cell):
             else:
                 i = doc.find('.')
                 short_help = doc[:i] if i != -1 else doc[:40]
-            print('- {}: {}'.format(cmd, short_help))
+            print('    - {}: {}'.format(cmd, short_help))
         return
 
     fn = commands.get(cmd)
@@ -239,7 +241,9 @@ def cmd(line, cell):
 # TODO
 # @command
 def deploy(line, cell):
-    """Deploy function .\n\nExamples:
+    """Deploy function .
+
+    Examples:
     In [1]: %nuclio deploy
     %nuclio: function deployed
 
@@ -290,8 +294,9 @@ def notebook_file_name():
 
 @command
 def export(line, cell, return_dir=False):
-    """Export notebook.\n\nExample:
+    """Export notebook.
 
+    Example:
     In [1] %nuclio export
     Notebook exported to handler at '/tmp/nuclio-handler-99'
     In [2] %nuclio export --output-dir /tmp/handler
