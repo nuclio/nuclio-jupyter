@@ -19,6 +19,6 @@ python: "3.7"
 script:
   - pip install pipenv
   - pipenv sync --dev
-  - pipenv run python -m pytest -v
+  - make test
 env:
   - PIPENV_IGNORE_VIRTUALENVS=1
