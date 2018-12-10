@@ -48,3 +48,7 @@ upload-docker: build-docker
 # Testing markdown
 README.html: README.md
 	kramdown -i GFM $< > $@
+
+.PHONY: magic-help
+magic-help:
+	ipython --no-term-title docs/gen_magic.py > docs/magic.rst

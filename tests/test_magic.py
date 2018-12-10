@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,8 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .magic import print_handler_code # noqa
-from .request import Context, Event  # noqa
-from . import magic  # noqa
+from contextlib import redirect_stdout
+from io import StringIO
+from nuclio import magic
 
-__version__ = '0.3.0'
+from test_export import here
+
+
+def test_print_handler_code():
+    fname = '{}/handler.ipynb'.format(here)
+    io = StringIO()
+    with redirect_stdout(io):
+        magic.print_handler_code(fname)
+
+    assert 'def handler' in io.getvalue()

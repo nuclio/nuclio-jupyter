@@ -11,11 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+#
 language: python
-python:
-  - "3.7-dev"
+sudo: required
+dist: xenial
+python: "3.7"
 script:
   - pip install pipenv
   - pipenv sync --dev
-  - pipenv run python -m pytest -v
+  - make test
+env:
+  - PIPENV_IGNORE_VIRTUALENVS=1
