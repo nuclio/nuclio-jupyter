@@ -24,3 +24,7 @@ def test_handler():
     context.logger.info_with('some information', x=1, y=2)
     out = handler(context, event)
     assert out == 'Hi Dave. How are you?'
+
+
+def test_inject_context():
+    context  # noqa - Make sure it's there

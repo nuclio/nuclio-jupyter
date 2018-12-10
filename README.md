@@ -20,19 +20,20 @@ Run the following in a cell
 
 ## Usage
 
-When developing, import `Context` and `Event` from `nucilo` and use it to
-generate a mock context and request.
+When developing, import `Event` from `nucilo` and use it to generate a mock
+request events.
 
 ```python
 import nuclio
 ```
 
+This will inject a `context` object into the notebook namespace.
+
 Then
 ```python
 # nuclio: ignore
-from nuclio import Context, Event
+from nuclio import Event
 
-context = Context()
 event = Event(body='Hello Nuclio')
 # your code goes here
 ```

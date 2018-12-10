@@ -10,12 +10,14 @@ Various utilities to work with nuclio_ in Jupyter notebook
 
 .. _nuclio: https://nuclio.io/
 
+Once you import ``nucilo`` a ``context`` object will be injected into the
+notebook namesapce.
+
 .. code-block:: python
 
     # nuclio: ignore
-    from nuclio import Context, Event
+    from nuclio import Event
 
-    context = Context()
     event = Event(body='Hello Nuclio')
     # your code goes here
 

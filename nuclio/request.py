@@ -30,3 +30,9 @@ class Context(_Context):
             value.set_handler(
                 'nuclio-jupyter', stdout, HumanReadableFormatter())
         return value
+
+
+def inject_context():
+    import builtins
+
+    builtins.context = Context()
