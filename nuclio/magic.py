@@ -30,6 +30,8 @@ from IPython import get_ipython
 from IPython.core.magic import register_line_cell_magic
 from notebook.notebookapp import list_running_servers
 
+from .utils import parse_env, iter_env_lines, parse_config_line
+
 log_prefix = '%nuclio: '
 
 # Make sure we're working when not running under IPython/Jupyter
@@ -94,14 +96,6 @@ def verbose(line, cell):
 
     log = noop_log if log is verbose_log else verbose_log
     print('%nuclio: verbose {}'.format('on' if log is verbose_log else 'off'))
-
-
-def parse_env(line):
-    i = line.find('=')
-    if i == -1:
-        return None, None
-    key, value = line[:i].strip(), line[i+1:].strip()
-    return key, value
 
 
 def set_env(line):
@@ -177,14 +171,6 @@ def help(line, cell):
         return
 
     print(fn.__doc__)
-
-
-def iter_env_lines(fp):
-    for line in fp:
-        line = line.strip()
-        if not line or line[0] == '#':
-            continue
-        yield line
 
 
 def env_from_file(path):
@@ -349,7 +335,7 @@ def parse_export_line(line):
     return parser.parse_known_args(shlex.split(line))
 
 
-def print_on_of(pattern):
+def print_first_of(pattern):
     files = glob(pattern)
     if not files:
         raise ValueError('no match for {}'.format(pattern))
@@ -358,6 +344,37 @@ def print_on_of(pattern):
     print('--- {} ---\n'.format(path.basename(fname)))
     with open(fname) as fp:
         print(fp.read())
+
+
+def uncomment(line):
+    line = line.strip()
+    return '' if line[0] == '#' else line
+
+
+@command
+def config(line, cell):
+    """Set function configuration value. Values need to be Python literals (1,
+    "debug", 3.3 ...). You can use += to append values to a list
+
+    Example:
+    In [1] %nuclio config spec.maxReplicas = 5
+    In [2]: %%nuclio config
+    ...: spec.maxReplicas = 5
+    ...: spec.runtime = "python2.7"
+    ...: build.commands +=  "apk --update --no-cache add ca-certificates"
+    ...:
+    """
+    cell = cell or ''
+    for line in filter(None, map(uncomment, [line] + cell.splitlines())):
+        try:
+            key, op, value = parse_config_line(line)
+        except ValueError:
+            log_error('bad config line - {!r}'.format(line))
+
+        if op == '=':
+            log('setting {} to {!r}'.format(key, value))
+        else:
+            log('appending {!r} to {}'.format(value, key))
 
 
 def print_handler_code(notebook_file=None):
@@ -374,5 +391,5 @@ def print_handler_code(notebook_file=None):
     if not out_dir:
         raise ValueError('failed to export {}'.format(notebook_file))
 
-    print_on_of('{}/*.py'.format(out_dir))
-    print_on_of('{}/*.yaml'.format(out_dir))
+    print_first_of('{}/*.py'.format(out_dir))
+    print_first_of('{}/*.yaml'.format(out_dir))

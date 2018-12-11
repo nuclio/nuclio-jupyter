@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from ast import literal_eval
 from io import BytesIO
 from glob import glob
 from os.path import abspath, dirname
@@ -42,10 +43,14 @@ def test_export():
     assert len(files) == 1, 'wrong # of zip files in {}'.format(files)
 
     with ZipFile(files[0]) as zf:
+        names = zf.namelist()
         code = zf.read('handler.py').decode('utf-8')
+        config = zf.read('function.yaml')
 
+    assert set(names) == {'function.yaml', 'handler.py'}, 'bad files'
     # Check we added handler
     assert export.handler_decl in code, 'no handler in code'
+    yaml.load(config)  # Make sure it's valid YAML
 
 
 @pytest.mark.install
@@ -70,6 +75,16 @@ def iter_convert():
             yield pytest.param(case, id=case['name'])
 
 
+def export_notebook(nb):
+    exp = export.NuclioExporter()
+    out, _ = exp.from_notebook_node(nb, {})
+    with ZipFile(BytesIO(out)) as zf:
+        handler = zf.read('handler.py').decode('utf-8')
+        config = yaml.load(zf.read('function.yaml'))
+
+    return handler, config
+
+
 @pytest.mark.parametrize('case', iter_convert())
 def test_convert(case):
     nb = {'cells': [
@@ -80,10 +95,40 @@ def test_convert(case):
         ],
     }
 
-    exp = export.NuclioExporter()
-    out, _ = exp.from_notebook_node(nb, {})
-    with ZipFile(BytesIO(out)) as zf:
-        out = zf.read('handler.py').decode('utf-8')
+    code, _ = export_notebook(nb)
+    code = code[code.find('\n'):].strip()  # Trim first line
+    assert code == case['out'].strip()
 
-    out = out[out.find('\n'):].strip()  # Trim first line
-    assert out == case['out'].strip()
+
+def test_update_in():
+    obj = {}
+    export.update_in(obj, 'a.b.c', 2)
+    assert obj['a']['b']['c'] == 2
+    export.update_in(obj, 'a.b.c', 3)
+    assert obj['a']['b']['c'] == 3
+
+    export.update_in(obj, 'a.b.d', 3, append=True)
+    assert obj['a']['b']['d'] == [3]
+    export.update_in(obj, 'a.b.d', 4, append=True)
+    assert obj['a']['b']['d'] == [3, 4]
+
+
+def test_config():
+    key, value = 'build.commands', '"apt install -y libyaml-dev"'
+    nb = {'cells': [
+        {
+            'source': '%nuclio config {} = {!r}'.format(key, value),
+            'cell_type': 'code',
+            }
+        ],
+    }
+
+    _, config = export_notebook(nb)
+    value = literal_eval(value)
+    assert get_in(config, key.split('.')) == value, "bad config"
+
+
+def get_in(obj, keys):
+    if not keys:
+        return obj
+    return get_in(obj[keys[0]], keys[1:])
