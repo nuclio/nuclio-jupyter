@@ -13,20 +13,19 @@
 # limitations under the License.
 
 from ast import literal_eval
-from io import BytesIO
 from glob import glob
-from os.path import abspath, dirname
+from io import BytesIO
 from subprocess import run
 from sys import executable
 from tempfile import mkdtemp
 from zipfile import ZipFile
 
-import pytest
 import yaml
 
+import pytest
 from nuclio import export
 
-here = dirname(abspath(__file__))
+from conftest import here
 
 
 def test_export():
@@ -35,7 +34,7 @@ def test_export():
         executable, '-m', 'nbconvert',
         '--to', 'nuclio.export.NuclioExporter',
         '--output-dir', out_dir,
-        'tests/handler.ipynb',
+        '{}/handler.ipynb'.format(here),
     ]
     run(cmd, check=True)
 
@@ -132,3 +131,18 @@ def get_in(obj, keys):
     if not keys:
         return obj
     return get_in(obj[keys[0]], keys[1:])
+
+
+def test_env():
+    key, value = 'user', 'daffy'
+    nb = {'cells': [
+        {
+            'source': '%nuclio env {}={}'.format(key, value),
+            'cell_type': 'code',
+            }
+        ],
+    }
+
+    _, config = export_notebook(nb)
+    env = config['spec']['env']
+    assert env == [{'name': key, 'value': value}], 'bad env'
