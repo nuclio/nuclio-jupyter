@@ -16,7 +16,7 @@ import re
 import shlex
 from collections import namedtuple
 from datetime import datetime
-from io import StringIO, BytesIO
+from io import BytesIO, StringIO
 from os.path import abspath, dirname
 from textwrap import indent
 from zipfile import ZipFile
@@ -25,7 +25,7 @@ import yaml
 from nbconvert.exporters import Exporter
 from nbconvert.filters import ipython2python
 
-from .magic import parse_env, iter_env_lines
+from .utils import iter_env_lines, parse_config_line, parse_env
 
 here = dirname(abspath(__file__))
 
@@ -38,6 +38,7 @@ is_return = re.compile(r'#\s*nuclio:\s*return').search
 has_ignore = re.compile(r'#\s*nuclio:\s*ignore').search
 handler_decl = 'def handler(context, event):'
 indent_prefix = '    '
+missing = object()
 
 function_config = {
     'apiVersion': 'nuclio.io/v1',
@@ -231,3 +232,33 @@ def comment_code(code):
 @magic_handler
 def export(magic):
     return comment_code('\n'.join(magic.lines))
+
+
+@magic_handler
+def config(magic):
+    for line in [' '.join(magic.args)] + magic.lines:
+        key, op, value = parse_config_line(line)
+        append = op == '+='
+        update_in(function_config, key, value, append)
+    return ''
+
+
+def update_in(obj, key, value, append=False):
+    parts = key.split('.')
+    for part in parts[:-1]:
+        sub = obj.get(part, missing)
+        if sub is missing:
+            sub = obj[part] = {}
+        obj = sub
+
+    last_key = parts[-1]
+    if last_key not in obj:
+        if append:
+            obj[last_key] = []
+        else:
+            obj[last_key] = {}
+
+    if append:
+        obj[last_key].append(value)
+    else:
+        obj[last_key] = value
