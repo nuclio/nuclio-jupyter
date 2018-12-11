@@ -47,7 +47,7 @@ function_config = {
     'spec': {
         'runtime': 'python:3.6',
         'handler': 'handler:handler',
-        'env': {},
+        'env': [],
     },
     'build': {
         'commands': [],
@@ -132,14 +132,26 @@ def magic_handler(fn):
     return fn
 
 
+def set_env(key, value):
+    obj = {
+        'name': key,
+        'value': value,
+    }
+    function_config['spec']['env'].append(obj)
+
+
 @magic_handler
 def env(magic):
-    for line in magic.args + magic.lines:
+    for line in [' '.join(magic.args)] + magic.lines:
+        line = line.strip()
+        if not line or line[0] == '#':
+            continue
+
         key, value = parse_env(line)
         if not key:
             raise ValueError(
                 'cannot parse environment value from: {}'.format(line))
-        function_config['spec']['env'][key] = value
+        set_env(key, value)
     return ''
 
 
@@ -165,7 +177,7 @@ def env_file(magic):
                 if not key:
                     raise ValueError(
                         '%s: cannot parse environment: {}'.format(fname, line))
-                function_config['spec']['env'][key] = value
+                set_env(key, value)
     return ''
 
 

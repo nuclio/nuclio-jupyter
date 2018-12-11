@@ -132,3 +132,18 @@ def get_in(obj, keys):
     if not keys:
         return obj
     return get_in(obj[keys[0]], keys[1:])
+
+
+def test_env():
+    key, value = 'user', 'daffy'
+    nb = {'cells': [
+        {
+            'source': '%nuclio env {}={}'.format(key, value),
+            'cell_type': 'code',
+            }
+        ],
+    }
+
+    _, config = export_notebook(nb)
+    env = config['spec']['env']
+    assert env == [{'name': key, 'value': value}], 'bad env'
