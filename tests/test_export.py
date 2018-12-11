@@ -12,21 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 from ast import literal_eval
-from io import BytesIO
 from glob import glob
+from io import BytesIO
+from os import environ
 from os.path import abspath, dirname
 from subprocess import run
 from sys import executable
-from tempfile import mkdtemp
+from tempfile import NamedTemporaryFile, mkdtemp
 from zipfile import ZipFile
 
-import pytest
 import yaml
 
+import pytest
 from nuclio import export
 
 here = dirname(abspath(__file__))
+env_file = '{}/env.txt'.format(here)
+
+
+def tmp_nb():
+    with open('tests/handler.ipynb') as fp:
+        nb = json.load(fp)
+
+    for cell in nb['cells']:
+        if cell['cell_type'] != 'code':
+            continue
+        src = cell.get('source')
+        if 'env_file' in src:
+            cell['source'] = '%nuclio env_file {}'.format(env_file)
+
+    tmp = NamedTemporaryFile('w', delete=False)
+    json.dump(nb, tmp)
+    return tmp.name
 
 
 def test_export():
@@ -35,9 +54,12 @@ def test_export():
         executable, '-m', 'nbconvert',
         '--to', 'nuclio.export.NuclioExporter',
         '--output-dir', out_dir,
-        'tests/handler.ipynb',
+        tmp_nb(),
     ]
-    run(cmd, check=True)
+    env = environ.copy()
+    env['PYTHONPATH'] = \
+        '{}:{}'.format(dirname(here), env.get('PYTHONPATH', ''))
+    run(cmd, cwd=here, check=True, env=env)
 
     files = glob('{}/*.zip'.format(out_dir))
     assert len(files) == 1, 'wrong # of zip files in {}'.format(files)
