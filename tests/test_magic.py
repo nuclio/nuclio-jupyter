@@ -16,7 +16,7 @@ from contextlib import redirect_stdout
 from io import StringIO
 from nuclio import magic
 
-from test_export import here
+from conftest import here
 
 
 def test_print_handler_code():
