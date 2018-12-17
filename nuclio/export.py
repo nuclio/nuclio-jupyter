@@ -17,7 +17,7 @@ import shlex
 from collections import namedtuple
 from datetime import datetime
 from io import BytesIO, StringIO
-from os.path import abspath, dirname
+from os import path, environ
 from textwrap import indent
 from zipfile import ZipFile
 
@@ -25,9 +25,9 @@ import yaml
 from nbconvert.exporters import Exporter
 from nbconvert.filters import ipython2python
 
-from .utils import iter_env_lines, parse_config_line, parse_env
+from .utils import env_keys, iter_env_lines, parse_config_line, parse_env
 
-here = dirname(abspath(__file__))
+here = path.dirname(path.abspath(__file__))
 
 Magic = namedtuple('Magic', 'name is_cell args lines')
 magic_handlers = {}  # name -> function
@@ -36,7 +36,7 @@ magic_handlers = {}  # name -> function
 is_return = re.compile(r'#\s*nuclio:\s*return').search
 # # nuclio: ignore
 has_ignore = re.compile(r'#\s*nuclio:\s*ignore').search
-handler_decl = 'def handler(context, event):'
+handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 missing = object()
 
@@ -46,13 +46,15 @@ function_config = {
     'metadata': {},
     'spec': {
         'runtime': 'python:3.6',
-        'handler': 'handler:handler',
+        'handler': None,
         'env': [],
     },
     'build': {
         'commands': [],
     }
 }
+
+handlers = []
 
 
 class NuclioExporter(Exporter):
@@ -68,6 +70,8 @@ class NuclioExporter(Exporter):
         return '.zip'
 
     def from_notebook_node(self, nb, resources=None, **kw):
+        function_config['spec']['handler'] = handler_name()
+
         io = StringIO()
         print(self.header(), file=io)
 
@@ -214,11 +218,17 @@ def add_return(line):
 
 @magic_handler
 def handler(magic):
-    return handler_code('\n'.join(magic.lines))
+    name = magic.args[0] if magic.args else next_handler_name()
+    if env_keys.handler_name not in environ:
+        module, _ = function_config['spec']['handler'].split(':')
+        function_config['spec']['handler'] = '{}:{}'.format(module, name)
+
+    code = '\n'.join(magic.lines)
+    return handler_code(name, code)
 
 
-def handler_code(code):
-    lines = [handler_decl]
+def handler_code(name, code):
+    lines = [handler_decl.format(name)]
     code = indent(code, indent_prefix)
     for line in code.splitlines():
         if is_return(line):
@@ -237,13 +247,9 @@ def handler_code(code):
     return '\n'.join(lines)
 
 
-def comment_code(code):
-    return re.sub('^', '# ', code, flags=re.MULTILINE)
-
-
 @magic_handler
 def export(magic):
-    return comment_code('\n'.join(magic.lines))
+    return ''
 
 
 @magic_handler
@@ -274,3 +280,33 @@ def update_in(obj, key, value, append=False):
         obj[last_key].append(value)
     else:
         obj[last_key] = value
+
+
+def next_handler_name():
+    if handlers:
+        name = 'handler_{}'.format(len(handlers))
+    else:
+        name = 'handler'
+    handlers.append(name)
+    return name
+
+
+def module_name(py_file):
+    """
+    >>> module_name('/path/to/handler.py')
+    'handler'
+    """
+    base = path.basename(py_file)
+    module, _ = path.splitext(base)
+    return module
+
+
+def handler_name():
+    handler_path = environ.get(env_keys.handler_path)
+    if handler_path:
+        module = module_name(handler_path)
+    else:
+        module = 'handler'
+
+    name = environ.get(env_keys.handler_name, 'handler')
+    return '{}:{}'.format(module, name)

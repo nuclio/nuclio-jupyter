@@ -13,19 +13,35 @@
 # limitations under the License.
 
 from ast import literal_eval
+from contextlib import contextmanager
 from glob import glob
 from io import BytesIO
+from os import environ
 from subprocess import run
 from sys import executable
 from tempfile import mkdtemp
 from zipfile import ZipFile
 
+import pytest
 import yaml
 
-import pytest
-from nuclio import export
-
 from conftest import here
+from nuclio import export
+from nuclio.utils import env_keys
+
+
+@contextmanager
+def temp_env(kw):
+    old = {k: environ.get(k) for k in kw}
+    environ.update(kw)
+    try:
+        yield
+    finally:
+        for key, value in old.items():
+            if value:
+                environ[key] = value
+            else:
+                del environ[key]
 
 
 def test_export():
@@ -48,7 +64,7 @@ def test_export():
 
     assert set(names) == {'function.yaml', 'handler.py'}, 'bad files'
     # Check we added handler
-    assert export.handler_decl in code, 'no handler in code'
+    assert 'def handler(' in code, 'no handler in code'
     yaml.load(config)  # Make sure it's valid YAML
 
 
@@ -85,15 +101,8 @@ def export_notebook(nb):
 
 
 @pytest.mark.parametrize('case', iter_convert())
-def test_convert(case):
-    nb = {'cells': [
-        {
-            'source': case['in'],
-            'cell_type': 'code',
-            }
-        ],
-    }
-
+def test_convert(case, clean_handlers):
+    nb = gen_nb([case['in']])
     code, _ = export_notebook(nb)
     code = code[code.find('\n'):].strip()  # Trim first line
     assert code == case['out'].strip()
@@ -114,14 +123,7 @@ def test_update_in():
 
 def test_config():
     key, value = 'build.commands', '"apt install -y libyaml-dev"'
-    nb = {'cells': [
-        {
-            'source': '%nuclio config {} = {!r}'.format(key, value),
-            'cell_type': 'code',
-            }
-        ],
-    }
-
+    nb = gen_nb(['%nuclio config {} = {!r}'.format(key, value)])
     _, config = export_notebook(nb)
     value = literal_eval(value)
     assert get_in(config, key.split('.')) == value, "bad config"
@@ -133,16 +135,46 @@ def get_in(obj, keys):
     return get_in(obj[keys[0]], keys[1:])
 
 
-def test_env():
-    key, value = 'user', 'daffy'
-    nb = {'cells': [
-        {
-            'source': '%nuclio env {}={}'.format(key, value),
-            'cell_type': 'code',
-            }
+def gen_nb(code_cells):
+    return {
+        'cells': [
+            {'source': code, 'cell_type': 'code'} for code in code_cells
         ],
     }
+
+
+def test_env():
+    key, value = 'user', 'daffy'
+    nb = gen_nb(['%nuclio env {}={}'.format(key, value)])
 
     _, config = export_notebook(nb)
     env = config['spec']['env']
     assert env == [{'name': key, 'value': value}], 'bad env'
+
+
+def test_named_handler():
+    name = 'lassie'
+    code = '''%%nuclio handler {}
+
+    'Hello ' + event.name  # nuclio: return
+    '''.format(name)
+    nb = gen_nb([code])
+    code, _ = export_notebook(nb)
+
+    decl = 'def {}('.format(name)
+    assert decl in code, 'bad export'
+
+
+def test_handler_name():
+    assert export.handler_name() == 'handler:handler'
+
+    name = 'lassie'
+    kw = {env_keys.handler_name: name}
+    with temp_env(kw):
+        assert export.handler_name() == 'handler:{}'.format(name)
+
+    module = 'face'
+    handler_path = '/path/to/{}.py'.format(module)
+    kw[env_keys.handler_path] = handler_path
+    with temp_env(kw):
+        assert export.handler_name() == '{}:{}'.format(module, name)

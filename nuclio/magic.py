@@ -14,25 +14,26 @@
 
 import json
 import re
-import shlex
-from argparse import ArgumentParser
 from glob import glob
 from os import environ, path
-from shutil import unpack_archive
+from shutil import copy, unpack_archive
 from subprocess import run
 from sys import executable, stderr
 from tempfile import mkdtemp
 from urllib.parse import urlencode, urljoin
 from urllib.request import urlopen
+from zipfile import ZipFile
 
 import ipykernel
 from IPython import get_ipython
 from IPython.core.magic import register_line_cell_magic
 from notebook.notebookapp import list_running_servers
 
-from .utils import parse_env, iter_env_lines, parse_config_line
+from .utils import (env_keys, iter_env_lines, parse_config_line, parse_env,
+                    parse_export_line)
 
 log_prefix = '%nuclio: '
+
 
 # Make sure we're working when not running under IPython/Jupyter
 kernel = get_ipython()
@@ -245,7 +246,7 @@ def deploy(line, cell):
 
 @command
 def handler(line, cell):
-    """Mark this cell as handler function.
+    """Mark this cell as handler function. You can give optional name
 
     %%nuclio handler
     ctx.logger.info('handler called')
@@ -266,6 +267,10 @@ def handler(line, cell):
 # https://github.com/jupyter/notebook/issues/1000#issuecomment-359875246
 def notebook_file_name():
     """Return the full path of the jupyter notebook."""
+    # Check that we're running under notebook
+    if not (kernel and kernel.config['IPKernelApp']):
+        return
+
     kernel_id = re.search('kernel-(.*).json',
                           ipykernel.connect.get_connection_file()).group(1)
     servers = list_running_servers()
@@ -280,7 +285,16 @@ def notebook_file_name():
 
 @command
 def export(line, cell, return_dir=False):
-    """Export notebook.
+    """Export notebook. Possible options are:
+
+    --output-dir path
+        Output directory path
+    --notebook path
+        Path to notebook file
+    --handler-name name
+        Name of handler
+    --handler-file path
+        Path to handler code (Python file)
 
     Example:
     In [1] %nuclio export
@@ -289,11 +303,15 @@ def export(line, cell, return_dir=False):
     Notebook exported to handler at '/tmp/handler'
     In [3] %nuclio export --notebook /path/to/notebook.ipynb
     Notebook exported to handler at '/tmp/nuclio-handler-29803'
+    In [4] %nuclio export --handler-name faces
+    Notebook exported to handler at '/tmp/nuclio-handler-29804'
+    In [5] %nuclio export --handler-file /tmp/faces.py
+    Notebook exported to handler at '/tmp/nuclio-handler-29805'
     """
 
     args, rest = parse_export_line(line)
     if rest:
-        log_error('nunknown arguments: {}'.format(' '.join(rest)))
+        log_error('unknown arguments: {}'.format(' '.join(rest)))
         return
 
     notebook = args.notebook or notebook_file_name()
@@ -303,13 +321,24 @@ def export(line, cell, return_dir=False):
 
     out_dir = args.output_dir or mkdtemp(prefix='nuclio-handler-')
 
+    env = environ.copy()  # Pass argument to exporter via environment
+    if args.handler_name:
+        env[env_keys.handler_name] = args.handler_name
+
+    if args.handler_path:
+        if not path.isfile(args.handler_path):
+            log_error(
+                'cannot find handler file: {}'.format(args.handler_path))
+            return
+        env[env_keys.handler_path] = args.handler_path
+
     cmd = [
         executable, '-m', 'nbconvert',
         '--to', 'nuclio.export.NuclioExporter',
         '--output-dir', out_dir,
         notebook,
     ]
-    out = run(cmd, capture_output=True)
+    out = run(cmd, env=env, capture_output=True)
     if out.returncode != 0:
         print(out.stdout.decode('utf-8'))
         print(out.stderr.decode('utf-8'), file=stderr)
@@ -321,18 +350,21 @@ def export(line, cell, return_dir=False):
         log_error('cannot find zip files in {}'.format(out_dir))
         return
 
-    unpack_archive(out_files[0], out_dir)
+    zip_file = out_files[0]
+    unpack_archive(zip_file, out_dir)
     log('handler exported to {}'.format(out_dir))
+
+    if args.handler_path:
+        copy(args.handler_path, out_dir)
+
+        with open(args.handler_path) as fp:
+            code = fp.read()
+        name = path.basename(args.handler_path)
+        with ZipFile(zip_file, 'a') as zf:
+            zf.writestr(name, code)
+
     if return_dir:
         return out_dir
-
-
-def parse_export_line(line):
-    parser = ArgumentParser(prog='%nuclio')
-    parser.add_argument('--output-dir')
-    parser.add_argument('--notebook')
-
-    return parser.parse_known_args(shlex.split(line))
 
 
 def print_first_of(pattern):

@@ -14,7 +14,14 @@
 
 
 import re
+from argparse import ArgumentParser
 from ast import literal_eval
+import shlex
+
+
+class env_keys:
+    handler_name = 'NUCLIO_HANDLER_NAME'
+    handler_path = 'NUCLIO_HANDLER_PATH'
 
 
 def parse_env(line):
@@ -49,3 +56,16 @@ def parse_config_line(line):
         raise ValueError(line)
 
     return key, op, value
+
+
+def parse_export_line(args):
+    parser = ArgumentParser(prog='%nuclio')
+    parser.add_argument('--output-dir')
+    parser.add_argument('--notebook')
+    parser.add_argument('--handler-name')
+    parser.add_argument('--handler-path')
+
+    if isinstance(args, str):
+        args = shlex.split(args)
+
+    return parser.parse_known_args(args)
