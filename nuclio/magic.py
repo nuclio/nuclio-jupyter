@@ -267,6 +267,10 @@ def handler(line, cell):
 # https://github.com/jupyter/notebook/issues/1000#issuecomment-359875246
 def notebook_file_name():
     """Return the full path of the jupyter notebook."""
+    # Check that we're running under notebook
+    if not (kernel and kernel.config['IPKernelApp']):
+        return
+
     kernel_id = re.search('kernel-(.*).json',
                           ipykernel.connect.get_connection_file()).group(1)
     servers = list_running_servers()
@@ -356,7 +360,7 @@ def export(line, cell, return_dir=False):
         with open(args.handler_path) as fp:
             code = fp.read()
         name = path.basename(args.handler_path)
-        with ZipFile(zip_file, 'w') as zf:
+        with ZipFile(zip_file, 'a') as zf:
             zf.writestr(name, code)
 
     if return_dir:
