@@ -15,6 +15,7 @@ Overview
    In [1]: %nuclio help Overview
    Show help on command. Available commands:
     - cmd: Run a command, add it to "build
+    - config: Set function configuration value
     - env: Set environment variable
     - env_file: Set environment from file(s)
     - export: Export notebook
@@ -41,6 +42,23 @@ cmd
     running it locally, use the '--config-only' or '-c' flag
 
     In [3]: %nuclio cmd --config-only apt-get install -y libyaml-dev
+
+config
+------
+
+::
+
+   In [1]: %nuclio help config
+   Set function configuration value. Values need to be Python literals (1,
+    "debug", 3.3 ...). You can use += to append values to a list
+
+    Example:
+    In [1] %nuclio config spec.maxReplicas = 5
+    In [2]: %%nuclio config
+    ...: spec.maxReplicas = 5
+    ...: spec.runtime = "python2.7"
+    ...: build.commands +=  "apk --update --no-cache add ca-certificates"
+    ...:
 
 env
 ---
@@ -83,7 +101,16 @@ export
 ::
 
    In [1]: %nuclio help export
-   Export notebook.
+   Export notebook. Possible options are:
+
+    --output-dir path
+        Output directory path
+    --notebook path
+        Path to notebook file
+    --handler-name name
+        Name of handler
+    --handler-file path
+        Path to handler code (Python file)
 
     Example:
     In [1] %nuclio export
@@ -92,6 +119,10 @@ export
     Notebook exported to handler at '/tmp/handler'
     In [3] %nuclio export --notebook /path/to/notebook.ipynb
     Notebook exported to handler at '/tmp/nuclio-handler-29803'
+    In [4] %nuclio export --handler-name faces
+    Notebook exported to handler at '/tmp/nuclio-handler-29804'
+    In [5] %nuclio export --handler-file /tmp/faces.py
+    Notebook exported to handler at '/tmp/nuclio-handler-29805'
 
 handler
 -------
@@ -99,7 +130,7 @@ handler
 ::
 
    In [1]: %nuclio help handler
-   Mark this cell as handler function.
+   Mark this cell as handler function. You can give optional name
 
     %%nuclio handler
     ctx.logger.info('handler called')
