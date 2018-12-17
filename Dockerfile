@@ -26,4 +26,6 @@ EXPOSE 8888
 WORKDIR /code
 VOLUME /code
 COPY tests/handler.ipynb example.ipynb
+COPY tests/env.txt .
+ENV ENV_FILE=/code/env.txt
 CMD jupyter lab --core-mode --allow-root --no-browser --ip 0.0.0.0
