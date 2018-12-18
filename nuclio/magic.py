@@ -17,7 +17,7 @@ import re
 from glob import glob
 from os import environ, path
 from shutil import copy, unpack_archive
-from subprocess import run
+from subprocess import run, PIPE
 from sys import executable, stderr
 from tempfile import mkdtemp
 from urllib.parse import urlencode, urljoin
@@ -338,7 +338,7 @@ def export(line, cell, return_dir=False):
         '--output-dir', out_dir,
         notebook,
     ]
-    out = run(cmd, env=env, capture_output=True)
+    out = run(cmd, env=env, stdout=PIPE, stderr=PIPE)
     if out.returncode != 0:
         print(out.stdout.decode('utf-8'))
         print(out.stderr.decode('utf-8'), file=stderr)
