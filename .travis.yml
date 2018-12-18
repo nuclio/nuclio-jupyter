@@ -15,12 +15,23 @@
 language: python
 sudo: required
 dist: xenial
-python: "3.7"
-script:
-  - pip install pipenv
-  - pipenv sync --dev
-  - make test
-env:
-  - PIPENV_IGNORE_VIRTUALENVS=1
-after_success:
-- pipenv run python pypi_upload.py
+matrix:
+  include:
+  -  language: python
+     python: "3.7"
+     script:
+       - pip install pipenv
+       - pipenv sync --dev
+       - make test
+     env:
+       - PIPENV_IGNORE_VIRTUALENVS=1
+     after_success:
+     - pipenv run python pypi_upload.py
+  -  language: python
+     python: "3.6"
+     script:
+       - pip install pipenv
+       - pipenv sync --dev
+       - make test
+     env:
+       - PIPENV_IGNORE_VIRTUALENVS=1
