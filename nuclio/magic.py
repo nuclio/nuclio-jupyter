@@ -380,7 +380,7 @@ def print_first_of(pattern):
 
 def uncomment(line):
     line = line.strip()
-    return '' if line[0] == '#' else line
+    return '' if line[:1] == '#' else line
 
 
 @command
@@ -402,6 +402,7 @@ def config(line, cell):
             key, op, value = parse_config_line(line)
         except ValueError:
             log_error('bad config line - {!r}'.format(line))
+            return
 
         if op == '=':
             log('setting {} to {!r}'.format(key, value))
