@@ -18,10 +18,13 @@ from argparse import ArgumentParser
 from ast import literal_eval
 import shlex
 
+missing = object()
+
 
 class env_keys:
     handler_name = 'NUCLIO_HANDLER_NAME'
     handler_path = 'NUCLIO_HANDLER_PATH'
+    no_embed_code = 'NUCLIO_NO_EMBED_CODE'
 
 
 def parse_env(line):
@@ -64,8 +67,30 @@ def parse_export_line(args):
     parser.add_argument('--notebook')
     parser.add_argument('--handler-name')
     parser.add_argument('--handler-path')
+    parser.add_argument('--no-embed')
 
     if isinstance(args, str):
         args = shlex.split(args)
 
     return parser.parse_known_args(args)
+
+
+def update_in(obj, key, value, append=False):
+    parts = key.split('.')
+    for part in parts[:-1]:
+        sub = obj.get(part, missing)
+        if sub is missing:
+            sub = obj[part] = {}
+        obj = sub
+
+    last_key = parts[-1]
+    if last_key not in obj:
+        if append:
+            obj[last_key] = []
+        else:
+            obj[last_key] = {}
+
+    if append:
+        obj[last_key].append(value)
+    else:
+        obj[last_key] = value

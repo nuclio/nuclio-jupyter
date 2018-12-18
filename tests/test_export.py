@@ -108,19 +108,6 @@ def test_convert(case, clean_handlers):
     assert code == case['out'].strip()
 
 
-def test_update_in():
-    obj = {}
-    export.update_in(obj, 'a.b.c', 2)
-    assert obj['a']['b']['c'] == 2
-    export.update_in(obj, 'a.b.c', 3)
-    assert obj['a']['b']['c'] == 3
-
-    export.update_in(obj, 'a.b.d', 3, append=True)
-    assert obj['a']['b']['d'] == [3]
-    export.update_in(obj, 'a.b.d', 4, append=True)
-    assert obj['a']['b']['d'] == [3, 4]
-
-
 def test_config():
     key, value = 'build.commands', '"apt install -y libyaml-dev"'
     nb = gen_nb(['%nuclio config {} = {!r}'.format(key, value)])

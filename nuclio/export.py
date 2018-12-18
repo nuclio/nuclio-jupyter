@@ -14,10 +14,11 @@
 
 import re
 import shlex
+from base64 import b64encode
 from collections import namedtuple
 from datetime import datetime
 from io import BytesIO, StringIO
-from os import path, environ
+from os import environ, path
 from textwrap import indent
 from zipfile import ZipFile
 
@@ -25,7 +26,8 @@ import yaml
 from nbconvert.exporters import Exporter
 from nbconvert.filters import ipython2python
 
-from .utils import env_keys, iter_env_lines, parse_config_line, parse_env
+from .utils import (env_keys, iter_env_lines, parse_config_line, parse_env,
+                    update_in)
 
 here = path.dirname(path.abspath(__file__))
 
@@ -38,7 +40,6 @@ is_return = re.compile(r'#\s*nuclio:\s*return').search
 has_ignore = re.compile(r'#\s*nuclio:\s*ignore').search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
-missing = object()
 
 function_config = {
     'apiVersion': 'nuclio.io/v1',
@@ -93,6 +94,10 @@ class NuclioExporter(Exporter):
             print(ipython2python(code), file=io)
 
         py_code = io.getvalue()
+        if env_keys.no_embed_code not in environ:
+            data = b64encode(py_code.encode('utf-8')).decode('utf-8')
+            function_config['build']['functionSourceCode'] = data
+
         config = gen_config(function_config)
         zip_data = gen_zip(py_code, config)
         resources['output_extension'] = '.zip'
@@ -259,27 +264,6 @@ def config(magic):
         append = op == '+='
         update_in(function_config, key, value, append)
     return ''
-
-
-def update_in(obj, key, value, append=False):
-    parts = key.split('.')
-    for part in parts[:-1]:
-        sub = obj.get(part, missing)
-        if sub is missing:
-            sub = obj[part] = {}
-        obj = sub
-
-    last_key = parts[-1]
-    if last_key not in obj:
-        if append:
-            obj[last_key] = []
-        else:
-            obj[last_key] = {}
-
-    if append:
-        obj[last_key].append(value)
-    else:
-        obj[last_key] = value
 
 
 def next_handler_name():

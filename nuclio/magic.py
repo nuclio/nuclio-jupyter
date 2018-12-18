@@ -332,6 +332,9 @@ def export(line, cell, return_dir=False):
             return
         env[env_keys.handler_path] = args.handler_path
 
+    if args.no_embed:
+        env[env_keys.embed_code] = '1'
+
     cmd = [
         executable, '-m', 'nbconvert',
         '--to', 'nuclio.export.NuclioExporter',
