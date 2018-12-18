@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from glob import glob
 from io import BytesIO
 from os import environ
-from subprocess import run
+from subprocess import run, PIPE
 from sys import executable
 from tempfile import mkdtemp
 from zipfile import ZipFile
@@ -79,7 +79,7 @@ def test_install():
     run([python, '-m', 'pip', 'install', 'notebook'], check=True)
 
     py_cmd = 'import nbconvert.exporters as e; print(e.get_export_names())'
-    out = run([python, '-c', py_cmd], capture_output=True, check=True)
+    out = run([python, '-c', py_cmd], stdout=PIPE, check=True)
     out = out.stdout.decode('utf-8')
     assert 'nuclio' in out
 
