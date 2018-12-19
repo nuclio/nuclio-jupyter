@@ -14,9 +14,12 @@
 
 
 import re
+import shlex
 from argparse import ArgumentParser
 from ast import literal_eval
-import shlex
+from base64 import b64decode
+
+import yaml
 
 missing = object()
 
@@ -62,7 +65,7 @@ def parse_config_line(line):
 
 
 def parse_export_line(args):
-    parser = ArgumentParser(prog='%nuclio')
+    parser = ArgumentParser(prog='%nuclio', add_help=False)
     parser.add_argument('--output-dir')
     parser.add_argument('--notebook')
     parser.add_argument('--handler-name')
@@ -94,3 +97,11 @@ def update_in(obj, key, value, append=False):
         obj[last_key].append(value)
     else:
         obj[last_key] = value
+
+
+def load_config(config_file):
+    config = yaml.load(config_file)
+    code = config['spec']['build'].get('functionSourceCode')
+    if code:
+        code = b64decode(code).decode('utf-8')
+    return code, config

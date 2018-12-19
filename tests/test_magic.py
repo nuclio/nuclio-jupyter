@@ -33,6 +33,5 @@ def test_export():
     nb = '{}/handler.ipynb'.format(here)
     line = '--notebook {}'.format(nb)
     dir_name = magic.export(line, None, return_dir=True)
-    names = ['handler.py', 'function.yaml', 'handler.zip']
     files = glob('{}/*'.format(dir_name))
-    assert len(files) == len(names), 'bad number of files'
+    assert len(files) == 1, 'bad number of files'

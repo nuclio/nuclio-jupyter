@@ -15,19 +15,17 @@
 from ast import literal_eval
 from contextlib import contextmanager
 from glob import glob
-from io import BytesIO
 from os import environ
 from subprocess import run, PIPE
 from sys import executable
 from tempfile import mkdtemp
-from zipfile import ZipFile
 
 import pytest
 import yaml
 
 from conftest import here
 from nuclio import export
-from nuclio.utils import env_keys
+from nuclio.utils import env_keys, load_config
 
 
 @contextmanager
@@ -54,18 +52,12 @@ def test_export():
     ]
     run(cmd, check=True)
 
-    files = glob('{}/*.zip'.format(out_dir))
+    files = glob('{}/*.yaml'.format(out_dir))
     assert len(files) == 1, 'wrong # of zip files in {}'.format(files)
-
-    with ZipFile(files[0]) as zf:
-        names = zf.namelist()
-        code = zf.read('handler.py').decode('utf-8')
-        config = zf.read('function.yaml')
-
-    assert set(names) == {'function.yaml', 'handler.py'}, 'bad files'
+    with open(files[0]) as fp:
+        code, config = load_config(fp)
     # Check we added handler
     assert 'def handler(' in code, 'no handler in code'
-    yaml.load(config)  # Make sure it's valid YAML
 
 
 @pytest.mark.install
@@ -93,11 +85,8 @@ def iter_convert():
 def export_notebook(nb):
     exp = export.NuclioExporter()
     out, _ = exp.from_notebook_node(nb, {})
-    with ZipFile(BytesIO(out)) as zf:
-        handler = zf.read('handler.py').decode('utf-8')
-        config = yaml.load(zf.read('function.yaml'))
-
-    return handler, config
+    code, config = load_config(out)
+    return code, config
 
 
 @pytest.mark.parametrize('case', iter_convert())
