@@ -16,21 +16,20 @@ import json
 import re
 from glob import glob
 from os import environ, path
-from shutil import copy, unpack_archive
-from subprocess import run, PIPE
+from shutil import copy
+from subprocess import PIPE, run
 from sys import executable, stderr
 from tempfile import mkdtemp
 from urllib.parse import urlencode, urljoin
 from urllib.request import urlopen
-from zipfile import ZipFile
 
 import ipykernel
 from IPython import get_ipython
 from IPython.core.magic import register_line_cell_magic
 from notebook.notebookapp import list_running_servers
 
-from .utils import (env_keys, iter_env_lines, parse_config_line, parse_env,
-                    parse_export_line)
+from .utils import (env_keys, iter_env_lines, load_config, parse_config_line,
+                    parse_env, parse_export_line)
 
 log_prefix = '%nuclio: '
 
@@ -330,7 +329,11 @@ def export(line, cell, return_dir=False):
             log_error(
                 'cannot find handler file: {}'.format(args.handler_path))
             return
+        copy(args.handler_path, out_dir)
         env[env_keys.handler_path] = args.handler_path
+
+    if args.no_embed:
+        env[env_keys.no_embed_code] = '1'
 
     cmd = [
         executable, '-m', 'nbconvert',
@@ -345,37 +348,8 @@ def export(line, cell, return_dir=False):
         log_error('cannot convert notebook')
         return
 
-    out_files = glob('{}/*.zip'.format(out_dir))
-    if not out_files:
-        log_error('cannot find zip files in {}'.format(out_dir))
-        return
-
-    zip_file = out_files[0]
-    unpack_archive(zip_file, out_dir)
-    log('handler exported to {}'.format(out_dir))
-
-    if args.handler_path:
-        copy(args.handler_path, out_dir)
-
-        with open(args.handler_path) as fp:
-            code = fp.read()
-        name = path.basename(args.handler_path)
-        with ZipFile(zip_file, 'a') as zf:
-            zf.writestr(name, code)
-
     if return_dir:
         return out_dir
-
-
-def print_first_of(pattern):
-    files = glob(pattern)
-    if not files:
-        raise ValueError('no match for {}'.format(pattern))
-
-    fname = files[0]
-    print('--- {} ---\n'.format(path.basename(fname)))
-    with open(fname) as fp:
-        print(fp.read())
 
 
 def uncomment(line):
@@ -424,5 +398,10 @@ def print_handler_code(notebook_file=None):
     if not out_dir:
         raise ValueError('failed to export {}'.format(notebook_file))
 
-    print_first_of('{}/*.py'.format(out_dir))
-    print_first_of('{}/*.yaml'.format(out_dir))
+    files = glob('{}/*.yaml'.format(out_dir))
+    if len(files) != 1:
+        raise ValueError('too many YAML files in {}'.format(out_dir))
+
+    with open(files[0]) as fp:
+        code, _ = load_config(fp)
+    print(code)
