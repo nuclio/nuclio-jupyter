@@ -82,9 +82,10 @@ def iter_convert():
             yield pytest.param(case, id=case['name'])
 
 
-def export_notebook(nb):
+def export_notebook(nb, resources=None):
+    resources = {} if resources is None else resources
     exp = export.NuclioExporter()
-    out, _ = exp.from_notebook_node(nb, {})
+    out, _ = exp.from_notebook_node(nb, resources)
     code, config = load_config(out)
     return code, config
 
@@ -154,3 +155,14 @@ def test_handler_name():
     kw[env_keys.handler_path] = handler_path
     with temp_env(kw):
         assert export.handler_name() == '{}:{}'.format(module, name)
+
+
+def test_meta_name():
+    name = 'iguazio'
+    resources = {
+        'metadata': {
+            'name': name,
+        },
+    }
+    _, config = export_notebook(gen_nb([]), resources)
+    assert config['metadata']['name'] == name, 'wrong name'

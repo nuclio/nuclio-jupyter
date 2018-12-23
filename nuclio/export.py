@@ -39,12 +39,13 @@ is_return = re.compile(r'#\s*nuclio:\s*return').search
 has_ignore = re.compile(r'#\s*nuclio:\s*ignore').search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
-commands_key = 'spec.build.commands'
 
 function_config = {
     'apiVersion': 'nuclio.io/v1',
     'kind': 'Function',
-    'metadata': {},
+    'metadata': {
+        'name': 'notebook',
+    },
     'spec': {
         'runtime': 'python:3.6',
         'handler': None,
@@ -71,6 +72,9 @@ class NuclioExporter(Exporter):
         return '.yaml'
 
     def from_notebook_node(self, nb, resources=None, **kw):
+        handler = get_in(resources, 'metadata.name')  # notebook name
+        if handler:
+            function_config['metadata']['name'] = handler
         function_config['spec']['handler'] = handler_name()
 
         io = StringIO()
@@ -178,7 +182,7 @@ def cmd(magic):
             continue
 
         line = line.replace('--config-only', '').strip()
-        update_in(function_config, commands_key, line, append=True)
+        update_in(function_config, 'spec.build.commands', line, append=True)
     return ''
 
 
@@ -288,3 +292,18 @@ def handler_name():
 
     name = environ.get(env_keys.handler_name, 'handler')
     return '{}:{}'.format(module, name)
+
+
+def get_in(obj, keys):
+    """
+    >>> get_in({'a': {'b': 1}}, 'a.b')
+    1
+    """
+    if isinstance(keys, str):
+        keys = keys.split('.')
+
+    for key in keys:
+        if not obj or key not in obj:
+            return None
+        obj = obj[key]
+    return obj
