@@ -45,6 +45,7 @@ function_config = {
     'kind': 'Function',
     'metadata': {
         'name': 'notebook',
+        'namespace': 'default-tenant',
     },
     'spec': {
         'runtime': 'python:3.6',
@@ -52,6 +53,7 @@ function_config = {
         'env': [],
         'build': {
             'commands': [],
+            'noBaseImagesPull': True,
         }
     },
 }
