@@ -14,7 +14,7 @@
 """Deploy notebook to nuclio"""
 
 import logging
-from os import environ
+from os import environ, path
 from sys import stdout
 from urllib.parse import urlparse
 
@@ -63,7 +63,8 @@ def dashboard_url():
 
 def create_logger(level):
     handler = logging.StreamHandler(stdout)
-    handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+    handler.setFormatter(
+        logging.Formatter('[%(name)s] %(asctime)s %(message)s'))
     logger = logging.getLogger('nuclio.deploy')
     logger.addHandler(handler)
     logger.setLevel(level)
@@ -108,13 +109,17 @@ def main():
     if out.returncode != 0:
         raise SystemExit('error: cannot convert notebook')
 
-    cfg_file = '{}/{}'.format(tmp_dir, nb_file.replace('.ipynb', '.yaml'))
+    base = path.basename(nb_file).replace('.ipynb', '.yaml')
+    cfg_file = '{}/{}'.format(tmp_dir, base)
     with open(cfg_file) as fp:
         config = yaml.safe_load(fp)
 
     api_url = '{}/api/functions'.format(args.dashboard_url or dashboard_url())
     log('api URL: %s', api_url)
-    reply = get_functions(api_url)
+    try:
+        reply = get_functions(api_url)
+    except OSError:
+        raise SystemExit('error: cannot connect to {}'.format(api_url))
     name = config['metadata']['name']
     is_new = name not in set(iter_functions(reply))
     verb = 'creating' if is_new else 'updating'
@@ -134,10 +139,13 @@ def main():
     headers = {
         'Content-Type': 'application/json',
     }
-    if is_new:
-        resp = requests.post(api_url, json=config, headers=headers)
-    else:
-        resp = requests.put(api_url, json=config, headers=headers)
+    try:
+        if is_new:
+            resp = requests.post(api_url, json=config, headers=headers)
+        else:
+            resp = requests.put(api_url, json=config, headers=headers)
+    except OSError:
+        raise SystemExit('error: cannot {} to {}'.format(verb, api_url))
 
     if not resp.ok:
         log('ERROR: %s', resp.text)
