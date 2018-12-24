@@ -74,9 +74,9 @@ class NuclioExporter(Exporter):
         return '.yaml'
 
     def from_notebook_node(self, nb, resources=None, **kw):
-        handler = get_in(resources, 'metadata.name')  # notebook name
-        if handler:
-            function_config['metadata']['name'] = handler
+        name = get_in(resources, 'metadata.name')  # notebook name
+        if name:
+            function_config['metadata']['name'] = normalize_name(name)
         function_config['spec']['handler'] = handler_name()
 
         io = StringIO()
@@ -113,6 +113,14 @@ class NuclioExporter(Exporter):
         config = gen_config(function_config)
         resources['output_extension'] = '.yaml'
         return config, resources
+
+
+def normalize_name(name):
+    # TODO: Must match
+    # [a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?
+    name = re.sub(r'\s+', '-', name)
+    name = name.replace('_', '-')
+    return name.lower()
 
 
 def header():

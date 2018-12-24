@@ -45,7 +45,7 @@ def iter_functions(reply):
 
 
 def get_functions(api_url):
-    resp = requests.get(api_url + '/functions')
+    resp = requests.get(api_url)
     if not resp.ok:
         raise OSError('cannot call API')
     return resp.json()
