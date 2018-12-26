@@ -16,7 +16,13 @@ from .magic import print_handler_code # noqa
 from .request import Context, Event, inject_context as _inject_context # noqa
 from . import magic  # noqa
 
-__version__ = '0.5.0'
+__version__ = '0.6.0'
 
 _inject_context()
 del _inject_context
+
+
+# Allow %load_ext nuclio
+def load_ipython_extension(ipython):
+    # Nothing to do, nuclio/magic.py does the registration
+    pass

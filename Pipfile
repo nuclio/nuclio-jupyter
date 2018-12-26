@@ -10,6 +10,7 @@ nbconvert = ">=5.4"
 notebook = ">=5.7.2"
 nuclio-sdk = ">=0.0.3"
 pyyaml = ">=3.13"
+requests = ">=2.20.1"
 
 [dev-packages]
 flake8 = "*"

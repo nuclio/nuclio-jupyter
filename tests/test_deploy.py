@@ -12,18 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from os import environ
-from os.path import abspath, dirname
-
-import pytest
-
-import nuclio
-
-here = dirname(abspath(__file__))
-environ['ENV_FILE'] = '{}/env.txt'.format(here)
-is_travis = 'TRAVIS' in environ
+from nuclio import deploy  # noqa
 
 
-@pytest.fixture
-def clean_handlers():
-    nuclio.export.handlers.clear()
+def test_smoke():
+    # TODO
+    pass

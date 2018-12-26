@@ -14,11 +14,13 @@
 
 import json
 import re
+import shlex
+from argparse import ArgumentParser
 from glob import glob
 from os import environ, path
 from shutil import copy
 from subprocess import PIPE, run
-from sys import executable, stderr
+from sys import executable, stderr, stdout
 from tempfile import mkdtemp
 from urllib.parse import urlencode, urljoin
 from urllib.request import urlopen
@@ -28,10 +30,12 @@ from IPython import get_ipython
 from IPython.core.magic import register_line_cell_magic
 from notebook.notebookapp import list_running_servers
 
+from .deploy import populate_parser as populate_deploy_parser
 from .utils import (env_keys, iter_env_lines, load_config, parse_config_line,
                     parse_env, parse_export_line)
 
 log_prefix = '%nuclio: '
+here = path.dirname(path.abspath(__file__))
 
 
 # Make sure we're working when not running under IPython/Jupyter
@@ -224,8 +228,7 @@ def cmd(line, cell):
         ipy.system(line)
 
 
-# TODO
-# @command
+@command
 def deploy(line, cell):
     """Deploy function .
 
@@ -233,14 +236,37 @@ def deploy(line, cell):
     In [1]: %nuclio deploy
     %nuclio: function deployed
 
-    In [2] %nuclio deploy http://localhost:8080
+    In [2] %nuclio deploy --dashboard-url http://localhost:8080
     %nuclio: function deployed
     """
-    # TODO: Deploy parameters
-    # - dashboard URL
-    # - project name
-    # - function name
-    print('TBD ☺')
+    class ParseError(Exception):
+        pass
+
+    def error(message):
+        raise ParseError(message)
+
+    cmd = shlex.split(line)
+    try:
+        # See if we're missing notebook name
+        p = ArgumentParser()
+        populate_deploy_parser(p)
+        p.error = error
+        p.parse_args(cmd)
+    except ParseError:
+        nb_file = notebook_file_name()
+        if not nb_file:
+            log_error('cannot find notebook file name')
+            return
+
+        cmd.append(shlex.quote(nb_file))
+
+    cmd = [executable, '-m', 'nuclio', 'deploy'] + cmd
+    out = run(cmd, stderr=stderr, stdout=stdout)
+    if out.returncode != 0:
+        log_error('cannot deploy')
+        return
+
+    log('function deployed')
 
 
 @command

@@ -16,6 +16,7 @@ Overview
    Show help on command. Available commands:
     - cmd: Run a command, add it to "build
     - config: Set function configuration value
+    - deploy: Deploy function 
     - env: Set environment variable
     - env_file: Set environment from file(s)
     - export: Export notebook
@@ -59,6 +60,21 @@ config
     ...: spec.runtime = "python2.7"
     ...: build.commands +=  "apk --update --no-cache add ca-certificates"
     ...:
+
+deploy
+------
+
+::
+
+   In [1]: %nuclio help deploy
+   Deploy function .
+
+    Examples:
+    In [1]: %nuclio deploy
+    %nuclio: function deployed
+
+    In [2] %nuclio deploy --dashboard-url http://localhost:8080
+    %nuclio: function deployed
 
 env
 ---
