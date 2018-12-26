@@ -96,6 +96,9 @@ setup(
         'nbconvert.exporters': [
             'nuclio=nuclio.export:NuclioExporter',
         ],
+        'console_scripts': [
+            'nuclio=nuclio.__main__:main',
+        ],
     },
     zip_safe=False,
     include_package_data=True,

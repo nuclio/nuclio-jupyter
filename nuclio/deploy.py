@@ -14,15 +14,24 @@
 """Deploy notebook to nuclio"""
 
 import logging
+from argparse import FileType
 from os import environ, path
-from sys import stdout
+from subprocess import run
+from sys import executable, stdout
+from tempfile import mkdtemp
+from time import sleep
 from urllib.parse import urlparse
 
-import requests
+import yaml
 
+import requests
 from nuclio.export import get_in, update_in
 
 project_key = 'nuclio.io/project-name'
+
+
+class DeployError(Exception):
+    pass
 
 
 def iter_projects(reply):
@@ -51,7 +60,7 @@ def get_functions(api_url):
     return resp.json()
 
 
-def dashboard_url():
+def find_dashboard_url():
     value = environ.get('DEFAULT_TENANT_NUCLIO_DASHBOARD_PORT')
     if not value:
         addr = 'localhost:8070'
@@ -76,28 +85,11 @@ def project_name(config):
     return labels.get(project_key)
 
 
-def main():
-    from argparse import ArgumentParser, FileType
-    from subprocess import run
-    from sys import executable
-    from tempfile import mkdtemp
-    from time import sleep
-    import yaml
-
-    parser = ArgumentParser(description=__doc__)
-    parser.add_argument('notebook', help='notebook file', type=FileType('r'))
-    parser.add_argument('--dashboard-url', help='dashboard URL')
-    parser.add_argument(
-        '--verbose', action='store_true', default=False,
-        help='emit more logs',
-    )
-    args = parser.parse_args()
-
-    log_level = logging.INFO if args.verbose else logging.ERROR
+def deploy(nb_file, dashboard_url='', verbose=False):
+    log_level = logging.INFO if verbose else logging.ERROR
     log = create_logger(log_level).info
 
     tmp_dir = mkdtemp()
-    nb_file = args.notebook.name
     cmd = [
         executable, '-m', 'nbconvert',
         '--to', 'nuclio.export.NuclioExporter',
@@ -114,7 +106,7 @@ def main():
     with open(cfg_file) as fp:
         config = yaml.safe_load(fp)
 
-    api_url = '{}/api/functions'.format(args.dashboard_url or dashboard_url())
+    api_url = '{}/api/functions'.format(dashboard_url or find_dashboard_url())
     log('api URL: %s', api_url)
     try:
         reply = get_functions(api_url)
@@ -163,5 +155,10 @@ def main():
     log('done %s %s', verb, name)
 
 
-if __name__ == '__main__':
-    main()
+def populate_parser(parser):
+    parser.add_argument('notebook', help='notebook file', type=FileType('r'))
+    parser.add_argument('--dashboard-url', help='dashboard URL')
+    parser.add_argument(
+        '--verbose', action='store_true', default=False,
+        help='emit more logs',
+    )
