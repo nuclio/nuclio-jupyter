@@ -15,6 +15,7 @@
 
 import logging
 from argparse import FileType
+from base64 import b64decode
 from os import environ, path
 from subprocess import run
 from sys import executable, stdout
@@ -104,7 +105,14 @@ def deploy(nb_file, dashboard_url='', verbose=False):
     base = path.basename(nb_file).replace('.ipynb', '.yaml')
     cfg_file = '{}/{}'.format(tmp_dir, base)
     with open(cfg_file) as fp:
-        config = yaml.safe_load(fp)
+        config_data = fp.read()
+    config = yaml.safe_load(config_data)
+
+    log('Config:\n{}'.format(config_data))
+    py_code = config['spec']['build'].get('functionSourceCode')
+    if py_code:
+        py_code = b64decode(py_code).decode('utf-8')
+    log('Python code:\n{}'.format(py_code))
 
     api_url = '{}/api/functions'.format(dashboard_url or find_dashboard_url())
     log('api URL: %s', api_url)
@@ -112,6 +120,7 @@ def deploy(nb_file, dashboard_url='', verbose=False):
         reply = get_functions(api_url)
     except OSError:
         raise SystemExit('error: cannot connect to {}'.format(api_url))
+
     name = config['metadata']['name']
     is_new = name not in set(iter_functions(reply))
     verb = 'creating' if is_new else 'updating'
@@ -159,6 +168,6 @@ def populate_parser(parser):
     parser.add_argument('notebook', help='notebook file', type=FileType('r'))
     parser.add_argument('--dashboard-url', help='dashboard URL')
     parser.add_argument(
-        '--verbose', action='store_true', default=False,
+        '--verbose', '-v', action='store_true', default=False,
         help='emit more logs',
     )
