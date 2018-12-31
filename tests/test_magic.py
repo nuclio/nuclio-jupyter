@@ -34,4 +34,4 @@ def test_export():
     line = '--notebook {}'.format(nb)
     dir_name = magic.export(line, None, return_dir=True)
     files = glob('{}/*'.format(dir_name))
-    assert len(files) == 1, 'bad number of files'
+    assert len(files) == 2, 'bad number of files'

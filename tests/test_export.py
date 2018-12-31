@@ -53,7 +53,7 @@ def test_export():
     run(cmd, check=True)
 
     files = glob('{}/*.yaml'.format(out_dir))
-    assert len(files) == 1, 'wrong # of zip files in {}'.format(files)
+    assert len(files) == 1, 'wrong # of YAML files in {}'.format(files)
     with open(files[0]) as fp:
         code, config = load_config(fp)
     # Check we added handler
