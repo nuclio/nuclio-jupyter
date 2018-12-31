@@ -21,8 +21,9 @@ from nuclio.deploy import deploy, populate_parser as populate_deploy_parser
 
 
 def do_deploy(args):
+    name = args.notebook.name
     try:
-        deploy(args.notebook.name, args.dashboard_url, args.verbose)
+        deploy(name, args.dashboard_url, args.project, args.verbose)
     except DeployError as err:
         raise SystemExit('error: {}'.format(err))
 

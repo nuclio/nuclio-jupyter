@@ -20,7 +20,7 @@ from glob import glob
 from os import environ, path
 from shutil import copy
 from subprocess import PIPE, run
-from sys import executable, stderr, stdout
+from sys import executable, stderr
 from tempfile import mkdtemp
 from urllib.parse import urlencode, urljoin
 from urllib.request import urlopen
@@ -238,6 +238,9 @@ def deploy(line, cell):
 
     In [2] %nuclio deploy --dashboard-url http://localhost:8080
     %nuclio: function deployed
+
+    In [3] %nuclio deploy --project faces
+    %nuclio: function deployed
     """
     class ParseError(Exception):
         pass
@@ -261,9 +264,10 @@ def deploy(line, cell):
         cmd.append(shlex.quote(nb_file))
 
     cmd = [executable, '-m', 'nuclio', 'deploy'] + cmd
-    out = run(cmd, stderr=stderr, stdout=stdout)
+    out = run(cmd, stderr=PIPE)
     if out.returncode != 0:
         log_error('cannot deploy')
+        log_error(out.stderr.decode('utf-8'))
         return
 
     log('function deployed')

@@ -79,7 +79,7 @@ def parse_export_line(args):
 
 
 def update_in(obj, key, value, append=False):
-    parts = key.split('.')
+    parts = key.split('.') if isinstance(key, str) else key
     for part in parts[:-1]:
         sub = obj.get(part, missing)
         if sub is missing:

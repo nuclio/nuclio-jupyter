@@ -42,7 +42,7 @@ def iter_projects(reply):
     for data in reply.values():
         labels = data['metadata'].get('labels', {})
         for key, value in labels.items():
-            if key == 'nuclio.io/project-name':
+            if key == project_key:
                 yield value
 
 
@@ -82,11 +82,30 @@ def create_logger(level):
 
 
 def project_name(config):
-    labels = config['metadata'].get('lables', {})
+    labels = config['metadata'].get('labels', {})
     return labels.get(project_key)
 
 
-def deploy(nb_file, dashboard_url='', verbose=False):
+def update_project(config, project, reply):
+    # Can't use str here since porject_key contains a .
+    key = ['metadata', 'labels', project_key]
+    if project:
+        update_in(config, key, project)
+        return
+
+    project = get_in(config, key)
+    if project:
+        return
+
+    projects = sorted(iter_projects(reply))
+    if not projects:
+        raise DeployError(
+            'error: no project name and no existing projects')
+    project = projects[0]
+    update_in(config, key, project)
+
+
+def deploy(nb_file, dashboard_url='', project='', verbose=False):
     log_level = logging.INFO if verbose else logging.ERROR
     log = create_logger(log_level).info
 
@@ -100,7 +119,7 @@ def deploy(nb_file, dashboard_url='', verbose=False):
     log(' '.join(cmd))
     out = run(cmd)
     if out.returncode != 0:
-        raise SystemExit('error: cannot convert notebook')
+        raise DeployError('error: cannot convert notebook')
 
     base = path.basename(nb_file).replace('.ipynb', '.yaml')
     cfg_file = '{}/{}'.format(tmp_dir, base)
@@ -119,54 +138,50 @@ def deploy(nb_file, dashboard_url='', verbose=False):
     try:
         reply = get_functions(api_url)
     except OSError:
-        raise SystemExit('error: cannot connect to {}'.format(api_url))
+        raise DeployError('error: cannot connect to {}'.format(api_url))
 
     name = config['metadata']['name']
     is_new = name not in set(iter_functions(reply))
     verb = 'creating' if is_new else 'updating'
     log('%s %s', verb, name)
 
-    key = 'metadata.labeles.{}'.format(project_key)
-    project = get_in(config, key)
-    if not project:
-        projects = sorted(iter_projects(reply))
-        if not projects:
-            raise SystemExit(
-                'error: no project name and no existing projects')
-        project = projects[0]
-        log('using project %s', project)
-        update_in(config, key, project)
+    update_project(config, project, reply)
+    log('using project %s', config['metadata']['labels'][project_key])
 
     headers = {
         'Content-Type': 'application/json',
     }
+
+    fn = requests.post if is_new else requests.put
     try:
-        if is_new:
-            resp = requests.post(api_url, json=config, headers=headers)
-        else:
-            resp = requests.put(api_url, json=config, headers=headers)
+        resp = fn(api_url, json=config, headers=headers)
     except OSError:
-        raise SystemExit('error: cannot {} to {}'.format(verb, api_url))
+        raise DeployError('error: cannot {} to {}'.format(verb, api_url))
 
     if not resp.ok:
         log('ERROR: %s', resp.text)
-        raise SystemExit('error: failed {} {}'.format(verb, name))
+        raise DeployError('error: failed {} {}'.format(verb, name))
 
+    log('deploying ...')
     url = '{}/{}'.format(api_url, name)
-    while True:
+    state = 'building'
+    while state == 'building':
         resp = requests.get(url)
         if not resp.ok:
-            raise SystemExit('error: cannot poll {} status'.format(name))
-        if get_in(resp.json(), 'status.state') == 'ready':
-            break
+            raise DeployError('error: cannot poll {} status'.format(name))
+        state = get_in(resp.json(), 'status.state')
         sleep(1)
 
+    if state != 'ready':
+        log('ERROR: {}'.format(resp.text))
+        return
     log('done %s %s', verb, name)
 
 
 def populate_parser(parser):
     parser.add_argument('notebook', help='notebook file', type=FileType('r'))
     parser.add_argument('--dashboard-url', help='dashboard URL')
+    parser.add_argument('--project', help='project name')
     parser.add_argument(
         '--verbose', '-v', action='store_true', default=False,
         help='emit more logs',
