@@ -19,6 +19,7 @@ import re
 from argparse import ArgumentParser
 from subprocess import run
 from os import environ
+from sys import executable
 
 is_valid_version = re.compile(r'\d+\.\d+\.\d+$').match
 init_file = 'nuclio/__init__.py'
@@ -49,18 +50,27 @@ def change_version(version):
         out.write(data)
 
 
+def next_version():
+    cmd = [executable, 'setup.py', '--version']
+    version = run(cmd, check=True, capture_output=True).stdout.decode()
+    version = [int(v) for v in version.split('.')]
+    version[-1] += 1
+    return '.'.join(map(str, version))
+
+
 if __name__ == '__main__':
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('version')
+    parser.add_argument('version', help='version (use + for next)')
     args = parser.parse_args()
 
     if git_branch() != 'master':
         raise SystemExit('error: not on "master" branch')
 
-    version = args.version
+    version = next_version() if args.version == '+' else args.version
     if not is_valid_version(version):
         raise SystemExit('error: bad version (should be major.minor.patch)')
 
+    print(f'setting version to {version}')
     change_version(version)
     run(['git', 'add', init_file])
     run(['git', 'commit', '-m', 'version {}'.format(version)])
