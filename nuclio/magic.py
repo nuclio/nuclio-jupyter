@@ -16,6 +16,7 @@ import json
 import re
 import shlex
 from argparse import ArgumentParser
+from base64 import b64decode
 from glob import glob
 from os import environ, path
 from shutil import copy
@@ -25,6 +26,7 @@ from tempfile import mkdtemp
 from urllib.parse import urlencode, urljoin
 from urllib.request import urlopen
 
+import yaml
 import ipykernel
 from IPython import get_ipython
 from IPython.core.magic import register_line_cell_magic
@@ -312,6 +314,16 @@ def notebook_file_name():
                 return path.join(srv['notebook_dir'], relative_path)
 
 
+def save_handler(config_file, out_dir):
+    with open(config_file) as fp:
+        config = yaml.load(fp)
+
+    py_code = b64decode(config['spec']['build']['functionSourceCode'])
+    py_module = config['spec']['handler'].split(':')[0]
+    with open('{}/{}.py'.format(out_dir, py_module), 'wb') as out:
+        out.write(py_code)
+
+
 @command
 def export(line, cell, return_dir=False):
     """Export notebook. Possible options are:
@@ -377,6 +389,14 @@ def export(line, cell, return_dir=False):
         print(out.stderr.decode('utf-8'), file=stderr)
         log_error('cannot convert notebook')
         return
+
+    yaml_files = glob('{}/*.yaml'.format(out_dir))
+    if len(yaml_files) != 1:
+        log_error('wrong number of YAML files in {}'.format(out_dir))
+        return
+
+    save_handler(yaml_files[0], out_dir)
+    log('notebook exported to {}'.format(out_dir))
 
     if return_dir:
         return out_dir
