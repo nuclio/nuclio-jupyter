@@ -266,6 +266,11 @@ def export(magic):
 
 
 @magic_handler
+def deploy(magic):
+    return ''
+
+
+@magic_handler
 def config(magic):
     for line in [' '.join(magic.args)] + magic.lines:
         key, op, value = parse_config_line(line)
