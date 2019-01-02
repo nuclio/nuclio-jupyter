@@ -76,6 +76,9 @@ deploy
     In [2] %nuclio deploy --dashboard-url http://localhost:8080
     %nuclio: function deployed
 
+    In [3] %nuclio deploy --project faces
+    %nuclio: function deployed
+
 env
 ---
 
