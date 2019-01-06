@@ -34,7 +34,7 @@ def load_deps(section):
         in_section = False
         for line in fp:
             line = line.strip()
-            if not line:
+            if not line or line[0] == '#':
                 continue
 
             if line == header:
