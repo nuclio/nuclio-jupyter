@@ -16,7 +16,9 @@
 import logging
 from argparse import FileType
 from base64 import b64decode
+from datetime import datetime
 from os import environ, path
+from operator import itemgetter
 from subprocess import run
 from sys import executable, stdout
 from tempfile import mkdtemp
@@ -71,14 +73,17 @@ def find_dashboard_url():
     return 'http://' + addr
 
 
-def create_logger(level):
+def create_logger():
     handler = logging.StreamHandler(stdout)
     handler.setFormatter(
         logging.Formatter('[%(name)s] %(asctime)s %(message)s'))
     logger = logging.getLogger('nuclio.deploy')
     logger.addHandler(handler)
-    logger.setLevel(level)
+    logger.setLevel(logging.INFO)
     return logger
+
+
+logger = create_logger()
 
 
 def project_name(config):
@@ -106,8 +111,8 @@ def update_project(config, project, reply):
 
 
 def deploy(nb_file, dashboard_url='', project='', verbose=False):
-    log_level = logging.INFO if verbose else logging.ERROR
-    log = create_logger(log_level).info
+    # logger level is INFO, debug won't emit
+    log = logger.info if verbose else logger.debug
 
     tmp_dir = mkdtemp()
     cmd = [
@@ -163,15 +168,7 @@ def deploy(nb_file, dashboard_url='', project='', verbose=False):
         raise DeployError('error: failed {} {}'.format(verb, name))
 
     log('deploying ...')
-    url = '{}/{}'.format(api_url, name)
-    state = 'building'
-    while state == 'building':
-        resp = requests.get(url)
-        if not resp.ok:
-            raise DeployError('error: cannot poll {} status'.format(name))
-        state = get_in(resp.json(), 'status.state')
-        sleep(1)
-
+    state = deploy_progress(api_url, name)
     if state != 'ready':
         log('ERROR: {}'.format(resp.text))
         return
@@ -186,3 +183,33 @@ def populate_parser(parser):
         '--verbose', '-v', action='store_true', default=False,
         help='emit more logs',
     )
+
+
+def deploy_progress(api_url, name):
+    url = '{}/{}'.format(api_url, name)
+    last_time = datetime.now()
+
+    while True:
+        resp = requests.get(url)
+        if not resp.ok:
+            raise DeployError('error: cannot poll {} status'.format(name))
+
+        state, last_time = process_resp(resp.json(), last_time)
+        if state != 'building':
+            return state
+
+        sleep(1)
+
+
+def process_resp(resp, last_time):
+    status = resp['status']
+    state = status['state']
+    logs = status.get('logs', [])
+    for log in sorted(logs, key=itemgetter('time')):
+        timestamp = datetime.fromtimestamp(log['time']/1000.0)
+        if timestamp < last_time:
+            continue
+        last_time = timestamp
+        logger.info('(%s) %s', log['level'], log['message'])
+
+    return state, last_time
