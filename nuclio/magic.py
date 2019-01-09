@@ -268,7 +268,7 @@ def deploy(line, cell):
     cmd = [executable, '-m', 'nuclio', 'deploy'] + cmd
     pipe = Popen(cmd, stderr=PIPE, stdout=PIPE)
     for line in pipe.stdout:
-        log(line.rstrip())
+        log(line.decode('utf-8').rstrip())
 
     if pipe.returncode != 0:
         log_error('cannot deploy')

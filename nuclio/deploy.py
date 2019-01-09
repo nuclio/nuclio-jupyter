@@ -105,7 +105,7 @@ def update_project(config, project, reply):
     projects = sorted(iter_projects(reply))
     if not projects:
         raise DeployError(
-            'error: no project name and no existing projects')
+            'no project name and no existing projects')
     project = projects[0]
     update_in(config, key, project)
 
@@ -124,7 +124,7 @@ def deploy(nb_file, dashboard_url='', project='', verbose=False):
     log(' '.join(cmd))
     out = run(cmd)
     if out.returncode != 0:
-        raise DeployError('error: cannot convert notebook')
+        raise DeployError('cannot convert notebook')
 
     base = path.basename(nb_file).replace('.ipynb', '.yaml')
     cfg_file = '{}/{}'.format(tmp_dir, base)
@@ -160,12 +160,13 @@ def deploy(nb_file, dashboard_url='', project='', verbose=False):
     fn = requests.post if is_new else requests.put
     try:
         resp = fn(api_url, json=config, headers=headers)
-    except OSError:
+    except OSError as err:
+        log('ERROR: %s', str(err))
         raise DeployError('error: cannot {} to {}'.format(verb, api_url))
 
     if not resp.ok:
         log('ERROR: %s', resp.text)
-        raise DeployError('error: failed {} {}'.format(verb, name))
+        raise DeployError('failed {} {}'.format(verb, name))
 
     log('deploying ...')
     state = deploy_progress(api_url, name)
