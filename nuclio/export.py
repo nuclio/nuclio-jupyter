@@ -54,7 +54,10 @@ function_config = {
         'build': {
             'commands': [],
             'noBaseImagesPull': True,
-        }
+        },
+        # TODO: Remove this once this is fixed in nuclio
+        'minReplicas': 1,
+        'maxReplicas': 1,
     },
 }
 
