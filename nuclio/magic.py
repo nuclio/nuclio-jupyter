@@ -272,7 +272,8 @@ def deploy(line, cell):
 
     if pipe.returncode != 0:
         log_error('cannot deploy')
-        log_error(pipe.stderr.decode('utf-8'))
+        error = pipe.stderr.read().decode('utf-8')
+        log_error(error.rstrip())
         return
 
     log('function deployed')
