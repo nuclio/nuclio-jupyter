@@ -20,7 +20,7 @@ from base64 import b64decode
 from glob import glob
 from os import environ, path
 from shutil import copy
-from subprocess import PIPE, run
+from subprocess import PIPE, run, Popen
 from sys import executable, stderr
 from tempfile import mkdtemp
 from urllib.parse import urlencode, urljoin
@@ -266,10 +266,13 @@ def deploy(line, cell):
         cmd.append(shlex.quote(nb_file))
 
     cmd = [executable, '-m', 'nuclio', 'deploy'] + cmd
-    out = run(cmd, stderr=PIPE)
-    if out.returncode != 0:
+    pipe = Popen(cmd, stderr=PIPE, stdout=PIPE)
+    for line in pipe.stdout:
+        log(line.rstrip())
+
+    if pipe.returncode != 0:
         log_error('cannot deploy')
-        log_error(out.stderr.decode('utf-8'))
+        log_error(pipe.stderr.decode('utf-8'))
         return
 
     log('function deployed')
