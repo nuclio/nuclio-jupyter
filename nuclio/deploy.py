@@ -155,11 +155,11 @@ def deploy(nb_file, dashboard_url='', project='', verbose=False):
 
     headers = {
         'Content-Type': 'application/json',
+        'x-nuclio-project-name': project,
     }
 
-    fn = requests.post if is_new else requests.put
     try:
-        resp = fn(api_url, json=config, headers=headers)
+        resp = requests.post(api_url, json=config, headers=headers)
     except OSError as err:
         log('ERROR: %s', str(err))
         raise DeployError('error: cannot {} to {}'.format(verb, api_url))
