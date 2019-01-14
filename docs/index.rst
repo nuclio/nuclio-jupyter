@@ -62,7 +62,7 @@ Will generate a zip file with ``handler.py``
    import nuclio
 
    def handler(context, event):
-       msg = 'Hello ' + event.body
+       msg = 'Hello ' + str(event.body)
        return msg # nuclio: return
 
 
