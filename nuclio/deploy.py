@@ -171,7 +171,8 @@ def deploy(nb_file, dashboard_url='', project='', verbose=False):
     state = deploy_progress(api_url, name)
     if state != 'ready':
         log('ERROR: {}'.format(resp.text))
-        return
+        raise DeployError('cannot deploy ' + resp.text)
+
     log('done %s %s', verb, name)
 
 
