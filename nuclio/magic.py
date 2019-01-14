@@ -270,7 +270,7 @@ def deploy(line, cell):
     for line in pipe.stdout:
         log(line.decode('utf-8').rstrip())
 
-    if pipe.returncode != 0:
+    if pipe.wait() != 0:
         log_error('cannot deploy')
         error = pipe.stderr.read().decode('utf-8')
         log_error(error.rstrip())
