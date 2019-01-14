@@ -16,7 +16,7 @@ import json
 from urllib.parse import urlparse
 from time import time
 
-from conftest import here
+from conftest import here, patch
 import pytest
 
 from nuclio import deploy
@@ -85,10 +85,8 @@ class mock_requests:
 
 @pytest.fixture
 def requests():
-    orig_requests = deploy.requests
-    deploy.requests = mock_requests
-    yield
-    deploy.requests = orig_requests
+    with patch(deploy, requests=mock_requests):
+        yield
 
 
 def test_iter_functions(requests):
@@ -117,3 +115,30 @@ def test_deploy(requests):
     name = first(new_names - names)
     func = functions[name]
     assert func['status']['state'] == 'ready', 'not ready'
+
+
+class MockLogger:
+    def __init__(self):
+        self.logs = []
+
+    def info(self, msg, *args):
+        self.logs.append((msg, args))
+
+
+def test_process_resp():
+    with open('{}/deploy.json'.format(here)) as fp:
+        resp = json.load(fp)
+
+    logs = resp['status']['logs']
+    last_time = min(log['time'] for log in logs) - 7
+
+    logger = MockLogger()
+    with patch(deploy, logger=logger):
+        for i in range(len(logs) + 1):
+            resp['status']['logs'] = logs[:i]
+            state, last_time = deploy.process_resp(resp, last_time)
+            if i > 0:
+                assert last_time == logs[i-1]['time'], 'bad last_time'
+            assert state == resp['status']['state'], 'bad state'
+
+    assert len(logger.logs) == len(logs), 'bad number of logs'

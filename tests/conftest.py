@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+from contextlib import contextmanager
 from os import environ
 from os.path import abspath, dirname
 
@@ -27,3 +29,21 @@ is_travis = 'TRAVIS' in environ
 @pytest.fixture
 def clean_handlers():
     nuclio.export.handlers.clear()
+
+
+@contextmanager
+def patch(obj, **kw):
+    old, new = {}, []
+    for attr in kw:
+        if hasattr(obj, attr):
+            old[attr] = getattr(obj, attr)
+        else:
+            new.append(attr)
+
+    obj.__dict__.update(kw)
+    try:
+        yield
+    finally:
+        obj.__dict__.update(old)
+        for attr in new:
+            delattr(obj, attr)

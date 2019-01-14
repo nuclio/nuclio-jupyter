@@ -16,13 +16,12 @@
 import logging
 from argparse import FileType
 from base64 import b64decode
-from datetime import datetime
 from os import environ, path
 from operator import itemgetter
 from subprocess import run
 from sys import executable, stdout
 from tempfile import mkdtemp
-from time import sleep
+from time import sleep, time
 from urllib.parse import urlparse
 
 import yaml
@@ -188,7 +187,7 @@ def populate_parser(parser):
 
 def deploy_progress(api_url, name):
     url = '{}/{}'.format(api_url, name)
-    last_time = datetime.now()
+    last_time = time() * 1000.0
 
     while True:
         resp = requests.get(url)
@@ -207,8 +206,8 @@ def process_resp(resp, last_time):
     state = status['state']
     logs = status.get('logs', [])
     for log in sorted(logs, key=itemgetter('time')):
-        timestamp = datetime.fromtimestamp(log['time']/1000.0)
-        if timestamp < last_time:
+        timestamp = log['time']
+        if timestamp <= last_time:
             continue
         last_time = timestamp
         logger.info('(%s) %s', log['level'], log['message'])
