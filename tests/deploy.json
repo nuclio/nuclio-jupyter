@@ -1,0 +1,126 @@
+{
+  "metadata": {
+    "name": "helw",
+    "namespace": "default-tenant",
+    "labels": {
+      "nuclio.io/project-name": "f587b73c-ba9c-4937-958c-d4b02263e636"
+    }
+  },
+  "spec": {
+    "description": "Showcases unstructured logging and a structured response.",
+    "handler": "main:handler",
+    "runtime": "python:3.6",
+    "resources": {},
+    "image": "docker-registry.iguazio.app.ygmcdllkcwae.dev.trl.iguazio.com:80/nuclio/processor-helw:latest",
+    "imageHash": "1546546171683541925",
+    "minReplicas": 1,
+    "maxReplicas": 1,
+    "version": -1,
+    "alias": "latest",
+    "build": {
+      "functionSourceCode": "IyBDb3B5cmlnaHQgMjAxNyBUaGUgTnVjbGlvIEF1dGhvcnMuCiMKIyBMaWNlbnNlZCB1bmRlciB0aGUgQXBhY2hlIExpY2Vuc2UsIFZlcnNpb24gMi4wICh0aGUgIkxpY2Vuc2UiKTsKIyB5b3UgbWF5IG5vdCB1c2UgdGhpcyBmaWxlIGV4Y2VwdCBpbiBjb21wbGlhbmNlIHdpdGggdGhlIExpY2Vuc2UuCiMgWW91IG1heSBvYnRhaW4gYSBjb3B5IG9mIHRoZSBMaWNlbnNlIGF0CiMKIyAgICBodHRwOi8vd3d3LmFwYWNoZS5vcmcvbGljZW5zZXMvTElDRU5TRS0yLjAKIwojIFVubGVzcyByZXF1aXJlZCBieSBhcHBsaWNhYmxlIGxhdyBvciBhZ3JlZWQgdG8gaW4gd3JpdGluZywgc29mdHdhcmUKIyBkaXN0cmlidXRlZCB1bmRlciB0aGUgTGljZW5zZSBpcyBkaXN0cmlidXRlZCBvbiBhbiAiQVMgSVMiIEJBU0lTLAojIFdJVEhPVVQgV0FSUkFOVElFUyBPUiBDT05ESVRJT05TIE9GIEFOWSBLSU5ELCBlaXRoZXIgZXhwcmVzcyBvciBpbXBsaWVkLgojIFNlZSB0aGUgTGljZW5zZSBmb3IgdGhlIHNwZWNpZmljIGxhbmd1YWdlIGdvdmVybmluZyBwZXJtaXNzaW9ucyBhbmQKIyBsaW1pdGF0aW9ucyB1bmRlciB0aGUgTGljZW5zZS4KCmRlZiBoYW5kbGVyKGNvbnRleHQsIGV2ZW50KToKICAgIGNvbnRleHQubG9nZ2VyLmluZm8oJ1RoaXMgaXMgYW4gdW5zdHJ1Y3R1cmVkIGxvZyAnK2V2ZW50LnBhdGgpCgogICAgcmV0dXJuIGNvbnRleHQuUmVzcG9uc2UoYm9keT0nSGVsbG8sIGZyb20gTnVjbGlvIDpdJytldmVudC5wYXRoLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgaGVhZGVycz17fSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGNvbnRlbnRfdHlwZT0ndGV4dC9wbGFpbicsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBzdGF0dXNfY29kZT0yMDApCg==",
+      "registry": "docker-registry.iguazio.app.ygmcdllkcwae.dev.trl.iguazio.com:80",
+      "runtimeAttributes": {
+        "repositories": []
+      },
+      "codeEntryType": "sourceCode",
+      "timestamp": 1546546173
+    },
+    "runRegistry": "docker-registry.iguazio.app.ygmcdllkcwae.dev.trl.iguazio.com:80",
+    "platform": {}
+  },
+  "status": {
+    "state": "ready",
+    "logs": [
+      {
+        "level": "info",
+        "message": "Deploying function",
+        "name": "helw",
+        "time": 1546546171658.878
+      },
+      {
+        "level": "info",
+        "message": "Building",
+        "name": "helw",
+        "time": 1546546171670.9656
+      },
+      {
+        "level": "info",
+        "message": "Staging files and preparing base images",
+        "name": "deployer",
+        "time": 1546546171685.411
+      },
+      {
+        "imageName": "quay.io/nuclio/handler-builder-python-onbuild:0.7.4-amd64",
+        "level": "info",
+        "message": "Pulling image",
+        "name": "deployer",
+        "time": 1546546171685.7363
+      },
+      {
+        "imageName": "nuclio/processor-helw:latest",
+        "level": "info",
+        "message": "Building processor image",
+        "name": "deployer",
+        "time": 1546546173156.5022
+      },
+      {
+        "from": "nuclio/processor-helw:latest",
+        "level": "info",
+        "message": "Pushing image",
+        "name": "deployer",
+        "time": 1546546173526.4783,
+        "to": "docker-registry.iguazio.app.ygmcdllkcwae.dev.trl.iguazio.com:80/nuclio/processor-helw:latest"
+      },
+      {
+        "level": "info",
+        "message": "Build complete",
+        "name": "deployer",
+        "result": {
+          "Image": "nuclio/processor-helw:latest",
+          "UpdatedFunctionConfig": {
+            "metadata": {
+              "labels": {
+                "nuclio.io/project-name": "f587b73c-ba9c-4937-958c-d4b02263e636"
+              },
+              "name": "helw",
+              "namespace": "default-tenant"
+            },
+            "spec": {
+              "alias": "latest",
+              "build": {
+                "codeEntryType": "sourceCode",
+                "functionSourceCode": "IyBDb3B5cmlnaHQgMjAxNyBUaGUgTnVjbGlvIEF1dGhvcnMuCiMKIyBMaWNlbnNlZCB1bmRlciB0aGUgQXBhY2hlIExpY2Vuc2UsIFZlcnNpb24gMi4wICh0aGUgIkxpY2Vuc2UiKTsKIyB5b3UgbWF5IG5vdCB1c2UgdGhpcyBmaWxlIGV4Y2VwdCBpbiBjb21wbGlhbmNlIHdpdGggdGhlIExpY2Vuc2UuCiMgWW91IG1heSBvYnRhaW4gYSBjb3B5IG9mIHRoZSBMaWNlbnNlIGF0CiMKIyAgICBodHRwOi8vd3d3LmFwYWNoZS5vcmcvbGljZW5zZXMvTElDRU5TRS0yLjAKIwojIFVubGVzcyByZXF1aXJlZCBieSBhcHBsaWNhYmxlIGxhdyBvciBhZ3JlZWQgdG8gaW4gd3JpdGluZywgc29mdHdhcmUKIyBkaXN0cmlidXRlZCB1bmRlciB0aGUgTGljZW5zZSBpcyBkaXN0cmlidXRlZCBvbiBhbiAiQVMgSVMiIEJBU0lTLAojIFdJVEhPVVQgV0FSUkFOVElFUyBPUiBDT05ESVRJT05TIE9GIEFOWSBLSU5ELCBlaXRoZXIgZXhwcmVzcyBvciBpbXBsaWVkLgojIFNlZSB0aGUgTGljZW5zZSBmb3IgdGhlIHNwZWNpZmljIGxhbmd1YWdlIGdvdmVybmluZyBwZXJtaXNzaW9ucyBhbmQKIyBsaW1pdGF0aW9ucyB1bmRlciB0aGUgTGljZW5zZS4KCmRlZiBoYW5kbGVyKGNvbnRleHQsIGV2ZW50KToKICAgIGNvbnRleHQubG9nZ2VyLmluZm8oJ1RoaXMgaXMgYW4gdW5zdHJ1Y3R1cmVkIGxvZyAnK2V2ZW50LnBhdGgpCgogICAgcmV0dXJuIGNvbnRleHQuUmVzcG9uc2UoYm9keT0nSGVsbG8sIGZyb20gTnVjbGlvIDpdJytldmVudC5wYXRoLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgaGVhZGVycz17fSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGNvbnRlbnRfdHlwZT0ndGV4dC9wbGFpbicsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBzdGF0dXNfY29kZT0yMDApCg==",
+                "registry": "docker-registry.iguazio.app.ygmcdllkcwae.dev.trl.iguazio.com:80",
+                "runtimeAttributes": {
+                  "repositories": []
+                },
+                "timestamp": 1546546072
+              },
+              "description": "Showcases unstructured logging and a structured response.",
+              "handler": "main:handler",
+              "image": "docker-registry.iguazio.app.ygmcdllkcwae.dev.trl.iguazio.com:80/nuclio/processor-helw:latest",
+              "imageHash": "1546546070191548109",
+              "maxReplicas": 1,
+              "minReplicas": 1,
+              "platform": {},
+              "resources": {},
+              "runRegistry": "docker-registry.iguazio.app.ygmcdllkcwae.dev.trl.iguazio.com:80",
+              "runtime": "python:3.6",
+              "version": -1
+            }
+          }
+        },
+        "time": 1546546173868.4004
+      },
+      {
+        "httpPort": 30516,
+        "level": "info",
+        "message": "Function deploy complete",
+        "name": "deployer",
+        "time": 1546546175876.3914
+      }
+    ],
+    "httpPort": 30516
+  }
+}
