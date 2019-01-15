@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+import logging
 import re
 import shlex
 from base64 import b64encode
@@ -30,15 +32,18 @@ from .utils import (env_keys, iter_env_lines, parse_config_line, parse_env,
 
 here = path.dirname(path.abspath(__file__))
 
-Magic = namedtuple('Magic', 'name is_cell args lines')
+Magic = namedtuple('Magic', 'name args lines is_cell')
 magic_handlers = {}  # name -> function
+env_files = set()
 
+is_commet = re.compile(r'\s*#.*').search
 # # nuclio: return
 is_return = re.compile(r'#\s*nuclio:\s*return').search
 # # nuclio: ignore
 has_ignore = re.compile(r'#\s*nuclio:\s*ignore').search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
+cell_magic = '%%nuclio'
 
 function_config = {
     'apiVersion': 'nuclio.io/v1',
@@ -62,6 +67,18 @@ function_config = {
 }
 
 handlers = []
+
+
+class MagicError(Exception):
+    pass
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s - %(name)s - %(levelname)s] %(message)s',
+    datefmt='%Y%m%dT%H%M%S',
+)
+log = logging.getLogger('nuclio.export')
 
 
 class NuclioExporter(Exporter):
@@ -90,20 +107,15 @@ class NuclioExporter(Exporter):
             if has_ignore(code):
                 continue
 
-            magic = parse_magic(code)
-            if magic:
-                handler = magic_handlers.get(magic.name)
-                if not handler:
-                    raise NameError(
-                        'unknown nuclio command: {}'.format(magic.name))
+            lines = code.splitlines()
+            if cell_magic in code:
+                self.handle_cell_magic(lines, io)
+                continue
 
-                out = handler(magic)
-                code = out
+            self.handle_code_cell(lines, io)
 
-            print(ipython2python(code), file=io)
-
+        process_env_files(env_files)
         py_code = io.getvalue()
-
         handler_path = environ.get(env_keys.handler_path)
         if handler_path:
             with open(handler_path) as fp:
@@ -116,6 +128,53 @@ class NuclioExporter(Exporter):
         config = gen_config(function_config)
         resources['output_extension'] = '.yaml'
         return config, resources
+
+    def find_cell_magic(self, lines):
+        """Return index of first line that has %%nuclio"""
+        for i, line in enumerate(lines):
+            if cell_magic in line:
+                return i
+        return -1
+
+    def handle_cell_magic(self, lines, io):
+        i = self.find_cell_magic(lines)
+        if i == -1:
+            raise MagicError('cannot find {}'.format(cell_magic))
+
+        lines = lines[i:]
+        name, args = parse_magic_line(lines[0])
+        magic = Magic(name, args, lines[1:], is_cell=True)
+        handler = magic_handlers.get(magic.name)
+        if not handler:
+            raise NameError(
+                'unknown nuclio command: {}'.format(magic.name))
+
+        code = handler(magic)
+        print(ipython2python(code), file=io)
+
+    def handle_code_cell(self, lines, io):
+        buf = []
+        for line in lines:
+            if '%nuclio' not in line:
+                buf.append(line)
+                continue
+
+            if buf:
+                print(ipython2python('\n'.join(buf)), file=io)
+                buf = []
+
+            name, args = parse_magic_line(line)
+            magic = Magic(name, args, [], is_cell=False)
+            handler = magic_handlers.get(magic.name)
+            if not handler:
+                raise NameError(
+                    'unknown nuclio command: {}'.format(magic.name))
+
+            out = handler(magic)
+            print(ipython2python(out), file=io)
+
+        if buf:
+            print(ipython2python('\n'.join(buf)), file=io)
 
 
 def normalize_name(name):
@@ -140,22 +199,25 @@ def gen_config(config):
     return header() + yaml.dump(config, default_flow_style=False)
 
 
-def parse_magic(code):
-    lines = code.strip().splitlines()
-    if not lines:
+def is_code(line):
+    return line.strip() and not is_commet(line)
+
+
+def parse_magic_line(line):
+    """Parse a '%nuclio' command. Return name, args
+
+    >>> parse_magic_line('%nuclio config a=b')
+    ('config', ['a=b'])
+    """
+    line = line.strip()
+    match = re.search('^%?%nuclio', line)
+    if not match:
         return None
-
-    magic_line = lines[0]
-    prefix = '%nuclio'
-    i = magic_line.find(prefix)
-    if i == -1:
-        return None
-    is_cell = '%%nuclio' in magic_line
-
-    args = shlex.split(magic_line[i+len(prefix):])
-    cmd, args = args[0], args[1:]
-
-    return Magic(cmd, is_cell, args, lines[1:])
+    line = line[match.end():]  # Trim magic prefix
+    args = shlex.split(line)
+    if not args:
+        raise MagicError('no command')
+    return args[0], args[1:]
 
 
 def magic_handler(fn):
@@ -201,7 +263,22 @@ def cmd(magic):
 
 @magic_handler
 def env_file(magic):
-    for fname in filter(None, map(str.strip, magic.args + magic.lines)):
+    for line in magic.args + magic.lines:
+        file_name = line.strip()
+        if file_name[:1] in ('', '#'):
+            continue
+
+        if not path.isfile(file_name):
+            log.warning('skipping %s - not found', file_name)
+            continue
+        env_files.add(file_name)
+    return ''
+
+
+def process_env_files(env_files):
+    # %nuclio env_file magic will populate this
+    from_env = json.loads(environ.get(env_keys.env_files, '[]'))
+    for fname in (env_files | set(from_env)):
         with open(fname) as fp:
             for line in iter_env_lines(fp):
                 key, value = parse_env(line)
@@ -209,7 +286,6 @@ def env_file(magic):
                     raise ValueError(
                         '{}: cannot parse environment: {}'.format(fname, line))
                 set_env(key, value)
-    return ''
 
 
 def is_code_cell(cell):

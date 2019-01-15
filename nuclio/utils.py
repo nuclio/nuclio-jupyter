@@ -28,6 +28,7 @@ class env_keys:
     handler_name = 'NUCLIO_HANDLER_NAME'
     handler_path = 'NUCLIO_HANDLER_PATH'
     no_embed_code = 'NUCLIO_NO_EMBED_CODE'
+    env_files = 'NUCLIO_ENV_FILES'
 
 
 def parse_env(line):

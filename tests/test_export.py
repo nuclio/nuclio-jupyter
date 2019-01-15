@@ -166,3 +166,22 @@ def test_meta_name():
     }
     _, config = export_notebook(gen_nb([]), resources)
     assert config['metadata']['name'] == name, 'wrong name'
+
+
+def test_parse_magic_line():
+    cmd, args = export.parse_magic_line('%nuclio config a=b')
+    assert cmd == 'config', 'bad command'
+    assert args == ['a=b'], 'bad args'
+
+    out = export.parse_magic_line('a = 2')
+    assert out is None, 'bad parse of non magic'
+
+    with pytest.raises(export.MagicError):
+        export.parse_magic_line('%nuclio')
+
+
+def test_multi_magic():
+    nb = gen_nb(['%nuclio cmd ls\n%nuclio cmd hi'])
+    _, config = export_notebook(nb)
+    cmds = config['spec']['build']['commands']
+    assert len(cmds) == 2, 'bad # of commands'
