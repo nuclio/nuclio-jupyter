@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+import logging
 import re
 import shlex
 from base64 import b64encode
@@ -32,6 +34,7 @@ here = path.dirname(path.abspath(__file__))
 
 Magic = namedtuple('Magic', 'name args lines is_cell')
 magic_handlers = {}  # name -> function
+env_files = set()
 
 is_commet = re.compile(r'\s*#.*').search
 # # nuclio: return
@@ -70,6 +73,14 @@ class MagicError(Exception):
     pass
 
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s - %(name)s - %(levelname)s] %(message)s',
+    datefmt='%Y%m%dT%H%M%S',
+)
+log = logging.getLogger('nuclio.export')
+
+
 class NuclioExporter(Exporter):
     """Export to nuclio handler"""
 
@@ -103,6 +114,7 @@ class NuclioExporter(Exporter):
 
             self.handle_code_cell(lines, io)
 
+        process_env_files(env_files)
         py_code = io.getvalue()
         handler_path = environ.get(env_keys.handler_path)
         if handler_path:
@@ -251,7 +263,22 @@ def cmd(magic):
 
 @magic_handler
 def env_file(magic):
-    for fname in filter(None, map(str.strip, magic.args + magic.lines)):
+    for line in magic.args + magic.lines:
+        file_name = line.strip()
+        if file_name[:1] in ('', '#'):
+            continue
+
+        if not path.isfile(file_name):
+            log.warning('skipping %s - not found', file_name)
+            continue
+        env_files.add(file_name)
+    return ''
+
+
+def process_env_files(env_files):
+    # %nuclio env_file magic will populate this
+    from_env = json.loads(environ.get(env_keys.env_files, '[]'))
+    for fname in (env_files | set(from_env)):
         with open(fname) as fp:
             for line in iter_env_lines(fp):
                 key, value = parse_env(line)
@@ -259,7 +286,6 @@ def env_file(magic):
                     raise ValueError(
                         '{}: cannot parse environment: {}'.format(fname, line))
                 set_env(key, value)
-    return ''
 
 
 def is_code_cell(cell):

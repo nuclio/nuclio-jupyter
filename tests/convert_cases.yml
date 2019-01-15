@@ -31,7 +31,7 @@ out: |
 ---
 name: Simple
 in: |
-    %nuclio handler
+    %%nuclio handler
     x = 1
     
     x  # nuclio: return
@@ -43,7 +43,7 @@ out: |
 ---
 name: Remove
 in: |
-    %nuclio ignore
+    # nuclio: ignore
     from nuclio import Context, Event
 
     ctx, evt = Context(), Event(body='Nuclio')
@@ -51,7 +51,7 @@ out: |
 
 name: Last return
 in: |
-    %nuclio handler
+    %%nuclio handler
     x = 1
     x
 out: |

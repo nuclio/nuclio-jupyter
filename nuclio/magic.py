@@ -183,6 +183,7 @@ def env_from_file(path):
     with open(path) as fp:
         for line in iter_env_lines(fp):
             set_env(line)
+    update_env_files(path)
 
 
 @command
@@ -459,3 +460,9 @@ def print_handler_code(notebook_file=None):
     with open(files[0]) as fp:
         code, _ = load_config(fp)
     print(code)
+
+
+def update_env_files(file_name):
+    files = json.loads(environ.get(env_keys.env_files, '[]'))
+    files.append(file_name)
+    environ[env_keys.env_files] = json.dumps(files)

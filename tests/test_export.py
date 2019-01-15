@@ -178,3 +178,10 @@ def test_parse_magic_line():
 
     with pytest.raises(export.MagicError):
         export.parse_magic_line('%nuclio')
+
+
+def test_multi_magic():
+    nb = gen_nb(['%nuclio cmd ls\n%nuclio cmd hi'])
+    _, config = export_notebook(nb)
+    cmds = config['spec']['build']['commands']
+    assert len(cmds) == 2, 'bad # of commands'
