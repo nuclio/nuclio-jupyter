@@ -196,7 +196,7 @@ def deploy_progress(api_url, name):
             raise DeployError('error: cannot poll {} status'.format(name))
 
         state, last_time = process_resp(resp.json(), last_time)
-        if state != 'building':
+        if state in {'ready', 'error'}:
             return state
 
         sleep(1)
