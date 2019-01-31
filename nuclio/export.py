@@ -29,6 +29,7 @@ from nbconvert.filters import ipython2python
 
 from .utils import (env_keys, iter_env_lines, parse_config_line, parse_env,
                     update_in)
+from .import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
 
@@ -146,10 +147,14 @@ class NuclioExporter(Exporter):
         magic = Magic(name, args, lines[1:], is_cell=True)
         handler = magic_handlers.get(magic.name)
         if not handler:
-            raise NameError(
-                'unknown nuclio command: {}'.format(magic.name))
-
-        code = handler(magic)
+            if magic.name not in magic_module.commands:
+                raise NameError(
+                    'unknown nuclio command: {}'.format(magic.name))
+            else:
+                log.warning('skipping %s - not implemented', magic.name)
+                code = ''
+        else:
+            code = handler(magic)
         print(ipython2python(code), file=io)
 
     def handle_code_cell(self, lines, io):
