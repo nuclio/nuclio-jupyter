@@ -448,6 +448,7 @@ def print_handler_code(notebook_file=None):
     if not notebook_file:
         raise ValueError('cannot find notebook file name')
 
+    notebook_file = shlex.quote(notebook_file)
     line = '--notebook {}'.format(notebook_file)
     out_dir = export(line, None, return_dir=True)
     if not out_dir:
