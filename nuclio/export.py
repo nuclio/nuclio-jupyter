@@ -15,7 +15,6 @@
 import json
 import logging
 import re
-import shlex
 from base64 import b64encode
 from collections import namedtuple
 from datetime import datetime
@@ -44,7 +43,8 @@ is_return = re.compile(r'#\s*nuclio:\s*return').search
 has_ignore = re.compile(r'#\s*nuclio:\s*ignore').search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
-cell_magic = '%%nuclio'
+line_magic = '%nuclio'
+cell_magic = '%' + line_magic
 
 function_config = {
     'apiVersion': 'nuclio.io/v1',
@@ -211,18 +211,20 @@ def is_code(line):
 def parse_magic_line(line):
     """Parse a '%nuclio' command. Return name, args
 
-    >>> parse_magic_line('%nuclio config a=b')
-    ('config', ['a=b'])
+    >>> parse_magic_line('%nuclio config a="b"')
+    ('config', ['a="b"'])
     """
-    line = line.strip()
-    match = re.search('^%?%nuclio', line)
-    if not match:
+    if line_magic not in line:
         return None
-    line = line[match.end():]  # Trim magic prefix
-    args = shlex.split(line)
-    if not args:
-        raise MagicError('no command')
-    return args[0], args[1:]
+
+    line = line.strip()
+    match = re.search(r'^%?%nuclio\s+(\w+)\s*', line)
+    if not match:
+        raise MagicError(line)
+
+    cmd = match.group(1)
+    args = line[match.end():].strip()
+    return cmd, args
 
 
 def magic_handler(fn):
@@ -240,7 +242,7 @@ def set_env(key, value):
 
 @magic_handler
 def env(magic):
-    for line in [' '.join(magic.args)] + magic.lines:
+    for line in [magic.args] + magic.lines:
         line = line.strip()
         if not line or line[0] == '#':
             continue
@@ -255,8 +257,7 @@ def env(magic):
 
 @magic_handler
 def cmd(magic):
-    argline = ' '.join(shlex.quote(arg) for arg in magic.args)
-    for line in [argline] + magic.lines:
+    for line in [magic.args] + magic.lines:
         line = line.strip()
         if not line or line[0] == '#':
             continue
@@ -268,7 +269,7 @@ def cmd(magic):
 
 @magic_handler
 def env_file(magic):
-    for line in magic.args + magic.lines:
+    for line in [magic.args] + magic.lines:
         file_name = line.strip()
         if file_name[:1] in ('', '#'):
             continue
@@ -315,7 +316,7 @@ def add_return(line):
 
 @magic_handler
 def handler(magic):
-    name = magic.args[0] if magic.args else next_handler_name()
+    name = magic.args if magic.args else next_handler_name()
     if env_keys.handler_name not in environ:
         module, _ = function_config['spec']['handler'].split(':')
         function_config['spec']['handler'] = '{}:{}'.format(module, name)
@@ -356,7 +357,7 @@ def deploy(magic):
 
 @magic_handler
 def config(magic):
-    for line in [' '.join(magic.args)] + magic.lines:
+    for line in [magic.args] + magic.lines:
         key, op, value = parse_config_line(line)
         append = op == '+='
         update_in(function_config, key, value, append)
