@@ -16,7 +16,7 @@ from ast import literal_eval
 from contextlib import contextmanager
 from glob import glob
 from os import environ
-from subprocess import run, PIPE
+from subprocess import PIPE, run
 from sys import executable
 from tempfile import mkdtemp
 
@@ -185,3 +185,12 @@ def test_multi_magic():
     _, config = export_notebook(nb)
     cmds = config['spec']['build']['commands']
     assert len(cmds) == 2, 'bad # of commands'
+
+
+def test_ignore_comment():
+    nb_code = 'x = 1'
+    nb = gen_nb(['#%nuclio cmd ls', nb_code])
+    code, config = export_notebook(nb)
+    commands = config['spec']['build']['commands']
+    assert len(commands) == 0, 'commented magic not ignored'
+    assert nb_code in code, 'missing code'
