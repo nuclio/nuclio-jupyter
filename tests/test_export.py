@@ -100,7 +100,7 @@ def test_convert(case, clean_handlers):
 
 def test_config():
     key, value = 'build.commands', '"apt install -y libyaml-dev"'
-    nb = gen_nb(['%nuclio config {} = {!r}'.format(key, value)])
+    nb = gen_nb(['%nuclio config {} = {}'.format(key, value)])
     _, config = export_notebook(nb)
     value = literal_eval(value)
     assert get_in(config, key.split('.')) == value, "bad config"
@@ -171,7 +171,7 @@ def test_meta_name():
 def test_parse_magic_line():
     cmd, args = export.parse_magic_line('%nuclio config a=b')
     assert cmd == 'config', 'bad command'
-    assert args == ['a=b'], 'bad args'
+    assert args == 'a=b', 'bad args'
 
     out = export.parse_magic_line('a = 2')
     assert out is None, 'bad parse of non magic'
