@@ -70,12 +70,12 @@ def parse_config_line(line):
     key = match.group(1)
     op = match.group(3)
     value = match.group(4).strip()
+    value = replace_env(value)
     try:
         value = literal_eval(value)
     except SyntaxError:
         raise ValueError(line)
 
-    value = replace_env(value)
     return key, op, value
 
 
