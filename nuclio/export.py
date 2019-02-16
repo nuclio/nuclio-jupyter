@@ -110,7 +110,7 @@ class NuclioExporter(Exporter):
                 continue
 
             if has_start(code):
-                # if we see indication of start, we ignore all the previous cells
+                # if we see indication of start, we ignore all previous cells
                 io = StringIO()
                 print(header(), file=io)
 

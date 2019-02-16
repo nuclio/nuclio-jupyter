@@ -33,7 +33,7 @@ class env_keys:
 
 
 def replace_env(line):
-    """replace ${something} with environment variable, can have multiple ${..} per line"""
+    """replace ${something} with environment variables"""
     start = line.find('${')
     end = line.find('}', start)
     if start < 0 or end < 2:
