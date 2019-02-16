@@ -34,7 +34,7 @@ from notebook.notebookapp import list_running_servers
 
 from .deploy import populate_parser as populate_deploy_parser
 from .utils import (env_keys, iter_env_lines, load_config, parse_config_line,
-                    parse_env, parse_export_line)
+                    parse_env, parse_export_line, replace_env)
 
 log_prefix = '%nuclio: '
 here = path.dirname(path.abspath(__file__))
@@ -225,10 +225,10 @@ def cmd(line, cell):
 
     ipy = get_ipython()
     if line:
-        ipy.system(line)
+        ipy.system(replace_env(line))
 
     for line in cell_lines(cell):
-        ipy.system(line)
+        ipy.system(replace_env(line))
 
 
 @command

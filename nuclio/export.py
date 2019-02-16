@@ -27,7 +27,7 @@ from nbconvert.exporters import Exporter
 from nbconvert.filters import ipython2python
 
 from .utils import (env_keys, iter_env_lines, parse_config_line, parse_env,
-                    update_in)
+                    update_in, replace_env)
 from .import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
@@ -41,6 +41,7 @@ is_commet = re.compile(r'\s*#.*').search
 is_return = re.compile(r'#\s*nuclio:\s*return').search
 # # nuclio: ignore
 has_ignore = re.compile(r'#\s*nuclio:\s*ignore').search
+has_start = re.compile(r'#\s*nuclio:\s*start').search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 line_magic = '%nuclio'
@@ -108,6 +109,11 @@ class NuclioExporter(Exporter):
             if has_ignore(code):
                 continue
 
+            if has_start(code):
+                # if we see indication of start, we ignore all the previous cells
+                io = StringIO()
+                print(header(), file=io)
+
             lines = code.splitlines()
             if cell_magic in code:
                 self.handle_cell_magic(lines, io)
@@ -155,7 +161,8 @@ class NuclioExporter(Exporter):
                 code = ''
         else:
             code = handler(magic)
-        print(ipython2python(code), file=io)
+        if code:
+            print(ipython2python(code), file=io)
 
     def handle_code_cell(self, lines, io):
         buf = []
@@ -176,7 +183,8 @@ class NuclioExporter(Exporter):
                     'unknown nuclio command: {}'.format(magic.name))
 
             out = handler(magic)
-            print(ipython2python(out), file=io)
+            if out:
+                print(ipython2python(out), file=io)
 
         if buf:
             print(ipython2python('\n'.join(buf)), file=io)
@@ -263,6 +271,7 @@ def cmd(magic):
             continue
 
         line = line.replace('--config-only', '').strip()
+        line = replace_env(line)
         update_in(function_config, 'spec.build.commands', line, append=True)
     return ''
 

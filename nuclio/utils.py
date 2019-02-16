@@ -14,6 +14,7 @@
 
 
 import re
+import os
 import shlex
 from argparse import ArgumentParser
 from ast import literal_eval
@@ -31,11 +32,23 @@ class env_keys:
     env_files = 'NUCLIO_ENV_FILES'
 
 
+def replace_env(line):
+    """replace ${something} with environment variable, can have multiple ${..} per line"""
+    start = line.find('${')
+    end = line.find('}', start)
+    if start < 0 or end < 2:
+        return line
+
+    envvar = os.getenv(line[start + 2:end].strip(), '')
+    return line[0:start] + envvar + replace_env(line[end + 1:])
+
+
 def parse_env(line):
     i = line.find('=')
     if i == -1:
         return None, None
     key, value = line[:i].strip(), line[i+1:].strip()
+    value = replace_env(value)
     return key, value
 
 
@@ -62,6 +75,7 @@ def parse_config_line(line):
     except SyntaxError:
         raise ValueError(line)
 
+    value = replace_env(value)
     return key, op, value
 
 
