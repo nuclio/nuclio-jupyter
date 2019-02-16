@@ -168,7 +168,9 @@ class NuclioExporter(Exporter):
         buf = []
         for line in lines:
             if '%nuclio' not in line:
-                buf.append(line)
+                # ignore command or magic commands (other than %nuclio)
+                if not (line.startswith('!') or line.startswith('%')):
+                    buf.append(line)
                 continue
 
             if buf:
