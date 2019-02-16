@@ -136,7 +136,24 @@ def env(line, cell):
     ...:
     %nuclio: setting 'USER' environment variable
     %nuclio: setting 'PASSWORD' environment variable
+
+    If you'd like to only to add the instructions to function.yaml without
+    running it locally, use the '--config-only' or '-c' flag
+
+    In [3]: %nuclio env --config-only MODEL_DIR=/home
+
+    If you'd like to only run locally and not to add the instructions to
+    function.yaml, use the '--local-only' or '-l' flag
+
     """
+    if line.startswith('--config-only') or line.startswith('-c'):
+        return
+
+    if line.startswith('--local-only'):
+        line = line.replace('--local-only', '').strip()
+    if line.startswith('-l'):
+        line = line.replace('-l', '').strip()
+
     if line:
         set_env(line)
 

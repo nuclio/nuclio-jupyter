@@ -257,6 +257,14 @@ def env(magic):
         if not line or line[0] == '#':
             continue
 
+        if line.startswith('--local-only') or line.startswith('-l'):
+            continue
+
+        if line.startswith('--config-only'):
+            line = line.replace('--config-only', '').strip()
+        if line.startswith('-c'):
+            line = line.replace('-c', '').strip()
+
         key, value = parse_env(line)
         if not key:
             raise ValueError(
@@ -272,7 +280,11 @@ def cmd(magic):
         if not line or line[0] == '#':
             continue
 
-        line = line.replace('--config-only', '').strip()
+        if line.startswith('--config-only'):
+            line = line.replace('--config-only', '').strip()
+        if line.startswith('-c'):
+            line = line.replace('-c', '').strip()
+
         line = replace_env(line)
         update_in(function_config, 'spec.build.commands', line, append=True)
     return ''
