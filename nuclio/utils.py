@@ -73,8 +73,9 @@ def parse_config_line(line):
     value = replace_env(value)
     try:
         value = literal_eval(value)
-    except SyntaxError:
-        raise ValueError(line)
+    except (SyntaxError, ValueError):
+        raise ValueError(
+            'cant eval config value: "{}" in line: {}'.format(value, line))
 
     return key, op, value
 

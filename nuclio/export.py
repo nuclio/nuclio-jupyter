@@ -252,18 +252,19 @@ def set_env(key, value):
 
 @magic_handler
 def env(magic):
-    for line in [magic.args] + magic.lines:
+    argline = magic.args.strip()
+    if argline.startswith('--local-only') or argline.startswith('-l'):
+        return ''
+
+    if argline.startswith('--config-only'):
+        argline = argline.replace('--config-only', '').strip()
+    if argline.startswith('-c'):
+        argline = argline.replace('-c', '').strip()
+
+    for line in [argline] + magic.lines:
         line = line.strip()
         if not line or line[0] == '#':
             continue
-
-        if line.startswith('--local-only') or line.startswith('-l'):
-            continue
-
-        if line.startswith('--config-only'):
-            line = line.replace('--config-only', '').strip()
-        if line.startswith('-c'):
-            line = line.replace('-c', '').strip()
 
         key, value = parse_env(line)
         if not key:
@@ -275,15 +276,16 @@ def env(magic):
 
 @magic_handler
 def cmd(magic):
-    for line in [magic.args] + magic.lines:
+    argline = magic.args.strip()
+    if argline.startswith('--config-only'):
+        argline = argline.replace('--config-only', '').strip()
+    if argline.startswith('-c'):
+        argline = argline.replace('-c', '').strip()
+
+    for line in [argline] + magic.lines:
         line = line.strip()
         if not line or line[0] == '#':
             continue
-
-        if line.startswith('--config-only'):
-            line = line.replace('--config-only', '').strip()
-        if line.startswith('-c'):
-            line = line.replace('-c', '').strip()
 
         line = replace_env(line)
         update_in(function_config, 'spec.build.commands', line, append=True)
@@ -381,6 +383,10 @@ def deploy(magic):
 @magic_handler
 def config(magic):
     for line in [magic.args] + magic.lines:
+        line = line.strip()
+        if not line or line[0] == '#':
+            continue
+
         key, op, value = parse_config_line(line)
         append = op == '+='
         update_in(function_config, key, value, append)
