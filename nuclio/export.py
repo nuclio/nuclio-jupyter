@@ -27,7 +27,7 @@ from nbconvert.exporters import Exporter
 from nbconvert.filters import ipython2python
 
 from .utils import (env_keys, iter_env_lines, parse_config_line, parse_env,
-                    update_in, replace_env)
+                    update_in)
 from .import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
@@ -287,7 +287,7 @@ def cmd(magic):
         if not line or line[0] == '#':
             continue
 
-        line = replace_env(line)
+        line = path.expandvars(line)
         update_in(function_config, 'spec.build.commands', line, append=True)
     return ''
 

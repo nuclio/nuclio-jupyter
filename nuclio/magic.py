@@ -20,21 +20,21 @@ from base64 import b64decode
 from glob import glob
 from os import environ, path
 from shutil import copy
-from subprocess import PIPE, run, Popen
+from subprocess import PIPE, Popen, run
 from sys import executable, stderr
 from tempfile import mkdtemp
 from urllib.parse import urlencode, urljoin
 from urllib.request import urlopen
 
-import yaml
 import ipykernel
+import yaml
 from IPython import get_ipython
 from IPython.core.magic import register_line_cell_magic
 from notebook.notebookapp import list_running_servers
 
 from .deploy import populate_parser as populate_deploy_parser
 from .utils import (env_keys, iter_env_lines, load_config, parse_config_line,
-                    parse_env, parse_export_line, replace_env)
+                    parse_env, parse_export_line)
 
 log_prefix = '%nuclio: '
 here = path.dirname(path.abspath(__file__))
@@ -242,10 +242,10 @@ def cmd(line, cell):
 
     ipy = get_ipython()
     if line:
-        ipy.system(replace_env(line))
+        ipy.system(path.expandvars(line))
 
     for line in cell_lines(cell):
-        ipy.system(replace_env(line))
+        ipy.system(path.expandvars(line))
 
 
 @command
