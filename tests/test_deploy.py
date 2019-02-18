@@ -35,7 +35,15 @@ functions = {
     },
 }
 
+projects = {
+    "metadata":
+        {"name":"03ff81bf-00d6-41a4-899c-869a12f06d8c","namespace":"default-tenant"},
+    "spec":
+        {"displayName":"test-project"}
+}
+
 api_prefix = '/api/functions'
+projects_prefix = '/api/projects'
 api_url = 'http://localhost:8080{}'.format(api_prefix)
 
 
@@ -59,6 +67,9 @@ class mock_requests:
         path = urlparse(url).path
         if path == api_prefix or path == api_prefix + '/':
             return Response(functions)
+
+        if path == projects_prefix or path == projects_prefix + '/':
+            return Response(projects)
 
         name = path[len(api_prefix):]
         if name[0] == '/':
@@ -95,7 +106,7 @@ def first(seq):
 
 def test_deploy(requests):
     names = set(functions)
-    deploy.deploy(handler_nb, project='myproject', create_new=True)
+    deploy.deploy(handler_nb, project='test-project', create_new=True)
     new_names = set(functions)
     assert len(new_names) == len(names) + 1, 'not deployed'
     name = first(new_names - names)
