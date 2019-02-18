@@ -36,11 +36,13 @@ functions = {
 }
 
 projects = {
-    "metadata":
-        {"name": "03ff81bf-00d6-41a4-899c-869a12f06d8c",
-         "namespace": "default-tenant"},
-    "spec":
-        {"displayName": "test-project"}
+    'test-handler': {
+        "metadata": {
+            "name": "03ff81bf-00d6-41a4-899c-869a12f06d8c",
+            "namespace": "default-tenant"},
+        "spec":
+            {"displayName": "test-project"}
+    }
 }
 
 api_prefix = '/api/functions'
