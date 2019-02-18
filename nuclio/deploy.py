@@ -103,11 +103,11 @@ def deploy(nb_file, dashboard_url='', name='', project='',
         py_code = b64decode(py_code).decode('utf-8')
     log('Python code:\n{}'.format(py_code))
 
-    api_address=dashboard_url or find_dashboard_url()
+    api_address = dashboard_url or find_dashboard_url()
     project = find_or_create_project(api_address, project, create_new)
 
     if name and config['metadata']['name'] != name:
-        config['metadata']['name']=name
+        config['metadata']['name'] = name
 
     try:
         resp = get_function(api_address, name)
@@ -147,7 +147,6 @@ def deploy(nb_file, dashboard_url='', name='', project='',
     if state != 'ready':
         log('ERROR: {}'.format(resp.text))
         raise DeployError('cannot deploy ' + resp.text)
-
 
     log('done %s %s', verb, name)
 
@@ -215,7 +214,7 @@ def find_or_create_project(api_url, project, create_new=False):
         if v['spec']['displayName'] == project:
             return k
 
-        if k==project:
+        if k == project:
             return k
 
     if not create_new:
