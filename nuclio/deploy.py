@@ -27,7 +27,7 @@ from urllib.parse import urlparse
 import yaml
 
 import requests
-from nuclio.export import get_in, update_in
+from nuclio.export import update_in
 
 project_key = 'nuclio.io/project-name'
 
@@ -35,19 +35,6 @@ project_key = 'nuclio.io/project-name'
 class DeployError(Exception):
     pass
 
-def iter_functions(reply):
-    if not reply:
-        return []
-
-    for data in reply.values():
-        yield data['metadata']['name']
-
-
-def get_functions(api_url):
-    resp = requests.get(api_url)
-    if not resp.ok:
-        raise OSError('cannot call API')
-    return resp.json()
 
 def get_function(api_address, name):
     api_url = '{}/api/functions/{}'.format(api_address, name)
@@ -211,17 +198,17 @@ def process_resp(resp, last_time, verbose=False):
         logger.info('(%s) %s', log['level'], log['message'])
         if state == 'error' and 'errVerbose' in log.keys():
             logger.info(str(log['errVerbose']))
-        elif verbose :
+        elif verbose:
             logger.info(str(log))
 
     return state, last_time
 
 
 def find_or_create_project(api_url, project, create_new=False):
-    path = '{}/api/projects'.format(api_url)
-    resp = requests.get(path)
+    apipath = '{}/api/projects'.format(api_url)
+    resp = requests.get(apipath)
 
-    project=project.strip()
+    project = project.strip()
     if not resp.ok:
         raise OSError('nuclio API call failed')
     for k, v in resp.json().items():
@@ -239,10 +226,11 @@ def find_or_create_project(api_url, project, create_new=False):
     config = {"metadata": {}, "spec": {"displayName": project}}
 
     try:
-        resp = requests.post(path, json=config, headers=headers)
+        resp = requests.post(apipath, json=config, headers=headers)
     except OSError as err:
+        logger.info('ERROR: %s', str(err))
         raise DeployError(
-            'error: cannot create project {} on {}'.format(project, path))
+            'error: cannot create project {} on {}'.format(project, apipath))
 
     if not resp.ok:
         raise DeployError('failed to create project {}'.format(project))

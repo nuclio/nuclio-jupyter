@@ -89,12 +89,6 @@ def requests():
         yield
 
 
-def test_iter_functions(requests):
-    resp = deploy.get_functions(api_url)
-    names = set(deploy.iter_functions(resp))
-    existing = set(fn['metadata']['name'] for fn in functions.values())
-    assert names == existing, 'bad names'
-
 def first(seq):
     return next(iter(seq))
 
