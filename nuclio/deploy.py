@@ -106,7 +106,9 @@ def deploy(nb_file, dashboard_url='', name='', project='',
     api_address = dashboard_url or find_dashboard_url()
     project = find_or_create_project(api_address, project, create_new)
 
-    if name and config['metadata']['name'] != name:
+    if not name:
+        name = config['metadata']['name']
+    else:
         config['metadata']['name'] = name
 
     try:

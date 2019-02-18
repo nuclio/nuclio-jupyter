@@ -36,7 +36,7 @@ functions = {
 }
 
 projects = {
-    'test-handler': {
+    '03ff81bf-00d6-41a4-899c-869a12f06d8c': {
         "metadata": {
             "name": "03ff81bf-00d6-41a4-899c-869a12f06d8c",
             "namespace": "default-tenant"},
