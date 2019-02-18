@@ -41,6 +41,7 @@ is_commet = re.compile(r'\s*#.*').search
 is_return = re.compile(r'#\s*nuclio:\s*return').search
 # # nuclio: ignore
 has_ignore = re.compile(r'#\s*nuclio:\s*ignore').search
+has_start = re.compile(r'#\s*nuclio:\s*start').search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 line_magic = '%nuclio'
@@ -108,6 +109,11 @@ class NuclioExporter(Exporter):
             if has_ignore(code):
                 continue
 
+            if has_start(code):
+                # if we see indication of start, we ignore all previous cells
+                io = StringIO()
+                print(header(), file=io)
+
             lines = code.splitlines()
             if cell_magic in code:
                 self.handle_cell_magic(lines, io)
@@ -155,13 +161,16 @@ class NuclioExporter(Exporter):
                 code = ''
         else:
             code = handler(magic)
-        print(ipython2python(code), file=io)
+        if code:
+            print(ipython2python(code), file=io)
 
     def handle_code_cell(self, lines, io):
         buf = []
         for line in lines:
             if '%nuclio' not in line:
-                buf.append(line)
+                # ignore command or magic commands (other than %nuclio)
+                if not (line.startswith('!') or line.startswith('%')):
+                    buf.append(line)
                 continue
 
             if buf:
@@ -176,7 +185,8 @@ class NuclioExporter(Exporter):
                     'unknown nuclio command: {}'.format(magic.name))
 
             out = handler(magic)
-            print(ipython2python(out), file=io)
+            if out:
+                print(ipython2python(out), file=io)
 
         if buf:
             print(ipython2python('\n'.join(buf)), file=io)
@@ -242,7 +252,16 @@ def set_env(key, value):
 
 @magic_handler
 def env(magic):
-    for line in [magic.args] + magic.lines:
+    argline = magic.args.strip()
+    if argline.startswith('--local-only') or argline.startswith('-l'):
+        return ''
+
+    if argline.startswith('--config-only'):
+        argline = argline.replace('--config-only', '').strip()
+    if argline.startswith('-c'):
+        argline = argline.replace('-c', '').strip()
+
+    for line in [argline] + magic.lines:
         line = line.strip()
         if not line or line[0] == '#':
             continue
@@ -257,12 +276,18 @@ def env(magic):
 
 @magic_handler
 def cmd(magic):
-    for line in [magic.args] + magic.lines:
+    argline = magic.args.strip()
+    if argline.startswith('--config-only'):
+        argline = argline.replace('--config-only', '').strip()
+    if argline.startswith('-c'):
+        argline = argline.replace('-c', '').strip()
+
+    for line in [argline] + magic.lines:
         line = line.strip()
         if not line or line[0] == '#':
             continue
 
-        line = line.replace('--config-only', '').strip()
+        line = path.expandvars(line)
         update_in(function_config, 'spec.build.commands', line, append=True)
     return ''
 
@@ -358,6 +383,10 @@ def deploy(magic):
 @magic_handler
 def config(magic):
     for line in [magic.args] + magic.lines:
+        line = line.strip()
+        if not line or line[0] == '#':
+            continue
+
         key, op, value = parse_config_line(line)
         append = op == '+='
         update_in(function_config, key, value, append)

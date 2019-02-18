@@ -20,14 +20,14 @@ from base64 import b64decode
 from glob import glob
 from os import environ, path
 from shutil import copy
-from subprocess import PIPE, run, Popen
+from subprocess import PIPE, Popen, run
 from sys import executable, stderr
 from tempfile import mkdtemp
 from urllib.parse import urlencode, urljoin
 from urllib.request import urlopen
 
-import yaml
 import ipykernel
+import yaml
 from IPython import get_ipython
 from IPython.core.magic import register_line_cell_magic
 from notebook.notebookapp import list_running_servers
@@ -136,7 +136,24 @@ def env(line, cell):
     ...:
     %nuclio: setting 'USER' environment variable
     %nuclio: setting 'PASSWORD' environment variable
+
+    If you'd like to only to add the instructions to function.yaml without
+    running it locally, use the '--config-only' or '-c' flag
+
+    In [3]: %nuclio env --config-only MODEL_DIR=/home
+
+    If you'd like to only run locally and not to add the instructions to
+    function.yaml, use the '--local-only' or '-l' flag
+
     """
+    if line.startswith('--config-only') or line.startswith('-c'):
+        return
+
+    if line.startswith('--local-only'):
+        line = line.replace('--local-only', '').strip()
+    if line.startswith('-l'):
+        line = line.replace('-l', '').strip()
+
     if line:
         set_env(line)
 
@@ -225,10 +242,10 @@ def cmd(line, cell):
 
     ipy = get_ipython()
     if line:
-        ipy.system(line)
+        ipy.system(path.expandvars(line))
 
     for line in cell_lines(cell):
-        ipy.system(line)
+        ipy.system(path.expandvars(line))
 
 
 @command
