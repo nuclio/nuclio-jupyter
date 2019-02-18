@@ -186,7 +186,8 @@ def deploy_progress(api_address, name, verbose=False):
 
             if state == 'ready':
                 ip = get_address(api_address)
-                address = '{}:{}'.format(ip, resp.json()['status'].get('httpPort', 0))
+                address = '{}:{}'.format(ip, resp.json()['status']
+                                         .get('httpPort', 0))
 
             return state, address
 
