@@ -95,7 +95,7 @@ def first(seq):
 
 def test_deploy(requests):
     names = set(functions)
-    deploy.deploy(handler_nb)
+    deploy.deploy(handler_nb, project='myproject', create_new=True)
     new_names = set(functions)
     assert len(new_names) == len(names) + 1, 'not deployed'
     name = first(new_names - names)
