@@ -45,8 +45,11 @@ projects = {
     }
 }
 
+ip_addresses = {'externalIPAddresses': {'addresses': ['18.197.86.33']}}
+
 api_prefix = '/api/functions'
 projects_prefix = '/api/projects'
+address_prefix = '/api/external_ip_addresses'
 api_url = 'http://localhost:8080{}'.format(api_prefix)
 
 
@@ -73,6 +76,9 @@ class mock_requests:
 
         if path == projects_prefix or path == projects_prefix + '/':
             return Response(projects)
+
+        if path == address_prefix:
+            return Response(ip_addresses)
 
         name = path[len(api_prefix):]
         if name[0] == '/':
