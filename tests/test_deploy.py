@@ -95,14 +95,6 @@ def test_iter_functions(requests):
     existing = set(fn['metadata']['name'] for fn in functions.values())
     assert names == existing, 'bad names'
 
-
-def test_iter_projects(requests):
-    resp = deploy.get_functions(api_url)
-    names = set(deploy.iter_projects(resp))
-    existing = set(deploy.project_name(fn) for fn in functions.values())
-    assert names == existing, 'bad projects'
-
-
 def first(seq):
     return next(iter(seq))
 
@@ -136,7 +128,7 @@ def test_process_resp():
     with patch(deploy, logger=logger):
         for i in range(len(logs) + 1):
             resp['status']['logs'] = logs[:i]
-            state, last_time = deploy.process_resp(resp, last_time)
+            state, last_time = deploy.process_resp(resp, last_time, False)
             if i > 0:
                 assert last_time == logs[i-1]['time'], 'bad last_time'
             assert state == resp['status']['state'], 'bad state'
