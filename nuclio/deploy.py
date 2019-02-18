@@ -145,12 +145,12 @@ def deploy(nb_file, dashboard_url='', name='', project='',
         raise DeployError('failed {} {}'.format(verb, name))
 
     log('deploying ...')
-    state = deploy_progress(api_url, name, verbose)
+    state, address = deploy_progress(api_address, name, verbose)
     if state != 'ready':
         log('ERROR: {}'.format(resp.text))
         raise DeployError('cannot deploy ' + resp.text)
 
-    log('done %s %s', verb, name)
+    logger.info('done %s %s, function address: %s', verb, name, address)
 
 
 def populate_parser(parser):
@@ -171,9 +171,10 @@ def populate_parser(parser):
     )
 
 
-def deploy_progress(api_url, name, verbose=False):
-    url = '{}/{}'.format(api_url, name)
+def deploy_progress(api_address, name, verbose=False):
+    url = '{}/api/functions/{}'.format(api_address, name)
     last_time = time() * 1000.0
+    address = ''
 
     while True:
         resp = requests.get(url)
@@ -182,9 +183,23 @@ def deploy_progress(api_url, name, verbose=False):
 
         state, last_time = process_resp(resp.json(), last_time, verbose)
         if state in {'ready', 'error'}:
-            return state
+
+            if state == 'ready':
+                ip = get_address(api_address)
+                address = '{}:{}'.format(ip, resp.json()['status'].get('httpPort', 0))
+
+            return state, address
 
         sleep(1)
+
+
+def get_address(api_url):
+    resp = requests.get('{}/api/external_ip_addresses'.format(api_url))
+    if not resp.ok:
+        raise OSError('nuclio API call failed')
+
+    addresses = resp.json()['externalIPAddresses']['addresses']
+    return addresses[0]
 
 
 def process_resp(resp, last_time, verbose=False):
