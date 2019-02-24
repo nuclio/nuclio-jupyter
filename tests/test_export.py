@@ -16,7 +16,7 @@ from ast import literal_eval
 from contextlib import contextmanager
 from glob import glob
 from os import environ
-from subprocess import PIPE, run
+from subprocess import run
 from sys import executable
 from tempfile import mkdtemp
 
@@ -58,22 +58,6 @@ def test_export():
         code, config = load_config(fp)
     # Check we added handler
     assert 'def handler(' in code, 'no handler in code'
-
-
-@pytest.mark.install
-def test_install():
-    venv = mkdtemp()
-    run(['virtualenv', '-p', executable, venv], check=True)
-    python = '{}/bin/python'.format(venv)
-    run([python, 'setup.py', 'install'], check=True)
-
-    # Required for nbconvert to run
-    run([python, '-m', 'pip', 'install', 'notebook'], check=True)
-
-    py_cmd = 'import nbconvert.exporters as e; print(e.get_export_names())'
-    out = run([python, '-c', py_cmd], stdout=PIPE, check=True)
-    out = out.stdout.decode('utf-8')
-    assert 'nuclio' in out
 
 
 def iter_convert():
@@ -187,6 +171,15 @@ def test_multi_magic():
     assert len(cmds) == 2, 'bad # of commands'
 
 
+def test_ignore_comment():
+    nb_code = 'x = 1'
+    nb = gen_nb(['#%nuclio cmd ls', nb_code])
+    code, config = export_notebook(nb)
+    commands = config['spec']['build']['commands']
+    assert len(commands) == 0, 'commented magic not ignored'
+    assert nb_code in code, 'missing code'
+
+
 def test_start():
     cells = [
         'a = 1',
@@ -199,6 +192,7 @@ def test_start():
     for cell in cells[:2]:
         assert cell not in code, '{!r} in code'.format(cell)
     for cell in cells[2:]:
+        cell = export.filter_comments(cell)
         assert cell in code, '{!r} not in code'.format(cell)
 
 

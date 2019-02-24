@@ -17,6 +17,7 @@ import logging
 import re
 from base64 import b64encode
 from collections import namedtuple
+from copy import deepcopy
 from datetime import datetime
 from io import StringIO
 from os import environ, path
@@ -36,7 +37,7 @@ Magic = namedtuple('Magic', 'name args lines is_cell')
 magic_handlers = {}  # name -> function
 env_files = set()
 
-is_commet = re.compile(r'\s*#.*').search
+is_comment = re.compile(r'\s*#.*').match
 # # nuclio: return
 is_return = re.compile(r'#\s*nuclio:\s*return').search
 # # nuclio: ignore
@@ -47,7 +48,7 @@ indent_prefix = '    '
 line_magic = '%nuclio'
 cell_magic = '%' + line_magic
 
-function_config = {
+_function_config = {
     'apiVersion': 'nuclio.io/v1',
     'kind': 'Function',
     'metadata': {
@@ -83,6 +84,10 @@ logging.basicConfig(
 log = logging.getLogger('nuclio.export')
 
 
+def new_config():
+    return deepcopy(_function_config)
+
+
 class NuclioExporter(Exporter):
     """Export to nuclio handler"""
 
@@ -96,10 +101,11 @@ class NuclioExporter(Exporter):
         return '.yaml'
 
     def from_notebook_node(self, nb, resources=None, **kw):
+        config = new_config()
         name = get_in(resources, 'metadata.name')  # notebook name
         if name:
-            function_config['metadata']['name'] = normalize_name(name)
-        function_config['spec']['handler'] = handler_name()
+            config['metadata']['name'] = normalize_name(name)
+        config['spec']['handler'] = handler_name()
 
         io = StringIO()
         print(header(), file=io)
@@ -114,12 +120,16 @@ class NuclioExporter(Exporter):
                 io = StringIO()
                 print(header(), file=io)
 
-            lines = code.splitlines()
-            if cell_magic in code:
-                self.handle_cell_magic(lines, io)
+            code = filter_comments(code)
+            if not code.strip():
                 continue
 
-            self.handle_code_cell(lines, io)
+            lines = code.splitlines()
+            if cell_magic in code:
+                self.handle_cell_magic(lines, io, config)
+                continue
+
+            self.handle_code_cell(lines, io, config)
 
         process_env_files(env_files)
         py_code = io.getvalue()
@@ -130,9 +140,9 @@ class NuclioExporter(Exporter):
 
         data = b64encode(py_code.encode('utf-8')).decode('utf-8')
         if env_keys.no_embed_code not in environ:
-            update_in(function_config, 'spec.build.functionSourceCode', data)
+            update_in(config, 'spec.build.functionSourceCode', data)
 
-        config = gen_config(function_config)
+        config = gen_config(config)
         resources['output_extension'] = '.yaml'
         return config, resources
 
@@ -143,7 +153,7 @@ class NuclioExporter(Exporter):
                 return i
         return -1
 
-    def handle_cell_magic(self, lines, io):
+    def handle_cell_magic(self, lines, io, config):
         i = self.find_cell_magic(lines)
         if i == -1:
             raise MagicError('cannot find {}'.format(cell_magic))
@@ -160,13 +170,17 @@ class NuclioExporter(Exporter):
                 log.warning('skipping %s - not implemented', magic.name)
                 code = ''
         else:
-            code = handler(magic)
+            code = handler(magic, config)
+
         if code:
             print(ipython2python(code), file=io)
 
-    def handle_code_cell(self, lines, io):
+    def handle_code_cell(self, lines, io, config):
         buf = []
         for line in lines:
+            if is_comment(line):
+                continue
+
             if '%nuclio' not in line:
                 # ignore command or magic commands (other than %nuclio)
                 if not (line.startswith('!') or line.startswith('%')):
@@ -184,7 +198,7 @@ class NuclioExporter(Exporter):
                 raise NameError(
                     'unknown nuclio command: {}'.format(magic.name))
 
-            out = handler(magic)
+            out = handler(magic, config)
             if out:
                 print(ipython2python(out), file=io)
 
@@ -214,10 +228,6 @@ def gen_config(config):
     return header() + yaml.dump(config, default_flow_style=False)
 
 
-def is_code(line):
-    return line.strip() and not is_commet(line)
-
-
 def parse_magic_line(line):
     """Parse a '%nuclio' command. Return name, args
 
@@ -242,16 +252,16 @@ def magic_handler(fn):
     return fn
 
 
-def set_env(key, value):
+def set_env(config, key, value):
     obj = {
         'name': key,
         'value': value,
     }
-    function_config['spec']['env'].append(obj)
+    config['spec']['env'].append(obj)
 
 
 @magic_handler
-def env(magic):
+def env(magic, config):
     argline = magic.args.strip()
     if argline.startswith('--local-only') or argline.startswith('-l'):
         return ''
@@ -261,7 +271,7 @@ def env(magic):
     if argline.startswith('-c'):
         argline = argline.replace('-c', '').strip()
 
-    for line in [argline] + magic.lines:
+    for line in [magic.args] + magic.lines:
         line = line.strip()
         if not line or line[0] == '#':
             continue
@@ -270,30 +280,31 @@ def env(magic):
         if not key:
             raise ValueError(
                 'cannot parse environment value from: {}'.format(line))
-        set_env(key, value)
+        set_env(config, key, value)
     return ''
 
 
 @magic_handler
-def cmd(magic):
+def cmd(magic, config):
     argline = magic.args.strip()
     if argline.startswith('--config-only'):
         argline = argline.replace('--config-only', '').strip()
     if argline.startswith('-c'):
         argline = argline.replace('-c', '').strip()
 
-    for line in [argline] + magic.lines:
+    for line in [magic.args] + magic.lines:
         line = line.strip()
         if not line or line[0] == '#':
             continue
 
+        line = line.replace('--config-only', '').strip()
         line = path.expandvars(line)
-        update_in(function_config, 'spec.build.commands', line, append=True)
+        update_in(config, 'spec.build.commands', line, append=True)
     return ''
 
 
 @magic_handler
-def env_file(magic):
+def env_file(magic, config):
     for line in [magic.args] + magic.lines:
         file_name = line.strip()
         if file_name[:1] in ('', '#'):
@@ -325,8 +336,7 @@ def is_code_cell(cell):
 
 def is_code_line(line):
     """A code line is a non empty line that don't start with #"""
-    line = line.strip()
-    return line and line[0] not in ('#', '%')
+    return line.strip()[:1] not in {'#', '%', ''}
 
 
 def add_return(line):
@@ -340,11 +350,11 @@ def add_return(line):
 
 
 @magic_handler
-def handler(magic):
+def handler(magic, config):
     name = magic.args if magic.args else next_handler_name()
     if env_keys.handler_name not in environ:
-        module, _ = function_config['spec']['handler'].split(':')
-        function_config['spec']['handler'] = '{}:{}'.format(module, name)
+        module, _ = config['spec']['handler'].split(':')
+        config['spec']['handler'] = '{}:{}'.format(module, name)
 
     code = '\n'.join(magic.lines)
     return handler_code(name, code)
@@ -371,17 +381,17 @@ def handler_code(name, code):
 
 
 @magic_handler
-def export(magic):
+def export(magic, config):
     return ''
 
 
 @magic_handler
-def deploy(magic):
+def deploy(magic, config):
     return ''
 
 
 @magic_handler
-def config(magic):
+def config(magic, config):
     for line in [magic.args] + magic.lines:
         line = line.strip()
         if not line or line[0] == '#':
@@ -389,7 +399,7 @@ def config(magic):
 
         key, op, value = parse_config_line(line)
         append = op == '+='
-        update_in(function_config, key, value, append)
+        update_in(config, key, value, append)
     return ''
 
 
@@ -436,3 +446,8 @@ def get_in(obj, keys):
             return None
         obj = obj[key]
     return obj
+
+
+def filter_comments(code):
+    lines = (line for line in code.splitlines() if not is_comment(line))
+    return '\n'.join(lines)
