@@ -14,6 +14,7 @@
 
 
 import re
+from os import path
 import shlex
 from argparse import ArgumentParser
 from ast import literal_eval
@@ -36,6 +37,7 @@ def parse_env(line):
     if i == -1:
         return None, None
     key, value = line[:i].strip(), line[i+1:].strip()
+    value = path.expandvars(value)
     return key, value
 
 
@@ -57,10 +59,12 @@ def parse_config_line(line):
     key = match.group(1)
     op = match.group(3)
     value = match.group(4).strip()
+    value = path.expandvars(value)
     try:
         value = literal_eval(value)
-    except SyntaxError:
-        raise ValueError(line)
+    except (SyntaxError, ValueError):
+        raise ValueError(
+            'cant eval config value: "{}" in line: {}'.format(value, line))
 
     return key, op, value
 

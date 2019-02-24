@@ -178,3 +178,27 @@ def test_ignore_comment():
     commands = config['spec']['build']['commands']
     assert len(commands) == 0, 'commented magic not ignored'
     assert nb_code in code, 'missing code'
+
+
+def test_start():
+    cells = [
+        'a = 1',
+        'b = 2',
+        '# nuclio: start\nc=3',
+        'd = 4'
+    ]
+    nb = gen_nb(cells)
+    code, _ = export_notebook(nb)
+    for cell in cells[:2]:
+        assert cell not in code, '{!r} in code'.format(cell)
+    for cell in cells[2:]:
+        cell = export.filter_comments(cell)
+        assert cell in code, '{!r} not in code'.format(cell)
+
+
+def test_expand_env():
+    cell = '%nuclio cmd ls ${HOME}'
+    nb = gen_nb([cell])
+    _, config = export_notebook(nb)
+    cmds = config['spec']['build']['commands']
+    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
