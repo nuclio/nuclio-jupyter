@@ -27,7 +27,7 @@ from urllib.parse import urlparse
 import yaml
 
 import requests
-from nuclio.export import get_in, update_in
+from nuclio.export import update_in
 
 project_key = 'nuclio.io/project-name'
 
@@ -36,30 +36,9 @@ class DeployError(Exception):
     pass
 
 
-def iter_projects(reply):
-    if not reply:
-        return []
-
-    for data in reply.values():
-        labels = data['metadata'].get('labels', {})
-        for key, value in labels.items():
-            if key == project_key:
-                yield value
-
-
-def iter_functions(reply):
-    if not reply:
-        return []
-
-    for data in reply.values():
-        yield data['metadata']['name']
-
-
-def get_functions(api_url):
-    resp = requests.get(api_url)
-    if not resp.ok:
-        raise OSError('cannot call API')
-    return resp.json()
+def get_function(api_address, name):
+    api_url = '{}/api/functions/{}'.format(api_address, name)
+    return requests.get(api_url)
 
 
 def find_dashboard_url():
@@ -90,30 +69,17 @@ def project_name(config):
     return labels.get(project_key)
 
 
-def update_project(config, project, reply):
-    # Can't use str here since porject_key contains a .
-    key = ['metadata', 'labels', project_key]
-    if project:
-        update_in(config, key, project)
-        return
-
-    project = get_in(config, key)
-    if project:
-        return
-
-    projects = sorted(iter_projects(reply))
-    if not projects:
-        raise DeployError(
-            'no project name and no existing projects')
-    project = projects[0]
-    update_in(config, key, project)
-
-
-def deploy(nb_file, dashboard_url='', project='', verbose=False):
+def deploy(nb_file, dashboard_url='', name='', project='',
+           verbose=False, create_new=False, tmp_dir=''):
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
 
-    tmp_dir = mkdtemp()
+    if not project:
+        raise DeployError('project name must be specified using -p option')
+
+    if not tmp_dir:
+        tmp_dir = mkdtemp()
+
     cmd = [
         executable, '-m', 'nbconvert',
         '--to', 'nuclio.export.NuclioExporter',
@@ -137,26 +103,37 @@ def deploy(nb_file, dashboard_url='', project='', verbose=False):
         py_code = b64decode(py_code).decode('utf-8')
     log('Python code:\n{}'.format(py_code))
 
-    api_url = '{}/api/functions'.format(dashboard_url or find_dashboard_url())
-    log('api URL: %s', api_url)
-    try:
-        reply = get_functions(api_url)
-    except OSError:
-        raise DeployError('error: cannot connect to {}'.format(api_url))
+    api_address = dashboard_url or find_dashboard_url()
+    project = find_or_create_project(api_address, project, create_new)
 
-    name = config['metadata']['name']
-    is_new = name not in set(iter_functions(reply))
+    if not name:
+        name = config['metadata']['name']
+    else:
+        config['metadata']['name'] = name
+
+    try:
+        resp = get_function(api_address, name)
+    except OSError:
+        raise DeployError('error: cannot connect to {}'.format(api_address))
+
+    is_new = not resp.ok
     verb = 'creating' if is_new else 'updating'
     log('%s %s', verb, name)
+    if resp.ok:
+        func_project = resp.json()['metadata']['labels'].get(project_key, '')
+        if func_project != project:
+            raise DeployError('error: function name already exists under a '
+                              + 'different project ({})'.format(func_project))
 
-    update_project(config, project, reply)
-    log('using project %s', config['metadata']['labels'][project_key])
+    key = ['metadata', 'labels', project_key]
+    update_in(config, key, project)
 
     headers = {
         'Content-Type': 'application/json',
         'x-nuclio-project-name': project,
     }
 
+    api_url = '{}/api/functions'.format(api_address)
     try:
         resp = requests.post(api_url, json=config, headers=headers)
     except OSError as err:
@@ -168,41 +145,65 @@ def deploy(nb_file, dashboard_url='', project='', verbose=False):
         raise DeployError('failed {} {}'.format(verb, name))
 
     log('deploying ...')
-    state = deploy_progress(api_url, name)
+    state, address = deploy_progress(api_address, name, verbose)
     if state != 'ready':
         log('ERROR: {}'.format(resp.text))
         raise DeployError('cannot deploy ' + resp.text)
 
-    log('done %s %s', verb, name)
+    logger.info('done %s %s, function address: %s', verb, name, address)
 
 
 def populate_parser(parser):
     parser.add_argument('notebook', help='notebook file', type=FileType('r'))
-    parser.add_argument('--dashboard-url', help='dashboard URL')
-    parser.add_argument('--project', help='project name')
+    parser.add_argument('--dashboard-url', '-u', help='dashboard URL')
+    parser.add_argument('--name', '-n',
+                        help='function name (notebook name by default)')
+    parser.add_argument('--project', '-p', help='project name')
+    parser.add_argument('--work-dir', '-d',
+                        help='work dir for .py & .yaml files')
     parser.add_argument(
         '--verbose', '-v', action='store_true', default=False,
         help='emit more logs',
     )
+    parser.add_argument(
+        '--create-project', '-c', action='store_true', default=False,
+        help='create new project if doesnt exist',
+    )
 
 
-def deploy_progress(api_url, name):
-    url = '{}/{}'.format(api_url, name)
+def deploy_progress(api_address, name, verbose=False):
+    url = '{}/api/functions/{}'.format(api_address, name)
     last_time = time() * 1000.0
+    address = ''
 
     while True:
         resp = requests.get(url)
         if not resp.ok:
             raise DeployError('error: cannot poll {} status'.format(name))
 
-        state, last_time = process_resp(resp.json(), last_time)
+        state, last_time = process_resp(resp.json(), last_time, verbose)
         if state in {'ready', 'error'}:
-            return state
+
+            if state == 'ready':
+                ip = get_address(api_address)
+                address = '{}:{}'.format(ip, resp.json()['status']
+                                         .get('httpPort', 0))
+
+            return state, address
 
         sleep(1)
 
 
-def process_resp(resp, last_time):
+def get_address(api_url):
+    resp = requests.get('{}/api/external_ip_addresses'.format(api_url))
+    if not resp.ok:
+        raise OSError('nuclio API call failed')
+
+    addresses = resp.json()['externalIPAddresses']['addresses']
+    return addresses[0]
+
+
+def process_resp(resp, last_time, verbose=False):
     status = resp['status']
     state = status['state']
     logs = status.get('logs', [])
@@ -212,5 +213,44 @@ def process_resp(resp, last_time):
             continue
         last_time = timestamp
         logger.info('(%s) %s', log['level'], log['message'])
+        if state == 'error' and 'errVerbose' in log.keys():
+            logger.info(str(log['errVerbose']))
+        elif verbose:
+            logger.info(str(log))
 
     return state, last_time
+
+
+def find_or_create_project(api_url, project, create_new=False):
+    apipath = '{}/api/projects'.format(api_url)
+    resp = requests.get(apipath)
+
+    project = project.strip()
+    if not resp.ok:
+        raise OSError('nuclio API call failed')
+    for k, v in resp.json().items():
+        if v['spec']['displayName'] == project:
+            return k
+
+        if k == project:
+            return k
+
+    if not create_new:
+        raise DeployError('project name {} not found'.format(project))
+
+    # create a new project
+    headers = {'Content-Type': 'application/json'}
+    config = {"metadata": {}, "spec": {"displayName": project}}
+
+    try:
+        resp = requests.post(apipath, json=config, headers=headers)
+    except OSError as err:
+        logger.info('ERROR: %s', str(err))
+        raise DeployError(
+            'error: cannot create project {} on {}'.format(project, apipath))
+
+    if not resp.ok:
+        raise DeployError('failed to create project {}'.format(project))
+
+    logger.info('project name not found created new (%s)', project)
+    return resp.json()['metadata']['name']

@@ -35,7 +35,21 @@ functions = {
     },
 }
 
+projects = {
+    '03ff81bf-00d6-41a4-899c-869a12f06d8c': {
+        "metadata": {
+            "name": "03ff81bf-00d6-41a4-899c-869a12f06d8c",
+            "namespace": "default-tenant"},
+        "spec":
+            {"displayName": "test-project"}
+    }
+}
+
+ip_addresses = {'externalIPAddresses': {'addresses': ['18.197.86.33']}}
+
 api_prefix = '/api/functions'
+projects_prefix = '/api/projects'
+address_prefix = '/api/external_ip_addresses'
 api_url = 'http://localhost:8080{}'.format(api_prefix)
 
 
@@ -59,6 +73,12 @@ class mock_requests:
         path = urlparse(url).path
         if path == api_prefix or path == api_prefix + '/':
             return Response(functions)
+
+        if path == projects_prefix or path == projects_prefix + '/':
+            return Response(projects)
+
+        if path == address_prefix:
+            return Response(ip_addresses)
 
         name = path[len(api_prefix):]
         if name[0] == '/':
@@ -89,27 +109,13 @@ def requests():
         yield
 
 
-def test_iter_functions(requests):
-    resp = deploy.get_functions(api_url)
-    names = set(deploy.iter_functions(resp))
-    existing = set(fn['metadata']['name'] for fn in functions.values())
-    assert names == existing, 'bad names'
-
-
-def test_iter_projects(requests):
-    resp = deploy.get_functions(api_url)
-    names = set(deploy.iter_projects(resp))
-    existing = set(deploy.project_name(fn) for fn in functions.values())
-    assert names == existing, 'bad projects'
-
-
 def first(seq):
     return next(iter(seq))
 
 
 def test_deploy(requests):
     names = set(functions)
-    deploy.deploy(handler_nb)
+    deploy.deploy(handler_nb, project='test-project', create_new=True)
     new_names = set(functions)
     assert len(new_names) == len(names) + 1, 'not deployed'
     name = first(new_names - names)
@@ -136,7 +142,7 @@ def test_process_resp():
     with patch(deploy, logger=logger):
         for i in range(len(logs) + 1):
             resp['status']['logs'] = logs[:i]
-            state, last_time = deploy.process_resp(resp, last_time)
+            state, last_time = deploy.process_resp(resp, last_time, False)
             if i > 0:
                 assert last_time == logs[i-1]['time'], 'bad last_time'
             assert state == resp['status']['state'], 'bad state'

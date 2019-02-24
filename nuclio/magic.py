@@ -252,14 +252,22 @@ def cmd(line, cell):
 def deploy(line, cell):
     """Deploy function .
 
+    parameters:
+        -n, --name            override function name
+        -p, --project         project name (required)
+        -u, --dashboard-url   nuclio dashboard url (optional)
+        -d, --work-dir        target dir for py/yaml (optional)
+        -c, --create-project  create project if not found
+        -v, --verbose         emit more logs
+
     Examples:
     In [1]: %nuclio deploy
+    %nuclio: function deployed -p faces
+
+    In [2] %nuclio deploy -u http://localhost:8080 -p tango
     %nuclio: function deployed
 
-    In [2] %nuclio deploy --dashboard-url http://localhost:8080
-    %nuclio: function deployed
-
-    In [3] %nuclio deploy --project faces
+    In [3] %nuclio deploy -n new-name -p faces -c
     %nuclio: function deployed
     """
     class ParseError(Exception):
