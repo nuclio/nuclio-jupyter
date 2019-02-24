@@ -16,7 +16,7 @@ from ast import literal_eval
 from contextlib import contextmanager
 from glob import glob
 from os import environ
-from subprocess import PIPE, run
+from subprocess import run
 from sys import executable
 from tempfile import mkdtemp
 
@@ -58,22 +58,6 @@ def test_export():
         code, config = load_config(fp)
     # Check we added handler
     assert 'def handler(' in code, 'no handler in code'
-
-
-@pytest.mark.install
-def test_install():
-    venv = mkdtemp()
-    run(['virtualenv', '-p', executable, venv], check=True)
-    python = '{}/bin/python'.format(venv)
-    run([python, 'setup.py', 'install'], check=True)
-
-    # Required for nbconvert to run
-    run([python, '-m', 'pip', 'install', 'notebook'], check=True)
-
-    py_cmd = 'import nbconvert.exporters as e; print(e.get_export_names())'
-    out = run([python, '-c', py_cmd], stdout=PIPE, check=True)
-    out = out.stdout.decode('utf-8')
-    assert 'nuclio' in out
 
 
 def iter_convert():
