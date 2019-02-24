@@ -148,6 +148,11 @@ To run the tests run
     
     $ pipenv run python -m pytest -v tests
 
+To upload to pypi either run `make upload` after changing version in
+`nuclio/__init__.py` or `python cut_release <version>`. The latter will update
+the version in `nuclio/__init__.py`. You can use `+` for the next version. Ask
+around for pypi credentials.
+
 ## Licence
 
 Apache 2.0 (see [LICENSE.txt](LICENSE.txt))
