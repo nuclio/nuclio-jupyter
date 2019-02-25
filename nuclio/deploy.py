@@ -154,7 +154,11 @@ def deploy(nb_file, dashboard_url='', name='', project='',
 
     api_url = '{}/api/functions'.format(api_address)
     try:
-        resp = requests.post(api_url, json=config, headers=headers)
+        if is_new:
+            resp = requests.post(api_url, json=config, headers=headers)
+        else:
+            resp = requests.put(api_url+'/'+name, json=config, headers=headers)
+
     except OSError as err:
         log('ERROR: %s', str(err))
         raise DeployError('error: cannot {} to {}'.format(verb, api_url))
