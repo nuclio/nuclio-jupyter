@@ -28,6 +28,7 @@ import yaml
 
 import requests
 from nuclio.export import update_in
+from nuclio.utils import parse_env
 
 project_key = 'nuclio.io/project-name'
 
@@ -70,7 +71,7 @@ def project_name(config):
 
 
 def deploy(nb_file, dashboard_url='', name='', project='',
-           verbose=False, create_new=False, tmp_dir=''):
+           verbose=False, create_new=False, tmp_dir='', env=[]):
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
 
@@ -96,6 +97,24 @@ def deploy(nb_file, dashboard_url='', name='', project='',
     with open(cfg_file) as fp:
         config_data = fp.read()
     config = yaml.safe_load(config_data)
+
+    if env:
+        new_list = []
+        for v in env:
+            key, value = parse_env(v)
+            if key is None:
+                log('ERROR: cannot find "=" in env var %s', v)
+                raise DeployError('failed to deploy, error in env var option')
+
+            i = find_env_var(config['spec']['env'], key)
+            if i >= 0:
+                config['spec']['env'][i]['name'] = key
+                config['spec']['env'][i]['value'] = value
+            else:
+                new_env = {'name': key, 'value': value}
+                new_list += [new_env]
+
+        config['spec']['env'] += new_list
 
     log('Config:\n{}'.format(config_data))
     py_code = config['spec']['build'].get('functionSourceCode')
@@ -153,6 +172,16 @@ def deploy(nb_file, dashboard_url='', name='', project='',
     logger.info('done %s %s, function address: %s', verb, name, address)
 
 
+def find_env_var(env_list, key):
+    i = 0
+    for v in env_list:
+        if v['name']==key:
+            return i
+        i += 1
+
+    return -1
+
+
 def populate_parser(parser):
     parser.add_argument('notebook', help='notebook file', type=FileType('r'))
     parser.add_argument('--dashboard-url', '-u', help='dashboard URL')
@@ -169,6 +198,8 @@ def populate_parser(parser):
         '--create-project', '-c', action='store_true', default=False,
         help='create new project if doesnt exist',
     )
+    parser.add_argument('--env', '-e', default=[], action='append',
+                      help='override environment variable (key=value)')
 
 
 def deploy_progress(api_address, name, verbose=False):
