@@ -131,7 +131,7 @@ class NuclioExporter(Exporter):
 
             self.handle_code_cell(lines, io, config)
 
-        process_env_files(env_files)
+        process_env_files(env_files, config)
         py_code = io.getvalue()
         handler_path = environ.get(env_keys.handler_path)
         if handler_path:
@@ -271,7 +271,7 @@ def env(magic, config):
     if argline.startswith('-c'):
         argline = argline.replace('-c', '').strip()
 
-    for line in [magic.args] + magic.lines:
+    for line in [argline] + magic.lines:
         line = line.strip()
         if not line or line[0] == '#':
             continue
@@ -292,12 +292,11 @@ def cmd(magic, config):
     if argline.startswith('-c'):
         argline = argline.replace('-c', '').strip()
 
-    for line in [magic.args] + magic.lines:
+    for line in [argline] + magic.lines:
         line = line.strip()
         if not line or line[0] == '#':
             continue
 
-        line = line.replace('--config-only', '').strip()
         line = path.expandvars(line)
         update_in(config, 'spec.build.commands', line, append=True)
     return ''
@@ -317,7 +316,7 @@ def env_file(magic, config):
     return ''
 
 
-def process_env_files(env_files):
+def process_env_files(env_files, config):
     # %nuclio env_file magic will populate this
     from_env = json.loads(environ.get(env_keys.env_files, '[]'))
     for fname in (env_files | set(from_env)):
@@ -327,7 +326,7 @@ def process_env_files(env_files):
                 if not key:
                     raise ValueError(
                         '{}: cannot parse environment: {}'.format(fname, line))
-                set_env(key, value)
+                set_env(config, key, value)
 
 
 def is_code_cell(cell):
