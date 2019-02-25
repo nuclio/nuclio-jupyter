@@ -179,7 +179,7 @@ def deploy(nb_file, dashboard_url='', name='', project='',
 def find_env_var(env_list, key):
     i = 0
     for v in env_list:
-        if v['name']==key:
+        if v['name'] == key:
             return i
         i += 1
 
@@ -203,7 +203,7 @@ def populate_parser(parser):
         help='create new project if doesnt exist',
     )
     parser.add_argument('--env', '-e', default=[], action='append',
-                      help='override environment variable (key=value)')
+                        help='override environment variable (key=value)')
 
 
 def deploy_progress(api_address, name, verbose=False):
