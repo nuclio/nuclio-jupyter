@@ -22,6 +22,7 @@ from datetime import datetime
 from io import StringIO
 from os import environ, path
 from textwrap import indent
+from sys import stdout
 
 import yaml
 from nbconvert.exporters import Exporter
@@ -76,12 +77,16 @@ class MagicError(Exception):
     pass
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s - %(name)s - %(levelname)s] %(message)s',
-    datefmt='%Y%m%dT%H%M%S',
-)
-log = logging.getLogger('nuclio.export')
+def create_logger():
+    handler = logging.StreamHandler(stdout)
+    handler.setFormatter(
+        logging.Formatter('[%(name)s] %(asctime)s %(message)s'))
+    logger = logging.getLogger('nuclio.export')
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    return logger
+
+log = create_logger()
 
 
 def new_config():
