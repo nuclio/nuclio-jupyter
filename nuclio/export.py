@@ -29,7 +29,7 @@ from nbconvert.exporters import Exporter
 from nbconvert.filters import ipython2python
 
 from .utils import (env_keys, iter_env_lines, parse_config_line, parse_env,
-                    update_in)
+                    update_in, get_in, set_env, set_commands)
 from .import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
@@ -54,19 +54,16 @@ _function_config = {
     'kind': 'Function',
     'metadata': {
         'name': 'notebook',
-        'namespace': 'default-tenant',
     },
     'spec': {
         'runtime': 'python:3.6',
         'handler': None,
         'env': [],
+        'volumes': [],
         'build': {
             'commands': [],
             'noBaseImagesPull': True,
         },
-        # TODO: Remove this once this is fixed in nuclio
-        'minReplicas': 1,
-        'maxReplicas': 1,
     },
 }
 
@@ -257,14 +254,6 @@ def magic_handler(fn):
     return fn
 
 
-def set_env(config, key, value):
-    obj = {
-        'name': key,
-        'value': value,
-    }
-    config['spec']['env'].append(obj)
-
-
 @magic_handler
 def env(magic, config):
     argline = magic.args.strip()
@@ -276,16 +265,7 @@ def env(magic, config):
     if argline.startswith('-c'):
         argline = argline.replace('-c', '').strip()
 
-    for line in [argline] + magic.lines:
-        line = line.strip()
-        if not line or line[0] == '#':
-            continue
-
-        key, value = parse_env(line)
-        if not key:
-            raise ValueError(
-                'cannot parse environment value from: {}'.format(line))
-        set_env(config, key, value)
+    set_env(config, [argline] + magic.lines)
     return ''
 
 
@@ -296,14 +276,7 @@ def cmd(magic, config):
         argline = argline.replace('--config-only', '').strip()
     if argline.startswith('-c'):
         argline = argline.replace('-c', '').strip()
-
-    for line in [argline] + magic.lines:
-        line = line.strip()
-        if not line or line[0] == '#':
-            continue
-
-        line = path.expandvars(line)
-        update_in(config, 'spec.build.commands', line, append=True)
+    set_commands(config, [argline] + magic.lines)
     return ''
 
 
@@ -326,12 +299,7 @@ def process_env_files(env_files, config):
     from_env = json.loads(environ.get(env_keys.env_files, '[]'))
     for fname in (env_files | set(from_env)):
         with open(fname) as fp:
-            for line in iter_env_lines(fp):
-                key, value = parse_env(line)
-                if not key:
-                    raise ValueError(
-                        '{}: cannot parse environment: {}'.format(fname, line))
-                set_env(config, key, value)
+            set_env(config, iter_env_lines(fp))
 
 
 def is_code_cell(cell):
@@ -435,21 +403,6 @@ def handler_name():
 
     name = environ.get(env_keys.handler_name, 'handler')
     return '{}:{}'.format(module, name)
-
-
-def get_in(obj, keys):
-    """
-    >>> get_in({'a': {'b': 1}}, 'a.b')
-    1
-    """
-    if isinstance(keys, str):
-        keys = keys.split('.')
-
-    for key in keys:
-        if not obj or key not in obj:
-            return None
-        obj = obj[key]
-    return obj
 
 
 def filter_comments(code):
