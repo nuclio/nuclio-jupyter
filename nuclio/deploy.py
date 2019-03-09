@@ -89,15 +89,15 @@ def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
         del_tmp = True
 
     ext = path.splitext(nb_file)[1]
-    if ext == 'ipynb':
-        cmd = [
+    if ext == '.ipynb':
+        command = [
             executable, '-m', 'nbconvert',
             '--to', 'nuclio.export.NuclioExporter',
             '--output-dir', tmp_dir,
             nb_file,
         ]
-        log(' '.join(cmd))
-        out = run(cmd)
+        log(' '.join(command))
+        out = run(command)
         if out.returncode != 0:
             raise DeployError('cannot convert notebook')
 
@@ -107,16 +107,16 @@ def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
             config_data = fp.read()
         config = yaml.safe_load(config_data)
 
-    elif ext == 'py':
+    elif ext == '.py':
         with open(nb_file) as fp:
             code = fp.read()
             config = py2config(code, name, handler)
 
-    elif ext == 'yaml':
+    elif ext == '.yaml':
         with open(nb_file) as fp:
             config, code = load_config(fp)
 
-    elif ext == 'zip':
+    elif ext == '.zip':
         config = get_archive_config(name, nb_file, auth=auth)
 
     else:
