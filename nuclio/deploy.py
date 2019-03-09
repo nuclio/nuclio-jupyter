@@ -23,14 +23,19 @@ from sys import executable, stdout
 from tempfile import mkdtemp
 from time import sleep, time
 from urllib.parse import urlparse
+from base64 import b64encode
+
 
 import yaml
+import shutil
 
 import requests
-from nuclio.export import update_in
-from nuclio.utils import parse_env
+from nuclio.export import new_config, normalize_name
+from nuclio.utils import (get_in, update_in, get_archive_config,
+                          Volume, fill_config, load_config)
 
 project_key = 'nuclio.io/project-name'
+tag_key = 'nuclio.io/tag'
 
 
 class DeployError(Exception):
@@ -70,57 +75,105 @@ def project_name(config):
     return labels.get(project_key)
 
 
-def deploy(nb_file, dashboard_url='', name='', project='',
-           verbose=False, create_new=False, tmp_dir='', env=[]):
+def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
+           verbose=False, create_new=False, tmp_dir='', auth={},
+           env=[], extra_config={}, cmd='', mount: Volume=None):
+
+    # logger level is INFO, debug won't emit
+    log = logger.info if verbose else logger.debug
+
+    del_tmp = False
+    code = ''
+    if not tmp_dir:
+        tmp_dir = mkdtemp()
+        del_tmp = True
+
+    ext = path.splitext(nb_file)[1]
+    if ext == 'ipynb':
+        cmd = [
+            executable, '-m', 'nbconvert',
+            '--to', 'nuclio.export.NuclioExporter',
+            '--output-dir', tmp_dir,
+            nb_file,
+        ]
+        log(' '.join(cmd))
+        out = run(cmd)
+        if out.returncode != 0:
+            raise DeployError('cannot convert notebook')
+
+        base = path.basename(nb_file).replace('.ipynb', '.yaml')
+        cfg_file = '{}/{}'.format(tmp_dir, base)
+        with open(cfg_file) as fp:
+            config_data = fp.read()
+        config = yaml.safe_load(config_data)
+
+    elif ext == 'py':
+        with open(nb_file) as fp:
+            code = fp.read()
+            config = py2config(code, name, handler)
+
+    elif ext == 'yaml':
+        with open(nb_file) as fp:
+            config, code = load_config(fp)
+
+    elif ext == 'zip':
+        config = get_archive_config(name, nb_file, auth=auth)
+
+    else:
+        raise DeployError('illegal filename or extension: '+nb_file)
+
+    if get_in(config, 'spec.build.codeEntryType') != 'archive':
+        if not code:
+            code_buf = config['spec']['build'].get('functionSourceCode')
+        code = b64decode(code_buf).decode('utf-8')
+        log('Python code:\n{}'.format(code))
+        fill_config(config, extra_config, env, cmd, mount)
+
+    log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
+
+    deploy_config(config, dashboard_url, name=name, project=project,
+                  tag=tag, verbose=verbose, create_new=create_new)
+
+    if del_tmp:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def deploy_code(code, dashboard_url='', name='', project='', handler='',
+                tag='', verbose=False, create_new=False,
+                env=[], config={}, cmd='', mount: Volume=None):
+
+    newconfig = py2config(code, name, handler)
+    fill_config(newconfig, config, env, cmd, mount)
+    if verbose:
+        logger.info('Config:\n{}'.format(
+            yaml.dump(newconfig, default_flow_style=False)))
+
+    return deploy_config(newconfig, dashboard_url, name=name, project=project,
+                         tag=tag, verbose=verbose, create_new=create_new)
+
+
+def py2config(code, name, handler):
+    config = new_config()
+    if not name:
+        raise DeployError('function name must be specified')
+    if not handler:
+        handler = 'handler'
+
+    config['metadata']['name'] = normalize_name(name)
+    config['spec']['handler'] = 'main:' + handler
+
+    data = b64encode(code.encode('utf-8')).decode('utf-8')
+    update_in(config, 'spec.build.functionSourceCode', data)
+    return config
+
+
+def deploy_config(config, dashboard_url='', name='', project='', tag='',
+                  verbose=False, create_new=False):
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
 
     if not project:
-        raise DeployError('project name must be specified using -p option')
-
-    if not tmp_dir:
-        tmp_dir = mkdtemp()
-
-    cmd = [
-        executable, '-m', 'nbconvert',
-        '--to', 'nuclio.export.NuclioExporter',
-        '--output-dir', tmp_dir,
-        nb_file,
-    ]
-    log(' '.join(cmd))
-    out = run(cmd)
-    if out.returncode != 0:
-        raise DeployError('cannot convert notebook')
-
-    base = path.basename(nb_file).replace('.ipynb', '.yaml')
-    cfg_file = '{}/{}'.format(tmp_dir, base)
-    with open(cfg_file) as fp:
-        config_data = fp.read()
-    config = yaml.safe_load(config_data)
-
-    if env:
-        new_list = []
-        for v in env:
-            key, value = parse_env(v)
-            if key is None:
-                log('ERROR: cannot find "=" in env var %s', v)
-                raise DeployError('failed to deploy, error in env var option')
-
-            i = find_env_var(config['spec']['env'], key)
-            if i >= 0:
-                config['spec']['env'][i]['name'] = key
-                config['spec']['env'][i]['value'] = value
-            else:
-                new_env = {'name': key, 'value': value}
-                new_list += [new_env]
-
-        config['spec']['env'] += new_list
-
-    log('Config:\n{}'.format(config_data))
-    py_code = config['spec']['build'].get('functionSourceCode')
-    if py_code:
-        py_code = b64decode(py_code).decode('utf-8')
-    log('Python code:\n{}'.format(py_code))
+        raise DeployError('project name must be specified (using -p option)')
 
     api_address = dashboard_url or find_dashboard_url()
     project = find_or_create_project(api_address, project, create_new)
@@ -129,6 +182,9 @@ def deploy(nb_file, dashboard_url='', name='', project='',
         name = config['metadata']['name']
     else:
         config['metadata']['name'] = name
+
+    if tag:
+        update_in(config, ['metadata', 'labels', tag_key], tag)
 
     try:
         resp = get_function(api_address, name)
@@ -174,16 +230,7 @@ def deploy(nb_file, dashboard_url='', name='', project='',
         raise DeployError('cannot deploy ' + resp.text)
 
     logger.info('done %s %s, function address: %s', verb, name, address)
-
-
-def find_env_var(env_list, key):
-    i = 0
-    for v in env_list:
-        if v['name'] == key:
-            return i
-        i += 1
-
-    return -1
+    return address
 
 
 def populate_parser(parser):
