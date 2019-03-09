@@ -125,7 +125,7 @@ def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
     if get_in(config, 'spec.build.codeEntryType') != 'archive':
         if not code:
             code_buf = config['spec']['build'].get('functionSourceCode')
-        code = b64decode(code_buf).decode('utf-8')
+            code = b64decode(code_buf).decode('utf-8')
         log('Python code:\n{}'.format(code))
         fill_config(config, extra_config, env, cmd, mount)
 
