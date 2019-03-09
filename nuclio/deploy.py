@@ -77,7 +77,7 @@ def project_name(config):
 
 def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
            verbose=False, create_new=False, tmp_dir='', auth={},
-           env=[], extra_config={}, cmd='', mount: Volume=None):
+           env=[], extra_config={}, cmd='', mount: Volume = None):
 
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
@@ -140,7 +140,7 @@ def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
 
 def deploy_code(code, dashboard_url='', name='', project='', handler='',
                 tag='', verbose=False, create_new=False,
-                env=[], config={}, cmd='', mount: Volume=None):
+                env=[], config={}, cmd='', mount: Volume = None):
 
     newconfig = py2config(code, name, handler)
     fill_config(newconfig, config, env, cmd, mount)

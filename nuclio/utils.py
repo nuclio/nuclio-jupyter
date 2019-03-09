@@ -218,7 +218,7 @@ def split_path(mntpath=''):
     return container, subpath
 
 
-def fill_config(config, extra_config={}, env=[], cmd='', mount: Volume=None):
+def fill_config(config, extra_config={}, env=[], cmd='', mount: Volume = None):
     if config:
         for k, v in extra_config.items():
             current = get_in(config, k)

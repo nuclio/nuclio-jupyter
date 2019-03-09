@@ -28,7 +28,7 @@ import yaml
 from nbconvert.exporters import Exporter
 from nbconvert.filters import ipython2python
 
-from .utils import (env_keys, iter_env_lines, parse_config_line, parse_env,
+from .utils import (env_keys, iter_env_lines, parse_config_line,
                     update_in, get_in, set_env, set_commands)
 from .import magic as magic_module
 
@@ -82,6 +82,7 @@ def create_logger():
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
     return logger
+
 
 log = create_logger()
 
