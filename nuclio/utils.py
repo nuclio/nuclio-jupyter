@@ -129,6 +129,10 @@ def update_in(obj, key, value, append=False):
 
 def load_config(config_file, auth=None):
     config_data = read_or_download(config_file, auth)
+    return load_config_data(config_data)
+
+
+def load_config_data(config_data, auth=None):
     config = yaml.safe_load(config_data)
     code = config['spec']['build'].get('functionSourceCode')
     if code:
@@ -206,6 +210,19 @@ def get_auth_header(auth):
         headers['Authorization'] = authstr
 
     return headers
+
+
+def parse_archive_line(args):
+    parser = ArgumentParser(prog='%nuclio', add_help=False)
+    parser.add_argument('--key', '-k', default='')
+    parser.add_argument('--username', '-u', default='')
+    parser.add_argument('--password', '-p', default='')
+
+    if isinstance(args, str):
+        args = path.expandvars(args)
+        args = shlex.split(args)
+
+    return parser.parse_known_args(args)
 
 
 def parse_mount_line(args):
