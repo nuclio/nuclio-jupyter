@@ -54,8 +54,7 @@ def test_export():
 
     files = glob('{}/*.yaml'.format(out_dir))
     assert len(files) == 1, 'wrong # of YAML files in {}'.format(files)
-    with open(files[0]) as fp:
-        code, config = load_config(fp)
+    code, config = load_config(files[0])
     # Check we added handler
     assert 'def handler(' in code, 'no handler in code'
 
