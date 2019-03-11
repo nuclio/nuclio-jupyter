@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
+import json
 import re
 import zipfile
 from os import path, environ
@@ -20,8 +19,13 @@ import shlex
 from argparse import ArgumentParser
 from ast import literal_eval
 from base64 import b64decode
+from requests.auth import HTTPBasicAuth
+from base64 import b64encode
+from tempfile import mktemp
 
 import yaml
+import requests
+import shutil
 
 default_volume_type = 'v3io'
 missing = object()
@@ -63,7 +67,8 @@ def parse_config_line(line):
     value = match.group(4).strip()
     value = path.expandvars(value)
     try:
-        value = literal_eval(value)
+        value = json.loads(value)
+        #value = literal_eval(value)
     except (SyntaxError, ValueError):
         raise ValueError(
             'cant eval config value: "{}" in line: {}'.format(value, line))
@@ -73,10 +78,10 @@ def parse_config_line(line):
 
 def parse_export_line(args):
     parser = ArgumentParser(prog='%nuclio', add_help=False)
-    parser.add_argument('--output-dir')
-    parser.add_argument('--notebook')
+    parser.add_argument('--output-dir', '-o')
+    parser.add_argument('--notebook', '-n')
     parser.add_argument('--handler-name')
-    parser.add_argument('--handler-path')
+    parser.add_argument('--handler-path', '-p')
     parser.add_argument('--no-embed')
 
     if isinstance(args, str):
@@ -124,17 +129,24 @@ def update_in(obj, key, value, append=False):
         obj[last_key] = value
 
 
-def load_config(config_file):
-    config = yaml.load(config_file)
+def load_config(config_file, auth=None):
+    config_data = read_or_download(config_file, auth)
+    config = yaml.safe_load(config_data)
     code = config['spec']['build'].get('functionSourceCode')
     if code:
         code = b64decode(code).decode('utf-8')
     return code, config
 
 
-def build_zip(zip_path, config, code, files=[]):
+def build_zip(zip_path, config, code, files=[], auth=None):
+    url = ''
+    if zip_path.startswith('http://') or zip_path.startswith('https://'):
+        url = zip_path
+        zip_path = mktemp('.zip')
+
     z = zipfile.ZipFile(zip_path, "w")
     config['spec']['build'].pop("functionSourceCode", None)
+    config['metadata'].pop("name", None)
     z.writestr('handler.py', code)
     z.writestr('function.yaml', yaml.dump(config, default_flow_style=False))
     for f in files:
@@ -143,11 +155,23 @@ def build_zip(zip_path, config, code, files=[]):
         z.write(f)
     z.close()
 
+    if url:
+        headers = get_auth_header(auth)
+        with open(zip_path, 'rb') as data:
+            try:
+                resp = requests.put(url, data=data, headers=headers)
+            except OSError:
+                raise OSError('error: cannot connect to {}'.format(url))
+            if not resp.ok:
+                raise OSError('failed to upload zip file to {}'.format(url))
+        shutil.rmtree(zip_path, ignore_errors=True)
 
-def get_archive_config(name, zip_url, v3io_key='', auth={}):
-    if v3io_key:
-        auth['X-v3io-session-key'] = v3io_key
 
+
+
+
+def get_archive_config(name, zip_url, auth=None, workdir=''):
+    headers = get_auth_header(auth)
     return {
         'apiVersion': 'nuclio.io/v1',
         'kind': 'Function',
@@ -157,13 +181,49 @@ def get_archive_config(name, zip_url, v3io_key='', auth={}):
         'spec': {
             'build': {
                 'codeEntryAttributes': {
-                    'headers': auth,
+                    'headers': headers,
+                    'workDir': workdir,
                 },
                 'codeEntryType': 'archive',
                 'path': zip_url
             },
         },
     }
+
+
+def get_auth_header(auth):
+    headers = {}
+    if auth and isinstance(auth, str):
+        headers['X-v3io-session-key'] = auth
+    elif auth:
+        if isinstance(auth, tuple):
+            username, password = auth
+        elif isinstance(auth, HTTPBasicAuth):
+            username = auth.username
+            password = auth.password
+        else:
+            raise Exception('unsupported authentication method')
+
+        username = username.encode('latin1')
+        password = password.encode('latin1')
+        base = b64encode(b':'.join((username, password))).strip()
+        authstr = 'Basic ' + base.decode('ascii')
+        headers['Authorization'] = authstr
+
+    return headers
+
+def parse_mount_line(args):
+    parser = ArgumentParser(prog='%nuclio', add_help=False)
+    parser.add_argument('--type', '-t', default='')
+    parser.add_argument('--name', '-n', default='fs')
+    parser.add_argument('--key', '-k', default='')
+    parser.add_argument('--readonly', '-r', default=False)
+
+    if isinstance(args, str):
+        args = path.expandvars(args)
+        args = shlex.split(args)
+
+    return parser.parse_known_args(args)
 
 
 class Volume:
@@ -268,3 +328,28 @@ def set_commands(config, commands):
 
         line = path.expandvars(line)
         update_in(config, 'spec.build.commands', line, append=True)
+
+
+def read_or_download(urlpath, auth=None):
+    if urlpath.startswith('http://') or urlpath.startswith('https://'):
+        return download_http(urlpath, auth)
+
+    with open(urlpath) as fp:
+        return fp.read()
+
+
+def download_http(url, auth=None):
+    headers = {}
+    if isinstance(auth, dict):
+        headers = auth
+        auth = None
+
+    try:
+        resp = requests.get(url, headers=headers, auth=auth)
+    except OSError:
+        raise OSError('error: cannot connect to {}'.format(url))
+
+    if not resp.ok:
+        raise OSError('failed to read file in {}'.format(url))
+
+    return resp.text

@@ -28,11 +28,11 @@ from base64 import b64encode
 
 import yaml
 import shutil
-
 import requests
 from nuclio.export import new_config, normalize_name
-from nuclio.utils import (get_in, update_in, get_archive_config,
-                          Volume, fill_config, load_config)
+from nuclio.utils import (get_in, update_in, get_archive_config, download_http,
+                          Volume, fill_config, load_config, read_or_download,
+                          build_zip)
 
 project_key = 'nuclio.io/project-name'
 tag_key = 'nuclio.io/tag'
@@ -76,20 +76,28 @@ def project_name(config):
 
 
 def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
-           verbose=False, create_new=False, tmp_dir='', auth={},
+           verbose=False, create_new=False, workdir='', auth=None,
            env=[], extra_config={}, cmd='', mount: Volume = None):
 
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
 
-    del_tmp = False
     code = ''
-    if not tmp_dir:
+    if workdir:
+        tmp_dir = workdir
+        del_tmp = False
+    else:
         tmp_dir = mkdtemp()
         del_tmp = True
 
     ext = path.splitext(nb_file)[1]
     if ext == '.ipynb':
+        if nb_file.startswith('http://') or nb_file.startswith('https://'):
+            content = download_http(nb_file, auth)
+            nb_file = '{}/{}'.format(tmp_dir, path.basename(nb_file))
+            with open(nb_file, "wb") as fp:
+                fp.write(content)
+
         command = [
             executable, '-m', 'nbconvert',
             '--to', 'nuclio.export.NuclioExporter',
@@ -108,16 +116,17 @@ def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
         config = yaml.safe_load(config_data)
 
     elif ext == '.py':
-        with open(nb_file) as fp:
-            code = fp.read()
-            config = py2config(code, name, handler)
+        code = read_or_download(nb_file, auth)
+        config = py2config(code, name, handler)
 
     elif ext == '.yaml':
-        with open(nb_file) as fp:
-            config, code = load_config(fp)
+        code, config = load_config(nb_file)
 
     elif ext == '.zip':
-        config = get_archive_config(name, nb_file, auth=auth)
+        if not (nb_file.startswith('http://') or
+                nb_file.startswith('https://')):
+            raise DeployError('archive path must be a url (http(s)://..)')
+        config = get_archive_config(name, nb_file, auth=auth, workdir=workdir)
 
     else:
         raise DeployError('illegal filename or extension: '+nb_file)
@@ -139,8 +148,8 @@ def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
 
 
 def deploy_code(code, dashboard_url='', name='', project='', handler='',
-                tag='', verbose=False, create_new=False,
-                env=[], config={}, cmd='', mount: Volume = None):
+                tag='', verbose=False, create_new=False, archive='', auth=None,
+                env=[], config={}, cmd='', mount: Volume = None, files=[]):
 
     newconfig = py2config(code, name, handler)
     fill_config(newconfig, config, env, cmd, mount)
@@ -148,11 +157,20 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
         logger.info('Config:\n{}'.format(
             yaml.dump(newconfig, default_flow_style=False)))
 
+    if files and not archive:
+        raise DeployError('archive must be specified when packing files')
+    if archive:
+        build_zip(archive, newconfig, code, files, auth)
+        newconfig = get_archive_config(name, archive, auth=auth)
+        if verbose:
+            logger.info('Archive Config:\n{}'.format(
+                yaml.dump(newconfig, default_flow_style=False)))
+
     return deploy_config(newconfig, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_new)
 
 
-def py2config(code, name, handler):
+def py2config(code, name, handler=''):
     config = new_config()
     if not name:
         raise DeployError('function name must be specified')
@@ -160,7 +178,7 @@ def py2config(code, name, handler):
         handler = 'handler'
 
     config['metadata']['name'] = normalize_name(name)
-    config['spec']['handler'] = 'main:' + handler
+    config['spec']['handler'] = 'handler:' + handler
 
     data = b64encode(code.encode('utf-8')).decode('utf-8')
     update_in(config, 'spec.build.functionSourceCode', data)

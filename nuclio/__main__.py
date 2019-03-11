@@ -25,7 +25,7 @@ def do_deploy(args):
     try:
         deploy(name, args.dashboard_url, name=args.name, project=args.project,
                verbose=args.verbose, create_new=args.create_project,
-               tmp_dir=args.work_dir, env=args.env)
+               workdir=args.work_dir, env=args.env)
     except DeployError as err:
         raise SystemExit('error: {}'.format(err))
 
