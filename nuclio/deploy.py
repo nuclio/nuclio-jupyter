@@ -140,11 +140,13 @@ def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
 
     log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
 
-    deploy_config(config, dashboard_url, name=name, project=project,
+    addr = deploy_config(config, dashboard_url, name=name, project=project,
                   tag=tag, verbose=verbose, create_new=create_new)
 
     if del_tmp:
         shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    return addr
 
 
 def deploy_code(code, dashboard_url='', name='', project='', handler='',
