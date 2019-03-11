@@ -17,7 +17,6 @@ import zipfile
 from os import path, environ
 import shlex
 from argparse import ArgumentParser
-from ast import literal_eval
 from base64 import b64decode
 from requests.auth import HTTPBasicAuth
 from base64 import b64encode
@@ -68,7 +67,6 @@ def parse_config_line(line):
     value = path.expandvars(value)
     try:
         value = json.loads(value)
-        #value = literal_eval(value)
     except (SyntaxError, ValueError):
         raise ValueError(
             'cant eval config value: "{}" in line: {}'.format(value, line))
@@ -167,9 +165,6 @@ def build_zip(zip_path, config, code, files=[], auth=None):
         shutil.rmtree(zip_path, ignore_errors=True)
 
 
-
-
-
 def get_archive_config(name, zip_url, auth=None, workdir=''):
     headers = get_auth_header(auth)
     return {
@@ -211,6 +206,7 @@ def get_auth_header(auth):
         headers['Authorization'] = authstr
 
     return headers
+
 
 def parse_mount_line(args):
     parser = ArgumentParser(prog='%nuclio', add_help=False)
