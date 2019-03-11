@@ -34,7 +34,8 @@ from notebook.notebookapp import list_running_servers
 
 from .deploy import populate_parser as populate_deploy_parser
 from .utils import (env_keys, iter_env_lines, load_config, parse_config_line,
-                    parse_env, parse_export_line, parse_mount_line)
+                    parse_env, parse_export_line, parse_mount_line,
+                    parse_archive_line)
 
 log_prefix = '%nuclio: '
 here = path.dirname(path.abspath(__file__))
@@ -507,3 +508,23 @@ def mount(line, cell):
         return
 
     print('mounting volume path {} as {}'.format(rest[0], rest[1]))
+
+
+@command
+def archive(line, cell):
+    """define the function output as archive (zip) and add files.
+
+    Example:
+    In [1]: %nuclio archive http://v3io-webapi:8081/bigdata/xx77.zip
+    """
+    args, rest = parse_archive_line(line)
+    if len(rest) < 1:
+        log_error('archive path must be provided (as first param)')
+        return
+
+    for filename in cell.splitlines():
+        if not path.isfile(filename.strip()):
+            log_error('file {} doesnt exist'.format(filename))
+            return
+
+    print('archive set to {} have {} extra files'.format('', ''))

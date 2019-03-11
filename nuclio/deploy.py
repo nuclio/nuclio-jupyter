@@ -115,7 +115,7 @@ def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
             config_data = fp.read()
         config = yaml.safe_load(config_data)
 
-    elif ext == '.py':
+    elif ext in ['.py', '.go']:
         code = read_or_download(nb_file, auth)
         config = py2config(code, name, handler)
 

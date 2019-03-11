@@ -29,7 +29,8 @@ from nbconvert.exporters import Exporter
 from nbconvert.filters import ipython2python
 
 from .utils import (env_keys, iter_env_lines, parse_config_line, Volume,
-                    update_in, get_in, set_env, set_commands, parse_mount_line)
+                    update_in, get_in, set_env, set_commands, parse_mount_line,
+                    parse_archive_line, build_zip, get_archive_config)
 from .import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
@@ -37,6 +38,7 @@ here = path.dirname(path.abspath(__file__))
 Magic = namedtuple('Magic', 'name args lines is_cell')
 magic_handlers = {}  # name -> function
 env_files = set()
+archive_settings = {}
 
 is_comment = re.compile(r'\s*#.*').match
 # # nuclio: return
@@ -141,9 +143,18 @@ class NuclioExporter(Exporter):
             with open(handler_path) as fp:
                 py_code = fp.read()
 
-        data = b64encode(py_code.encode('utf-8')).decode('utf-8')
-        if env_keys.no_embed_code not in environ:
-            update_in(config, 'spec.build.functionSourceCode', data)
+        if archive_settings:
+            build_zip(archive_settings['path'], config, py_code,
+                      archive_settings['files'], archive_settings['auth'])
+            if archive_settings['name']:
+                name = archive_settings['name']
+            config = get_archive_config(name, archive_settings['path'],
+                                        auth=archive_settings['auth'])
+
+        else:
+            data = b64encode(py_code.encode('utf-8')).decode('utf-8')
+            if env_keys.no_embed_code not in environ:
+                update_in(config, 'spec.build.functionSourceCode', data)
 
         config = gen_config(config)
         resources['output_extension'] = '.yaml'
@@ -373,6 +384,33 @@ def mount(magic, config):
     volume = Volume(rest[0], rest[1], typ=args.type, name=args.name,
                     key=args.key, readonly=args.readonly)
     volume.render(config)
+    return ''
+
+
+@magic_handler
+def archive(magic, config):
+    global archive_settings
+    args, rest = parse_archive_line(magic.args)
+    if len(rest) < 1:
+        raise MagicError('archive path must be provided (as first param)')
+
+    files = []
+    if args.file:
+        files += args.file
+    for filename in magic.lines:
+        filename = filename.strip()
+        if not path.isfile(filename):
+            raise MagicError('file {} doesnt exist'.format(filename))
+        files.append(filename)
+
+    auth = None
+    if args.key:
+        auth = args.key
+    elif args.password:
+        auth = (args.username, args.password)
+
+    archive_settings = {'path': rest[0], 'files': files,
+                        'auth': auth, 'name': args.name}
     return ''
 
 
