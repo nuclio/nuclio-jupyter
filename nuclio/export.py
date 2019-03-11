@@ -28,8 +28,8 @@ import yaml
 from nbconvert.exporters import Exporter
 from nbconvert.filters import ipython2python
 
-from .utils import (env_keys, iter_env_lines, parse_config_line,
-                    update_in, get_in, set_env, set_commands)
+from .utils import (env_keys, iter_env_lines, parse_config_line, Volume,
+                    update_in, get_in, set_env, set_commands, parse_mount_line)
 from .import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
@@ -360,6 +360,19 @@ def export(magic, config):
 
 @magic_handler
 def deploy(magic, config):
+    return ''
+
+
+@magic_handler
+def mount(magic, config):
+    args, rest = parse_mount_line(magic.args)
+    if len(rest) != 2:
+        raise MagicError(
+            '2 arguments must be provided (mount point and remote path)')
+
+    volume = Volume(rest[0], rest[1], typ=args.type, name=args.name,
+                    key=args.key, readonly=args.readonly)
+    volume.render(config)
     return ''
 
 

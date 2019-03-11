@@ -34,7 +34,7 @@ from notebook.notebookapp import list_running_servers
 
 from .deploy import populate_parser as populate_deploy_parser
 from .utils import (env_keys, iter_env_lines, load_config, parse_config_line,
-                    parse_env, parse_export_line)
+                    parse_env, parse_export_line, parse_mount_line)
 
 log_prefix = '%nuclio: '
 here = path.dirname(path.abspath(__file__))
@@ -358,13 +358,13 @@ def save_handler(config_file, out_dir):
 def export(line, cell, return_dir=False):
     """Export notebook. Possible options are:
 
-    --output-dir path
+    -o, --output-dir path
         Output directory path
-    --notebook path
+    -n, --notebook path
         Path to notebook file
     --handler-name name
         Name of handler
-    --handler-file path
+    -p, --handler-file path
         Path to handler code (Python file)
 
     Example:
@@ -483,8 +483,7 @@ def print_handler_code(notebook_file=None):
     if len(files) != 1:
         raise ValueError('too many YAML files in {}'.format(out_dir))
 
-    with open(files[0]) as fp:
-        code, _ = load_config(fp)
+    code, _ = load_config(files[0])
     print(code)
 
 
@@ -492,3 +491,19 @@ def update_env_files(file_name):
     files = json.loads(environ.get(env_keys.env_files, '[]'))
     files.append(file_name)
     environ[env_keys.env_files] = json.dumps(files)
+
+
+@command
+def mount(line, cell):
+    """Mount a Volume into the function.
+
+    Example:
+    In [1]: %nuclio mount /data /projects/netops/data
+    mounting volume path /projects/netops/data as /data
+    """
+    args, rest = parse_mount_line(line)
+    if len(rest) != 2:
+        log_error('2 arguments must be provided (mount point and remote path)')
+        return
+
+    print('mounting volume path {} as {}'.format(rest[0], rest[1]))
