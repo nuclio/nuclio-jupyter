@@ -15,7 +15,7 @@ Run the following in a cell
 
 ```
 # nuclio: ignore
-!pip install nuclio-jupyter
+!pip install --upgrade nuclio-jupyter
 ```
 
 ## Usage

@@ -18,21 +18,17 @@ from argparse import FileType
 from base64 import b64decode
 from os import environ, path
 from operator import itemgetter
-from subprocess import run
-from sys import executable, stdout
-from tempfile import mkdtemp
+from sys import stdout
+from tempfile import mktemp
 from time import sleep, time
 from urllib.parse import urlparse
-from base64 import b64encode
-
 
 import yaml
-import shutil
 import requests
-from nuclio.export import new_config, normalize_name
-from nuclio.utils import (get_in, update_in, get_archive_config, download_http,
-                          Volume, fill_config, load_config, read_or_download,
-                          build_zip)
+from nuclio.utils import (get_in, update_in, is_url, normalize_name,
+                          Volume, fill_config, load_config, read_or_download)
+from .archive import get_archive_config, build_zip, upload_file
+from .build import code2config, build_notebook
 
 project_key = 'nuclio.io/project-name'
 tag_key = 'nuclio.io/tag'
@@ -76,57 +72,42 @@ def project_name(config):
 
 
 def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
-           verbose=False, create_new=False, workdir='', auth=None,
+           verbose=False, create_new=False, target_dir='', auth=None,
            env=[], extra_config={}, cmd='', mount: Volume = None):
 
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
 
     code = ''
-    if workdir:
-        tmp_dir = workdir
-        del_tmp = False
-    else:
-        tmp_dir = mkdtemp()
-        del_tmp = True
-
-    ext = path.splitext(nb_file)[1]
+    filebase, ext = path.splitext(path.basename(nb_file))
+    name = normalize_name(name or filebase)
     if ext == '.ipynb':
-        if nb_file.startswith('http://') or nb_file.startswith('https://'):
-            content = download_http(nb_file, auth)
-            nb_file = '{}/{}'.format(tmp_dir, path.basename(nb_file))
-            with open(nb_file, "wb") as fp:
-                fp.write(content)
 
-        command = [
-            executable, '-m', 'nbconvert',
-            '--to', 'nuclio.export.NuclioExporter',
-            '--output-dir', tmp_dir,
-            nb_file,
-        ]
-        log(' '.join(command))
-        out = run(command)
-        if out.returncode != 0:
-            raise DeployError('cannot convert notebook')
+        file_path, ext, has_url = build_notebook(nb_file, name, handler,
+                                                target_dir, auth)
+        if ext == '.zip':
+            if not has_url:
+                raise DeployError('archive path must be a url (http(s)://..)')
+            config = get_archive_config(normalize_name(name), file_path,
+                                        auth=auth)
+        else:
+            if has_url:
+                raise DeployError('yaml path must be a local dir')
+            with open(file_path) as fp:
+                config_data = fp.read()
+            config = yaml.safe_load(config_data)
 
-        base = path.basename(nb_file).replace('.ipynb', '.yaml')
-        cfg_file = '{}/{}'.format(tmp_dir, base)
-        with open(cfg_file) as fp:
-            config_data = fp.read()
-        config = yaml.safe_load(config_data)
-
-    elif ext in ['.py', '.go']:
+    elif ext in ['.py', '.go', '.js']:
         code = read_or_download(nb_file, auth)
-        config = py2config(code, name, handler)
+        config = code2config(code, name, handler, ext)
 
     elif ext == '.yaml':
         code, config = load_config(nb_file)
 
     elif ext == '.zip':
-        if not (nb_file.startswith('http://') or
-                nb_file.startswith('https://')):
+        if not is_url(nb_file):
             raise DeployError('archive path must be a url (http(s)://..)')
-        config = get_archive_config(name, nb_file, auth=auth, workdir=workdir)
+        config = get_archive_config(name, nb_file, auth=auth, workdir='')
 
     else:
         raise DeployError('illegal filename or extension: '+nb_file)
@@ -143,17 +124,15 @@ def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
     addr = deploy_config(config, dashboard_url, name=name, project=project,
                   tag=tag, verbose=verbose, create_new=create_new)
 
-    if del_tmp:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-
     return addr
 
 
 def deploy_code(code, dashboard_url='', name='', project='', handler='',
-                tag='', verbose=False, create_new=False, archive='', auth=None,
-                env=[], config={}, cmd='', mount: Volume = None, files=[]):
+                lang='.py', tag='', verbose=False, create_new=False,
+                archive='', auth=None,env=[], config={}, cmd='',
+                mount: Volume = None, files=[]):
 
-    newconfig = py2config(code, name, handler)
+    newconfig = code2config(code, name, handler, lang)
     fill_config(newconfig, config, env, cmd, mount)
     if verbose:
         logger.info('Config:\n{}'.format(
@@ -162,7 +141,9 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
     if files and not archive:
         raise DeployError('archive must be specified when packing files')
     if archive:
-        build_zip(archive, newconfig, code, files, auth)
+        tmp_file = mktemp('.zip')
+        build_zip(tmp_file, newconfig, code, files)
+        upload_file(tmp_file, archive, auth, True)
         newconfig = get_archive_config(name, archive, auth=auth)
         if verbose:
             logger.info('Archive Config:\n{}'.format(
@@ -170,21 +151,6 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
 
     return deploy_config(newconfig, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_new)
-
-
-def py2config(code, name, handler=''):
-    config = new_config()
-    if not name:
-        raise DeployError('function name must be specified')
-    if not handler:
-        handler = 'handler'
-
-    config['metadata']['name'] = normalize_name(name)
-    config['spec']['handler'] = 'handler:' + handler
-
-    data = b64encode(code.encode('utf-8')).decode('utf-8')
-    update_in(config, 'spec.build.functionSourceCode', data)
-    return config
 
 
 def deploy_config(config, dashboard_url='', name='', project='', tag='',
@@ -255,12 +221,12 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
 
 def populate_parser(parser):
     parser.add_argument('notebook', help='notebook file', type=FileType('r'))
-    parser.add_argument('--dashboard-url', '-u', help='dashboard URL')
+    parser.add_argument('--dashboard-url', '-d', help='dashboard URL')
     parser.add_argument('--name', '-n',
                         help='function name (notebook name by default)')
     parser.add_argument('--project', '-p', help='project name')
-    parser.add_argument('--work-dir', '-d',
-                        help='work dir for .py & .yaml files')
+    parser.add_argument('--target-dir', '-t', default='',
+                        help='target dir/url for .zip or .yaml files')
     parser.add_argument(
         '--verbose', '-v', action='store_true', default=False,
         help='emit more logs',
@@ -271,6 +237,12 @@ def populate_parser(parser):
     )
     parser.add_argument('--env', '-e', default=[], action='append',
                         help='override environment variable (key=value)')
+    parser.add_argument('--key', '-k', default='',
+                        help='authentication/access key')
+    parser.add_argument('--username', '-u', default='',
+                        help='username for authentication')
+    parser.add_argument('--secret', '-s', default='',
+                        help='secret-key/password for authentication')
 
 
 def deploy_progress(api_address, name, verbose=False):

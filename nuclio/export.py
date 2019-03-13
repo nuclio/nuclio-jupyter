@@ -17,9 +17,8 @@ import logging
 import re
 from base64 import b64encode
 from collections import namedtuple
-from copy import deepcopy
 from datetime import datetime
-from io import StringIO
+from io import StringIO, BytesIO
 from os import environ, path
 from textwrap import indent
 from sys import stdout
@@ -30,7 +29,9 @@ from nbconvert.filters import ipython2python
 
 from .utils import (env_keys, iter_env_lines, parse_config_line, Volume,
                     update_in, get_in, set_env, set_commands, parse_mount_line,
-                    parse_archive_line, build_zip, get_archive_config)
+                    normalize_name)
+from .archive import parse_archive_line, build_zip
+from .config import new_config
 from .import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
@@ -50,24 +51,6 @@ handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 line_magic = '%nuclio'
 cell_magic = '%' + line_magic
-
-_function_config = {
-    'apiVersion': 'nuclio.io/v1',
-    'kind': 'Function',
-    'metadata': {
-        'name': 'notebook',
-    },
-    'spec': {
-        'runtime': 'python:3.6',
-        'handler': None,
-        'env': [],
-        'volumes': [],
-        'build': {
-            'commands': [],
-            'noBaseImagesPull': True,
-        },
-    },
-}
 
 handlers = []
 
@@ -89,17 +72,18 @@ def create_logger():
 log = create_logger()
 
 
-def new_config():
-    return deepcopy(_function_config)
-
-
 class NuclioExporter(Exporter):
     """Export to nuclio handler"""
 
     # Add "File -> Download as" menu in the notebook
     export_from_notebook = 'Nuclio'
 
-    output_mimetype = 'application/yaml'
+    @property
+    def output_mimetype(self):
+        if archive_settings:
+            return 'application/zip'
+        else:
+            return 'application/yaml'
 
     def _file_extension_default(self):
         """Return default file extension"""
@@ -144,20 +128,20 @@ class NuclioExporter(Exporter):
                 py_code = fp.read()
 
         if archive_settings:
-            build_zip(archive_settings['path'], config, py_code,
-                      archive_settings['files'], archive_settings['auth'])
-            if archive_settings['name']:
-                name = archive_settings['name']
-            config = get_archive_config(name, archive_settings['path'],
-                                        auth=archive_settings['auth'])
+            buffer = BytesIO()
+            build_zip(buffer, config, py_code,
+                      archive_settings['files'])
+            config = buffer.getvalue()
+            resources['output_extension'] = '.zip'
+            #config = get_archive_config(name, archive_settings['path'],auth=archive_settings['auth'])
 
         else:
             data = b64encode(py_code.encode('utf-8')).decode('utf-8')
             if env_keys.no_embed_code not in environ:
                 update_in(config, 'spec.build.functionSourceCode', data)
+            config = gen_config(config)
+            resources['output_extension'] = '.yaml'
 
-        config = gen_config(config)
-        resources['output_extension'] = '.yaml'
         return config, resources
 
     def find_cell_magic(self, lines):
@@ -218,14 +202,6 @@ class NuclioExporter(Exporter):
 
         if buf:
             print(ipython2python('\n'.join(buf)), file=io)
-
-
-def normalize_name(name):
-    # TODO: Must match
-    # [a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?
-    name = re.sub(r'\s+', '-', name)
-    name = name.replace('_', '-')
-    return name.lower()
 
 
 def header():
@@ -375,6 +351,16 @@ def deploy(magic, config):
 
 
 @magic_handler
+def help(magic, config):
+    return ''
+
+
+@magic_handler
+def show(magic, config):
+    return ''
+
+
+@magic_handler
 def mount(magic, config):
     args, rest = parse_mount_line(magic.args)
     if len(rest) != 2:
@@ -391,17 +377,12 @@ def mount(magic, config):
 def archive(magic, config):
     global archive_settings
     args, rest = parse_archive_line(magic.args)
-    if len(rest) < 1:
-        raise MagicError('archive path must be provided (as first param)')
 
-    files = []
-    if args.file:
-        files += args.file
-    for filename in magic.lines:
+    files = args.file + magic.lines
+    for filename in files:
         filename = filename.strip()
         if not path.isfile(filename):
             raise MagicError('file {} doesnt exist'.format(filename))
-        files.append(filename)
 
     auth = None
     if args.key:
@@ -409,7 +390,7 @@ def archive(magic, config):
     elif args.password:
         auth = (args.username, args.password)
 
-    archive_settings = {'path': rest[0], 'files': files,
+    archive_settings = {'path': '', 'files': files,
                         'auth': auth, 'name': args.name}
     return ''
 
