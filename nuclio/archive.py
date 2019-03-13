@@ -120,5 +120,3 @@ def parse_archive_line(args):
         args = shlex.split(args)
 
     return parser.parse_known_args(args)
-
-
