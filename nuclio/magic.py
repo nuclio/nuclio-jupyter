@@ -31,8 +31,8 @@ from notebook.notebookapp import list_running_servers
 
 from .deploy import populate_parser as populate_deploy_parser
 from .utils import (env_keys, iter_env_lines, load_config, parse_config_line,
-                    parse_env, parse_export_line, parse_mount_line)
-from .archive import parse_archive_line, args2auth
+                    parse_env, parse_export_line, parse_mount_line, is_url)
+from .archive import parse_archive_line, args2auth, load_zip_config
 from .build import build_notebook
 
 log_prefix = '%nuclio: '
@@ -457,6 +457,8 @@ def print_handler_code(notebook_file=None):
     file_path = export(line, None, return_dir=True)
     if not file_path:
         raise ValueError('failed to export {}'.format(notebook_file))
+    if is_url(file_path):
+        print('cannot show content of URL files ({})'.format(file_path))
 
     if file_path.endswith('.yaml'):
         code, config = load_config(file_path)
@@ -465,7 +467,9 @@ def print_handler_code(notebook_file=None):
         config_yaml = yaml.dump(config, default_flow_style=False)
         print('Config:\n{}'.format(config_yaml))
     else:
-        print('cannot print content of zip {}'.format(file_path))
+        code, config = load_zip_config(file_path)
+        print('Code:\n{}'.format(code))
+        print('Config:\n{}'.format(config))
 
 
 def update_env_files(file_name):

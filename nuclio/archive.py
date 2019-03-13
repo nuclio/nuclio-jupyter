@@ -23,6 +23,20 @@ def build_zip(zip_path, config, code, files=[]):
     z.close()
 
 
+def load_zip_config(zip_path):
+    data = get_from_zip(zip_path, ['function.yaml', 'handler.py'])
+    return data['handler.py'], data['function.yaml']
+
+
+def get_from_zip(zip_path, files=[]):
+    files_data = {}
+    with zipfile.ZipFile(zip_path) as myzip:
+        for f in files:
+            with myzip.open(f) as zipped:
+                files_data[f] = zipped.read()
+    return files_data
+
+
 def upload_file(file_path, url, auth=None, del_file=False):
     if url.startswith('s3://'):
         s3_upload(file_path, url, auth)
