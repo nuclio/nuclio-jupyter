@@ -15,8 +15,9 @@
 from .magic import print_handler_code # noqa
 from .request import Context, Event, inject_context as _inject_context # noqa
 from . import magic  # noqa
+from .deploy import deploy_code, deploy_file  # noqa
 
-__version__ = '0.6.15'
+__version__ = '0.7.0'
 
 _inject_context()
 del _inject_context

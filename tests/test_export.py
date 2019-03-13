@@ -25,7 +25,7 @@ import yaml
 
 from conftest import here
 from nuclio import export
-from nuclio.utils import env_keys, load_config
+from nuclio.utils import env_keys, load_config, load_config_data
 
 
 @contextmanager
@@ -54,8 +54,7 @@ def test_export():
 
     files = glob('{}/*.yaml'.format(out_dir))
     assert len(files) == 1, 'wrong # of YAML files in {}'.format(files)
-    with open(files[0]) as fp:
-        code, config = load_config(fp)
+    code, config = load_config(files[0])
     # Check we added handler
     assert 'def handler(' in code, 'no handler in code'
 
@@ -70,7 +69,7 @@ def export_notebook(nb, resources=None):
     resources = {} if resources is None else resources
     exp = export.NuclioExporter()
     out, _ = exp.from_notebook_node(nb, resources)
-    code, config = load_config(out)
+    code, config = load_config_data(out)
     return code, config
 
 

@@ -18,19 +18,20 @@ from argparse import FileType
 from base64 import b64decode
 from os import environ, path
 from operator import itemgetter
-from subprocess import run
-from sys import executable, stdout
-from tempfile import mkdtemp
+from sys import stdout
+from tempfile import mktemp
 from time import sleep, time
 from urllib.parse import urlparse
 
 import yaml
-
 import requests
-from nuclio.export import update_in
-from nuclio.utils import parse_env
+from nuclio.utils import (get_in, update_in, is_url, normalize_name,
+                          Volume, fill_config, load_config, read_or_download)
+from .archive import get_archive_config, build_zip, upload_file
+from .build import code2config, build_notebook
 
 project_key = 'nuclio.io/project-name'
+tag_key = 'nuclio.io/tag'
 
 
 class DeployError(Exception):
@@ -70,57 +71,96 @@ def project_name(config):
     return labels.get(project_key)
 
 
-def deploy(nb_file, dashboard_url='', name='', project='',
-           verbose=False, create_new=False, tmp_dir='', env=[]):
+def deploy_file(nb_file, dashboard_url='', name='', project='', handler='',
+                tag='', verbose=False, create_new=False, target_dir='',
+                auth=None, env=[], extra_config={}, cmd='',
+                mount: Volume = None):
+
+    # logger level is INFO, debug won't emit
+    log = logger.info if verbose else logger.debug
+
+    code = ''
+    filebase, ext = path.splitext(path.basename(nb_file))
+    name = normalize_name(name or filebase)
+    if ext == '.ipynb':
+
+        file_path, ext, has_url = build_notebook(nb_file, name, handler,
+                                                 target_dir, auth)
+        if ext == '.zip':
+            if not has_url:
+                raise DeployError('archive path must be a url (http(s)://..)')
+            config = get_archive_config(normalize_name(name), file_path,
+                                        auth=auth)
+        else:
+            if has_url:
+                raise DeployError('yaml path must be a local dir')
+            with open(file_path) as fp:
+                config_data = fp.read()
+            config = yaml.safe_load(config_data)
+
+    elif ext in ['.py', '.go', '.js']:
+        code = read_or_download(nb_file, auth)
+        config = code2config(code, name, handler, ext)
+
+    elif ext == '.yaml':
+        code, config = load_config(nb_file)
+
+    elif ext == '.zip':
+        if not is_url(nb_file):
+            raise DeployError('archive path must be a url (http(s)://..)')
+        config = get_archive_config(name, nb_file, auth=auth, workdir='')
+
+    else:
+        raise DeployError('illegal filename or extension: '+nb_file)
+
+    if get_in(config, 'spec.build.codeEntryType') != 'archive':
+        if not code:
+            code_buf = config['spec']['build'].get('functionSourceCode')
+            code = b64decode(code_buf).decode('utf-8')
+        log('Python code:\n{}'.format(code))
+        fill_config(config, extra_config, env, cmd, mount)
+
+    log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
+
+    addr = deploy_config(config, dashboard_url, name=name, project=project,
+                         tag=tag, verbose=verbose, create_new=create_new)
+
+    return addr
+
+
+def deploy_code(code, dashboard_url='', name='', project='', handler='',
+                lang='.py', tag='', verbose=False, create_new=False,
+                archive='', auth=None, env=[], config={}, cmd='',
+                mount: Volume = None, files=[]):
+
+    newconfig = code2config(code, name, handler, lang)
+    fill_config(newconfig, config, env, cmd, mount)
+    if verbose:
+        logger.info('Config:\n{}'.format(
+            yaml.dump(newconfig, default_flow_style=False)))
+
+    if files and not archive:
+        raise DeployError('archive must be specified when packing files')
+    if archive:
+        tmp_file = mktemp('.zip')
+        build_zip(tmp_file, newconfig, code, files)
+        upload_file(tmp_file, archive, auth, True)
+        newconfig = get_archive_config(name, archive, auth=auth)
+        if verbose:
+            logger.info('Archive Config:\n{}'.format(
+                yaml.dump(newconfig, default_flow_style=False)))
+
+    return deploy_config(newconfig, dashboard_url, name=name, project=project,
+                         tag=tag, verbose=verbose, create_new=create_new)
+
+
+def deploy_config(config, dashboard_url='', name='', project='', tag='',
+                  verbose=False, create_new=False):
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
 
     if not project:
-        raise DeployError('project name must be specified using -p option')
-
-    if not tmp_dir:
-        tmp_dir = mkdtemp()
-
-    cmd = [
-        executable, '-m', 'nbconvert',
-        '--to', 'nuclio.export.NuclioExporter',
-        '--output-dir', tmp_dir,
-        nb_file,
-    ]
-    log(' '.join(cmd))
-    out = run(cmd)
-    if out.returncode != 0:
-        raise DeployError('cannot convert notebook')
-
-    base = path.basename(nb_file).replace('.ipynb', '.yaml')
-    cfg_file = '{}/{}'.format(tmp_dir, base)
-    with open(cfg_file) as fp:
-        config_data = fp.read()
-    config = yaml.safe_load(config_data)
-
-    if env:
-        new_list = []
-        for v in env:
-            key, value = parse_env(v)
-            if key is None:
-                log('ERROR: cannot find "=" in env var %s', v)
-                raise DeployError('failed to deploy, error in env var option')
-
-            i = find_env_var(config['spec']['env'], key)
-            if i >= 0:
-                config['spec']['env'][i]['name'] = key
-                config['spec']['env'][i]['value'] = value
-            else:
-                new_env = {'name': key, 'value': value}
-                new_list += [new_env]
-
-        config['spec']['env'] += new_list
-
-    log('Config:\n{}'.format(config_data))
-    py_code = config['spec']['build'].get('functionSourceCode')
-    if py_code:
-        py_code = b64decode(py_code).decode('utf-8')
-    log('Python code:\n{}'.format(py_code))
+        raise DeployError('project name must be specified (using -p option)')
 
     api_address = dashboard_url or find_dashboard_url()
     project = find_or_create_project(api_address, project, create_new)
@@ -129,6 +169,9 @@ def deploy(nb_file, dashboard_url='', name='', project='',
         name = config['metadata']['name']
     else:
         config['metadata']['name'] = name
+
+    if tag:
+        update_in(config, ['metadata', 'labels', tag_key], tag)
 
     try:
         resp = get_function(api_address, name)
@@ -174,26 +217,17 @@ def deploy(nb_file, dashboard_url='', name='', project='',
         raise DeployError('cannot deploy ' + resp.text)
 
     logger.info('done %s %s, function address: %s', verb, name, address)
-
-
-def find_env_var(env_list, key):
-    i = 0
-    for v in env_list:
-        if v['name'] == key:
-            return i
-        i += 1
-
-    return -1
+    return address
 
 
 def populate_parser(parser):
     parser.add_argument('notebook', help='notebook file', type=FileType('r'))
-    parser.add_argument('--dashboard-url', '-u', help='dashboard URL')
+    parser.add_argument('--dashboard-url', '-d', help='dashboard URL')
     parser.add_argument('--name', '-n',
                         help='function name (notebook name by default)')
     parser.add_argument('--project', '-p', help='project name')
-    parser.add_argument('--work-dir', '-d',
-                        help='work dir for .py & .yaml files')
+    parser.add_argument('--target-dir', '-t', default='',
+                        help='target dir/url for .zip or .yaml files')
     parser.add_argument(
         '--verbose', '-v', action='store_true', default=False,
         help='emit more logs',
@@ -204,6 +238,12 @@ def populate_parser(parser):
     )
     parser.add_argument('--env', '-e', default=[], action='append',
                         help='override environment variable (key=value)')
+    parser.add_argument('--key', '-k', default='',
+                        help='authentication/access key')
+    parser.add_argument('--username', '-u', default='',
+                        help='username for authentication')
+    parser.add_argument('--secret', '-s', default='',
+                        help='secret-key/password for authentication')
 
 
 def deploy_progress(api_address, name, verbose=False):

@@ -31,6 +31,14 @@ class Context(_Context):
                 'nuclio-jupyter', stdout, HumanReadableFormatter())
         return value
 
+    def set_logger_level(self, verbose=False):
+        if verbose:
+            level = logging.DEBUG
+        else:
+            level = logging.INFO
+        value = self.logger = Logger(level=level)
+        value.set_handler('nuclio-jupyter', stdout, HumanReadableFormatter())
+
 
 def inject_context():
     import builtins

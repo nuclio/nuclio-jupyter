@@ -17,18 +17,21 @@ import logging
 import re
 from base64 import b64encode
 from collections import namedtuple
-from copy import deepcopy
 from datetime import datetime
-from io import StringIO
+from io import StringIO, BytesIO
 from os import environ, path
 from textwrap import indent
+from sys import stdout
 
 import yaml
 from nbconvert.exporters import Exporter
 from nbconvert.filters import ipython2python
 
-from .utils import (env_keys, iter_env_lines, parse_config_line, parse_env,
-                    update_in)
+from .utils import (env_keys, iter_env_lines, parse_config_line, Volume,
+                    update_in, get_in, set_env, set_commands, parse_mount_line,
+                    normalize_name)
+from .archive import parse_archive_line, build_zip
+from .config import new_config
 from .import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
@@ -36,6 +39,7 @@ here = path.dirname(path.abspath(__file__))
 Magic = namedtuple('Magic', 'name args lines is_cell')
 magic_handlers = {}  # name -> function
 env_files = set()
+archive_settings = {}
 
 is_comment = re.compile(r'\s*#.*').match
 # # nuclio: return
@@ -48,27 +52,6 @@ indent_prefix = '    '
 line_magic = '%nuclio'
 cell_magic = '%' + line_magic
 
-_function_config = {
-    'apiVersion': 'nuclio.io/v1',
-    'kind': 'Function',
-    'metadata': {
-        'name': 'notebook',
-        'namespace': 'default-tenant',
-    },
-    'spec': {
-        'runtime': 'python:3.6',
-        'handler': None,
-        'env': [],
-        'build': {
-            'commands': [],
-            'noBaseImagesPull': True,
-        },
-        # TODO: Remove this once this is fixed in nuclio
-        'minReplicas': 1,
-        'maxReplicas': 1,
-    },
-}
-
 handlers = []
 
 
@@ -76,16 +59,17 @@ class MagicError(Exception):
     pass
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s - %(name)s - %(levelname)s] %(message)s',
-    datefmt='%Y%m%dT%H%M%S',
-)
-log = logging.getLogger('nuclio.export')
+def create_logger():
+    handler = logging.StreamHandler(stdout)
+    handler.setFormatter(
+        logging.Formatter('[%(name)s] %(asctime)s %(message)s'))
+    logger = logging.getLogger('nuclio.export')
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    return logger
 
 
-def new_config():
-    return deepcopy(_function_config)
+log = create_logger()
 
 
 class NuclioExporter(Exporter):
@@ -94,7 +78,12 @@ class NuclioExporter(Exporter):
     # Add "File -> Download as" menu in the notebook
     export_from_notebook = 'Nuclio'
 
-    output_mimetype = 'application/yaml'
+    @property
+    def output_mimetype(self):
+        if archive_settings:
+            return 'application/zip'
+        else:
+            return 'application/yaml'
 
     def _file_extension_default(self):
         """Return default file extension"""
@@ -138,12 +127,20 @@ class NuclioExporter(Exporter):
             with open(handler_path) as fp:
                 py_code = fp.read()
 
-        data = b64encode(py_code.encode('utf-8')).decode('utf-8')
-        if env_keys.no_embed_code not in environ:
-            update_in(config, 'spec.build.functionSourceCode', data)
+        if archive_settings:
+            buffer = BytesIO()
+            build_zip(buffer, config, py_code,
+                      archive_settings['files'])
+            config = buffer.getvalue()
+            resources['output_extension'] = '.zip'
 
-        config = gen_config(config)
-        resources['output_extension'] = '.yaml'
+        else:
+            data = b64encode(py_code.encode('utf-8')).decode('utf-8')
+            if env_keys.no_embed_code not in environ:
+                update_in(config, 'spec.build.functionSourceCode', data)
+            config = gen_config(config)
+            resources['output_extension'] = '.yaml'
+
         return config, resources
 
     def find_cell_magic(self, lines):
@@ -206,14 +203,6 @@ class NuclioExporter(Exporter):
             print(ipython2python('\n'.join(buf)), file=io)
 
 
-def normalize_name(name):
-    # TODO: Must match
-    # [a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?
-    name = re.sub(r'\s+', '-', name)
-    name = name.replace('_', '-')
-    return name.lower()
-
-
 def header():
     name = exporter_name()
     now = datetime.now()
@@ -252,14 +241,6 @@ def magic_handler(fn):
     return fn
 
 
-def set_env(config, key, value):
-    obj = {
-        'name': key,
-        'value': value,
-    }
-    config['spec']['env'].append(obj)
-
-
 @magic_handler
 def env(magic, config):
     argline = magic.args.strip()
@@ -271,16 +252,7 @@ def env(magic, config):
     if argline.startswith('-c'):
         argline = argline.replace('-c', '').strip()
 
-    for line in [argline] + magic.lines:
-        line = line.strip()
-        if not line or line[0] == '#':
-            continue
-
-        key, value = parse_env(line)
-        if not key:
-            raise ValueError(
-                'cannot parse environment value from: {}'.format(line))
-        set_env(config, key, value)
+    set_env(config, [argline] + magic.lines)
     return ''
 
 
@@ -291,14 +263,7 @@ def cmd(magic, config):
         argline = argline.replace('--config-only', '').strip()
     if argline.startswith('-c'):
         argline = argline.replace('-c', '').strip()
-
-    for line in [argline] + magic.lines:
-        line = line.strip()
-        if not line or line[0] == '#':
-            continue
-
-        line = path.expandvars(line)
-        update_in(config, 'spec.build.commands', line, append=True)
+    set_commands(config, [argline] + magic.lines)
     return ''
 
 
@@ -321,12 +286,7 @@ def process_env_files(env_files, config):
     from_env = json.loads(environ.get(env_keys.env_files, '[]'))
     for fname in (env_files | set(from_env)):
         with open(fname) as fp:
-            for line in iter_env_lines(fp):
-                key, value = parse_env(line)
-                if not key:
-                    raise ValueError(
-                        '{}: cannot parse environment: {}'.format(fname, line))
-                set_env(config, key, value)
+            set_env(config, iter_env_lines(fp))
 
 
 def is_code_cell(cell):
@@ -390,6 +350,44 @@ def deploy(magic, config):
 
 
 @magic_handler
+def help(magic, config):
+    return ''
+
+
+@magic_handler
+def show(magic, config):
+    return ''
+
+
+@magic_handler
+def mount(magic, config):
+    args, rest = parse_mount_line(magic.args)
+    if len(rest) != 2:
+        raise MagicError(
+            '2 arguments must be provided (mount point and remote path)')
+
+    volume = Volume(rest[0], rest[1], typ=args.type, name=args.name,
+                    key=args.key, readonly=args.readonly)
+    volume.render(config)
+    return ''
+
+
+@magic_handler
+def archive(magic, config):
+    global archive_settings
+    args, rest = parse_archive_line(magic.args)
+
+    files = args.file + magic.lines
+    for filename in files:
+        filename = filename.strip()
+        if not path.isfile(filename):
+            raise MagicError('file {} doesnt exist'.format(filename))
+
+    archive_settings = {'files': files}
+    return ''
+
+
+@magic_handler
 def config(magic, config):
     for line in [magic.args] + magic.lines:
         line = line.strip()
@@ -430,21 +428,6 @@ def handler_name():
 
     name = environ.get(env_keys.handler_name, 'handler')
     return '{}:{}'.format(module, name)
-
-
-def get_in(obj, keys):
-    """
-    >>> get_in({'a': {'b': 1}}, 'a.b')
-    1
-    """
-    if isinstance(keys, str):
-        keys = keys.split('.')
-
-    for key in keys:
-        if not obj or key not in obj:
-            return None
-        obj = obj[key]
-    return obj
 
 
 def filter_comments(code):

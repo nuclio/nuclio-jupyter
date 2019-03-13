@@ -17,12 +17,9 @@ import re
 import shlex
 from argparse import ArgumentParser
 from base64 import b64decode
-from glob import glob
 from os import environ, path
-from shutil import copy
-from subprocess import PIPE, Popen, run
+from subprocess import PIPE, Popen
 from sys import executable, stderr
-from tempfile import mkdtemp
 from urllib.parse import urlencode, urljoin
 from urllib.request import urlopen
 
@@ -34,7 +31,9 @@ from notebook.notebookapp import list_running_servers
 
 from .deploy import populate_parser as populate_deploy_parser
 from .utils import (env_keys, iter_env_lines, load_config, parse_config_line,
-                    parse_env, parse_export_line)
+                    parse_env, parse_export_line, parse_mount_line, is_url)
+from .archive import parse_archive_line, args2auth, load_zip_config
+from .build import build_notebook
 
 log_prefix = '%nuclio: '
 here = path.dirname(path.abspath(__file__))
@@ -183,7 +182,7 @@ def help(line, cell):
             if doc is None:
                 short_help = ''
             else:
-                i = doc.find('.')
+                i = doc.find('\n')
                 short_help = doc[:i] if i != -1 else doc[:40]
             print('    - {}: {}'.format(cmd, short_help))
         return
@@ -250,13 +249,19 @@ def cmd(line, cell):
 
 @command
 def deploy(line, cell):
-    """Deploy function .
+    """Deploy notebook/file with configuration as nuclio function.
+
+    %nuclio deploy [file-path|url] [options]
 
     parameters:
         -n, --name            override function name
         -p, --project         project name (required)
-        -u, --dashboard-url   nuclio dashboard url (optional)
-        -d, --work-dir        target dir for py/yaml (optional)
+        -d, --dashboard-url   nuclio dashboard url
+        -t, --target-dir      target dir/url for .zip or .yaml files
+        -e, --env             add/override environment variable (key=value)
+        -k, --key             authentication/access key for remote archive
+        -u, --username        username for authentication
+        -s, --secret          secret-key/password for authentication
         -c, --create-project  create project if not found
         -v, --verbose         emit more logs
 
@@ -264,10 +269,10 @@ def deploy(line, cell):
     In [1]: %nuclio deploy
     %nuclio: function deployed -p faces
 
-    In [2] %nuclio deploy -u http://localhost:8080 -p tango
+    In [2] %nuclio deploy -d http://localhost:8080 -p tango
     %nuclio: function deployed
 
-    In [3] %nuclio deploy -n new-name -p faces -c
+    In [3] %nuclio deploy myfunc.py -n new-name -p faces -c
     %nuclio: function deployed
     """
     class ParseError(Exception):
@@ -356,16 +361,18 @@ def save_handler(config_file, out_dir):
 
 @command
 def export(line, cell, return_dir=False):
-    """Export notebook. Possible options are:
+    """Export or upload notebook + extra files/config to a file or archive.
 
-    --output-dir path
-        Output directory path
-    --notebook path
-        Path to notebook file
-    --handler-name name
+    %nuclio export [filename] [flags]
+
+    -t, --target-dir path
+        Output directory or upload URL (object)
+    -n, --name path
+        override function name
+    --handler name
         Name of handler
-    --handler-file path
-        Path to handler code (Python file)
+    -k, --key
+        access/session key whn exporting to url
 
     Example:
     In [1] %nuclio export
@@ -381,55 +388,22 @@ def export(line, cell, return_dir=False):
     """
 
     args, rest = parse_export_line(line)
-    if rest:
-        log_error('unknown arguments: {}'.format(' '.join(rest)))
-        return
+    notebook = ''
+    if len(rest) > 0:
+        notebook = rest[0]
 
-    notebook = args.notebook or notebook_file_name()
+    notebook = notebook or notebook_file_name()
     if not notebook:
-        log_error('cannot find notebook name (try with --notebook)')
+        log_error('cannot find notebook name (try specifying its name)')
         return
 
-    out_dir = args.output_dir or mkdtemp(prefix='nuclio-handler-')
+    target_dir = args.target_dir
+    auth = args2auth(target_dir, args.key, args.username, args.secret)
 
-    env = environ.copy()  # Pass argument to exporter via environment
-    if args.handler_name:
-        env[env_keys.handler_name] = args.handler_name
-
-    if args.handler_path:
-        if not path.isfile(args.handler_path):
-            log_error(
-                'cannot find handler file: {}'.format(args.handler_path))
-            return
-        copy(args.handler_path, out_dir)
-        env[env_keys.handler_path] = args.handler_path
-
-    if args.no_embed:
-        env[env_keys.no_embed_code] = '1'
-
-    cmd = [
-        executable, '-m', 'nbconvert',
-        '--to', 'nuclio.export.NuclioExporter',
-        '--output-dir', out_dir,
-        notebook,
-    ]
-    out = run(cmd, env=env, stdout=PIPE, stderr=PIPE)
-    if out.returncode != 0:
-        print(out.stdout.decode('utf-8'))
-        print(out.stderr.decode('utf-8'), file=stderr)
-        log_error('cannot convert notebook')
-        return
-
-    yaml_files = glob('{}/*.yaml'.format(out_dir))
-    if len(yaml_files) != 1:
-        log_error('wrong number of YAML files in {}'.format(out_dir))
-        return
-
-    save_handler(yaml_files[0], out_dir)
-    log('notebook exported to {}'.format(out_dir))
-
-    if return_dir:
-        return out_dir
+    file_path, ext, is_url = build_notebook(notebook, args.name, args.handler,
+                                            target_dir, auth)
+    log('notebook exported to {}'.format(file_path))
+    return file_path
 
 
 def uncomment(line):
@@ -439,8 +413,9 @@ def uncomment(line):
 
 @command
 def config(line, cell):
-    """Set function configuration value. Values need to be Python literals (1,
-    "debug", 3.3 ...). You can use += to append values to a list
+    """Set function configuration value (resources, triggers, build, etc.).
+    Values need to numeric, strings, or json strings (1, "debug", 3.3, {..})
+    You can use += to append values to a list
 
     Example:
     In [1] %nuclio config spec.maxReplicas = 5
@@ -464,6 +439,15 @@ def config(line, cell):
             log('appending {!r} to {}'.format(value, key))
 
 
+@command
+def show(line, cell):
+    """Prints generated python code (as it is exported).
+
+   You should save the notebook before calling this function.
+    """
+    print_handler_code(line.strip())
+
+
 def print_handler_code(notebook_file=None):
     """Prints handler code (as it was exported).
 
@@ -473,22 +457,62 @@ def print_handler_code(notebook_file=None):
     if not notebook_file:
         raise ValueError('cannot find notebook file name')
 
-    notebook_file = shlex.quote(notebook_file)
-    line = '--notebook {}'.format(notebook_file)
-    out_dir = export(line, None, return_dir=True)
-    if not out_dir:
+    line = notebook_file = shlex.quote(notebook_file)
+    file_path = export(line, None, return_dir=True)
+    if not file_path:
         raise ValueError('failed to export {}'.format(notebook_file))
+    if is_url(file_path):
+        print('cannot show content of URL files ({})'.format(file_path))
 
-    files = glob('{}/*.yaml'.format(out_dir))
-    if len(files) != 1:
-        raise ValueError('too many YAML files in {}'.format(out_dir))
-
-    with open(files[0]) as fp:
-        code, _ = load_config(fp)
-    print(code)
+    if file_path.endswith('.yaml'):
+        code, config = load_config(file_path)
+        print('Code:\n{}'.format(code))
+        config['spec']['build'].pop("functionSourceCode", None)
+        config_yaml = yaml.dump(config, default_flow_style=False)
+        print('Config:\n{}'.format(config_yaml))
+    else:
+        code, config = load_zip_config(file_path)
+        print('Code:\n{}'.format(code))
+        print('Config:\n{}'.format(config))
 
 
 def update_env_files(file_name):
     files = json.loads(environ.get(env_keys.env_files, '[]'))
     files.append(file_name)
     environ[env_keys.env_files] = json.dumps(files)
+
+
+@command
+def mount(line, cell):
+    """Mount a shared file Volume into the function.
+
+    Example:
+    In [1]: %nuclio mount /data /projects/netops/data
+    mounting volume path /projects/netops/data as /data
+    """
+    args, rest = parse_mount_line(line)
+    if len(rest) != 2:
+        log_error('2 arguments must be provided (mount point and remote path)')
+        return
+
+    print('mounting volume path {} as {}'.format(rest[0], rest[1]))
+
+
+@command
+def archive(line, cell):
+    """define the function output as archive (zip) and add files.
+
+    Example:
+    In [1]: %nuclio archive -f model.json -f mylib.py
+    """
+    args, rest = parse_archive_line(line)
+    file_list = args.file
+    if cell:
+        file_list += cell.splitlines()
+
+    for filename in file_list:
+        if not path.isfile(filename.strip()):
+            log_error('file {} doesnt exist'.format(filename))
+            return
+        else:
+            log('appending {} to archive'.format(filename))

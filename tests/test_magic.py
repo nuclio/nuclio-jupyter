@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from contextlib import redirect_stdout
-from glob import glob
 from io import StringIO
 
 from conftest import here
@@ -30,8 +29,6 @@ def test_print_handler_code():
 
 
 def test_export():
-    nb = '{}/handler.ipynb'.format(here)
-    line = '--notebook {}'.format(nb)
-    dir_name = magic.export(line, None, return_dir=True)
-    files = glob('{}/*'.format(dir_name))
-    assert len(files) == 2, 'bad number of files'
+    line = '{}/handler.ipynb'.format(here)
+    file_path = magic.export(line, None, return_dir=True)
+    assert file_path.endswith('handler.yaml'), 'bad returned filename'
