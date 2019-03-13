@@ -383,14 +383,7 @@ def archive(magic, config):
         if not path.isfile(filename):
             raise MagicError('file {} doesnt exist'.format(filename))
 
-    auth = None
-    if args.key:
-        auth = args.key
-    elif args.password:
-        auth = (args.username, args.password)
-
-    archive_settings = {'path': '', 'files': files,
-                        'auth': auth, 'name': args.name}
+    archive_settings = {'files': files}
     return ''
 
 

@@ -256,8 +256,12 @@ def deploy(line, cell):
     parameters:
         -n, --name            override function name
         -p, --project         project name (required)
-        -u, --dashboard-url   nuclio dashboard url (optional)
-        -d, --work-dir        target dir for py/yaml (optional)
+        -d, --dashboard-url   nuclio dashboard url
+        -t, --target-dir      target dir/url for .zip or .yaml files
+        -e, --env             add/override environment variable (key=value)
+        -k, --key             authentication/access key for remote archive
+        -u, --username        username for authentication
+        -s, --secret          secret-key/password for authentication
         -c, --create-project  create project if not found
         -v, --verbose         emit more logs
 
@@ -265,7 +269,7 @@ def deploy(line, cell):
     In [1]: %nuclio deploy
     %nuclio: function deployed -p faces
 
-    In [2] %nuclio deploy -u http://localhost:8080 -p tango
+    In [2] %nuclio deploy -d http://localhost:8080 -p tango
     %nuclio: function deployed
 
     In [3] %nuclio deploy myfunc.py -n new-name -p faces -c
@@ -499,7 +503,7 @@ def archive(line, cell):
     """define the function output as archive (zip) and add files.
 
     Example:
-    In [1]: %nuclio archive http://v3io-webapi:8081/bigdata/xx77.zip
+    In [1]: %nuclio archive -f model.json -f mylib.py
     """
     args, rest = parse_archive_line(line)
     file_list = args.file

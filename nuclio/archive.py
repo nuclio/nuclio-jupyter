@@ -126,10 +126,6 @@ def args2auth(url, key, username, secret):
 
 def parse_archive_line(args):
     parser = ArgumentParser(prog='%nuclio', add_help=False)
-    parser.add_argument('--key', '-k', default='')
-    parser.add_argument('--name', '-n', default='')
-    parser.add_argument('--username', '-u', default='')
-    parser.add_argument('--password', '-p', default='')
     parser.add_argument('--file', '-f', default=[], action='append')
 
     if isinstance(args, str):
