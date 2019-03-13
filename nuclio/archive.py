@@ -1,3 +1,4 @@
+import io
 import zipfile
 from requests.auth import HTTPBasicAuth
 from base64 import b64encode
@@ -32,7 +33,7 @@ def get_from_zip(zip_path, files=[]):
     files_data = {}
     with zipfile.ZipFile(zip_path) as myzip:
         for f in files:
-            with myzip.open(f) as zipped:
+            with io.TextIOWrapper(myzip.open(f)) as zipped:
                 files_data[f] = zipped.read()
     return files_data
 
