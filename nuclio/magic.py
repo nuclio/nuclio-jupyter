@@ -364,12 +364,12 @@ def export(line, cell, return_dir=False):
 
     -t, --target-dir path
         Output directory or upload URL (object)
-    -n, --notebook path
-        Path to notebook file
-    --handler-name name
+    -n, --name path
+        override function name
+    --handler name
         Name of handler
-    -p, --handler-file path
-        Path to handler code (Python file)
+    -k, --key
+        access/session key whn exporting to url
 
     Example:
     In [1] %nuclio export
@@ -454,18 +454,19 @@ def print_handler_code(notebook_file=None):
     if not notebook_file:
         raise ValueError('cannot find notebook file name')
 
-    notebook_file = shlex.quote(notebook_file)
-    line = '--notebook {}'.format(notebook_file)
-    out_dir = export(line, None, return_dir=True)
-    if not out_dir:
+    line = notebook_file = shlex.quote(notebook_file)
+    file_path = export(line, None, return_dir=True)
+    if not file_path:
         raise ValueError('failed to export {}'.format(notebook_file))
 
-    files = glob('{}/*.yaml'.format(out_dir))
-    if len(files) != 1:
-        raise ValueError('too many YAML files in {}'.format(out_dir))
-
-    code, _ = load_config(files[0])
-    print(code)
+    if file_path.endswith('.yaml'):
+        code, config = load_config(file_path)
+        print('Code:\n{}'.format(code))
+        config['spec']['build'].pop("functionSourceCode", None)
+        config_yaml = yaml.dump(config, default_flow_style=False)
+        print('Config:\n{}'.format(config_yaml))
+    else:
+        print('cannot print content of zip {}'.format(file_path))
 
 
 def update_env_files(file_name):

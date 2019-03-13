@@ -71,7 +71,7 @@ def project_name(config):
     return labels.get(project_key)
 
 
-def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
+def deploy_file(nb_file, dashboard_url='', name='', project='', handler='', tag='',
            verbose=False, create_new=False, target_dir='', auth=None,
            env=[], extra_config={}, cmd='', mount: Volume = None):
 

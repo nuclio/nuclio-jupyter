@@ -98,7 +98,9 @@ def get_auth_header(auth):
 
 
 def args2auth(url, key, username, secret):
-    if username:
+    if not url:
+        return None
+    elif username:
         return (username, secret)
     elif url.startswith('s3://') and key:
         return (key, secret)

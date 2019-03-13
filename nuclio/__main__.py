@@ -17,7 +17,8 @@ from argparse import ArgumentParser
 from os import path
 
 from nuclio.deploy import DeployError
-from nuclio.deploy import deploy, populate_parser as populate_deploy_parser
+from nuclio.deploy import (deploy_file,
+                           populate_parser as populate_deploy_parser)
 from .archive import args2auth
 
 
@@ -25,9 +26,10 @@ def do_deploy(args):
     name = args.notebook.name
     try:
         auth = args2auth(args.target_dir, args.key, args.username, args.secret)
-        deploy(name, args.dashboard_url, name=args.name, project=args.project,
-               verbose=args.verbose, create_new=args.create_project,
-               target_dir=args.target_dir, env=args.env, auth=auth)
+        deploy_file(name, args.dashboard_url, name=args.name,
+                    project=args.project, verbose=args.verbose,
+                    create_new=args.create_project, target_dir=args.target_dir,
+                    env=args.env, auth=auth)
     except DeployError as err:
         raise SystemExit('error: {}'.format(err))
 
