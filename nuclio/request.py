@@ -17,6 +17,7 @@ from sys import stdout
 
 from nuclio_sdk import Context as _Context, Logger
 from nuclio_sdk.logger import HumanReadableFormatter
+from nuclio_sdk import Event  # noqa
 
 
 class Context(_Context):
