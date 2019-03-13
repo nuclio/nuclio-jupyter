@@ -1,7 +1,7 @@
 import shutil
 from os import path, environ
 from tempfile import mkdtemp
-from sys import executable, stdout, stderr
+from sys import executable, stderr
 from subprocess import run, PIPE
 from base64 import b64encode
 
@@ -83,5 +83,3 @@ def code2config(code, name, handler='', ext='.py'):
     data = b64encode(code.encode('utf-8')).decode('utf-8')
     update_in(config, 'spec.build.functionSourceCode', data)
     return config
-
-

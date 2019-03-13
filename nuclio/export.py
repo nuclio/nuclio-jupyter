@@ -133,7 +133,6 @@ class NuclioExporter(Exporter):
                       archive_settings['files'])
             config = buffer.getvalue()
             resources['output_extension'] = '.zip'
-            #config = get_archive_config(name, archive_settings['path'],auth=archive_settings['auth'])
 
         else:
             data = b64encode(py_code.encode('utf-8')).decode('utf-8')

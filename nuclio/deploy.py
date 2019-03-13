@@ -84,7 +84,7 @@ def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
     if ext == '.ipynb':
 
         file_path, ext, has_url = build_notebook(nb_file, name, handler,
-                                                target_dir, auth)
+                                                 target_dir, auth)
         if ext == '.zip':
             if not has_url:
                 raise DeployError('archive path must be a url (http(s)://..)')
@@ -122,14 +122,14 @@ def deploy(nb_file, dashboard_url='', name='', project='', handler='', tag='',
     log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
 
     addr = deploy_config(config, dashboard_url, name=name, project=project,
-                  tag=tag, verbose=verbose, create_new=create_new)
+                         tag=tag, verbose=verbose, create_new=create_new)
 
     return addr
 
 
 def deploy_code(code, dashboard_url='', name='', project='', handler='',
                 lang='.py', tag='', verbose=False, create_new=False,
-                archive='', auth=None,env=[], config={}, cmd='',
+                archive='', auth=None, env=[], config={}, cmd='',
                 mount: Volume = None, files=[]):
 
     newconfig = code2config(code, name, handler, lang)

@@ -1,11 +1,10 @@
 import zipfile
 from requests.auth import HTTPBasicAuth
 from base64 import b64encode
-from tempfile import mktemp
 import yaml
 import requests
 import shutil
-from os import path, environ
+from os import path
 import shlex
 from argparse import ArgumentParser
 import boto3

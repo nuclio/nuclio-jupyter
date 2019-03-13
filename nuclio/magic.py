@@ -19,10 +19,8 @@ from argparse import ArgumentParser
 from base64 import b64decode
 from glob import glob
 from os import environ, path
-from shutil import copy
 from subprocess import PIPE, Popen, run
 from sys import executable, stderr
-from tempfile import mkdtemp
 from urllib.parse import urlencode, urljoin
 from urllib.request import urlopen
 
@@ -400,7 +398,7 @@ def export(line, cell, return_dir=False):
     auth = args2auth(target_dir, args.key, args.username, args.secret)
 
     file_path, ext, is_url = build_notebook(notebook, args.name, args.handler,
-                                         target_dir, auth)
+                                            target_dir, auth)
     log('notebook exported to {}'.format(file_path))
     return file_path
 

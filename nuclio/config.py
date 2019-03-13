@@ -21,5 +21,3 @@ _function_config = {
 
 def new_config():
     return deepcopy(_function_config)
-
-

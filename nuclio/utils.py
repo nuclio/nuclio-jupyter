@@ -281,8 +281,8 @@ def download_http(url, auth=None):
 
 
 def is_url(file_path):
-    return file_path.startswith('http://') or file_path.startswith('https://') \
-            or file_path.startswith('s3://')
+    return file_path.startswith('http://') or \
+           file_path.startswith('https://') or file_path.startswith('s3://')
 
 
 def normalize_name(name):
