@@ -71,9 +71,10 @@ def project_name(config):
     return labels.get(project_key)
 
 
-def deploy_file(nb_file, dashboard_url='', name='', project='', handler='', tag='',
-           verbose=False, create_new=False, target_dir='', auth=None,
-           env=[], extra_config={}, cmd='', mount: Volume = None):
+def deploy_file(nb_file, dashboard_url='', name='', project='', handler='',
+                tag='', verbose=False, create_new=False, target_dir='',
+                auth=None, env=[], extra_config={}, cmd='',
+                mount: Volume = None):
 
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug

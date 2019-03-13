@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from contextlib import redirect_stdout
-from glob import glob
 from io import StringIO
 
 from conftest import here

@@ -71,7 +71,7 @@ def parse_config_line(line):
 
 def parse_export_line(args):
     parser = ArgumentParser(prog='%nuclio', add_help=False)
-    parser.add_argument('--target-dir', '-t')
+    parser.add_argument('--target-dir', '-t', default='')
     parser.add_argument('--name', '-n', default='')
     parser.add_argument('--key', '-k', default='')
     parser.add_argument('--username', '-u', default='')

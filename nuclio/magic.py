@@ -17,7 +17,6 @@ import re
 import shlex
 from argparse import ArgumentParser
 from base64 import b64decode
-from glob import glob
 from os import environ, path
 from subprocess import PIPE, Popen
 from sys import executable, stderr
