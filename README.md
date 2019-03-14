@@ -38,12 +38,13 @@ this package is trying to simplify the configuration and deployment through more
   * `%nuclio config` - resources, spec, and triggers configuration 
   * `%nuclio cmd` - defining package dependencies 
   * `%nuclio env` and `env_file` - configuring local and remote env variables
-  * `%nuclio mount` - wrking with file shares into a function
+  * `%nuclio mount` - mounting shared volumes into a function
   * `%nuclio deploy` - deploy functions onto the cluster
   * `%nuclio show` - show generated function code and spec (YAML)
   * `%nuclio handler` - function handler wrapper
 * [Advanced topics](#advanced-topics) 
   * nuclio `init_context()` hook for initializing resources (across invocations)
+  * changing `context.logger` verbosity level to DEBUG
   * using Docker
 * [Links](#links)
 * [Developing](#developing) 
@@ -198,6 +199,9 @@ we currently support the following archive options:<br>
 local/shared file system, http(s) unauthenticated or with Basic auth, Github, AWS S3, and iguazio PaaS
 > note: that at this point nuclio doesnt support pulling archives directly from secret protected S3 buckets  
 
+for AWS S3 the url path convention is `s3://bucket-name/path/to/key.zip`, the access and secret keys should be set 
+[the standard boto3 way](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html) or using the `-k` and `-s` flags.
+
 example:
 
 specify additional files to pack with the function (will force the use of `zip`)
@@ -221,6 +225,7 @@ the `nuclio` package provide two main function calls `deploy_code` and `deploy_f
 
 ```python
 import requests
+import nuclio
 
 # define my function code template
 code='''
@@ -236,7 +241,7 @@ code = code.format('Hello World!')
 vol = Volume('data','~/')
 
 # deploy my code with extra configuration (env vars, mount)
-addr = deploy_code(code,name='myfunc',project='proj',verbose=True, create_new=True, env=['XXX=1234'], mount=vol)
+addr = nuclio.deploy_code(code,name='myfunc',project='proj',verbose=True, create_new=True, env=['XXX=1234'], mount=vol)
 
 # invoke the generated function 
 resp = requests.get(addr)
@@ -252,7 +257,9 @@ the `deploy_file` API allow deploying functions from files or archives
 
 Set function configuration value (resources, triggers, build, etc.).
 Values need to numeric, strings, or json strings (1, "debug", 3.3, {..})
-You can use += to append values to a list
+You can use += to append values to a list.
+
+see the [nuclio configuration reference](https://github.com/nuclio/nuclio/blob/master/docs/reference/function-configuration/function-configuration-reference.md)
 
     Example:
     In [1] %nuclio config spec.maxReplicas = 5
@@ -353,14 +360,14 @@ You should save the notebook before calling this function.
 Mark this cell as handler function. You can give optional name
 
     %%nuclio handler
-    ctx.logger.info('handler called')
+    context.logger.info('handler called')
     # nuclio:return
     'Hello ' + event.body
 
     Will become
 
     def handler(context, event):
-        ctx.logger.info('handler called')
+        context.logger.info('handler called')
         # nuclio:return
         return 'Hello ' + event.body
         
@@ -369,6 +376,15 @@ Mark this cell as handler function. You can give optional name
 ### nuclio `init_context()` hook for initializing resources (across invocations)
 
 TBD
+
+### changing `context.logger` verbosity level to DEBUG
+by default the built-in context object is set to print logs at INFO level and above,
+if we want to print out the debug level logs we can type the following 
+
+    nuclio.context.set_logger_level(True)
+    
+this logging level only apply to the notebook/emulation, to change the function runtime 
+log level you should use the `config` or nuclio UI.
 
 ### using Docker
 
