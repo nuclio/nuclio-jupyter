@@ -97,27 +97,16 @@ this section should not be copied to the function so we mark this cell with `# n
 import nuclio
 ```
 
-the following sections set the environment variables, install desired packages, 
+the following sections set an environment variable, install desired package, 
 and set some special configuration (e.g. set the base docker image used for the function).
 note the environment variables and packages will be deployed in the notebook AND in the function, 
 we can specify that we are interested in having them only locally (`-l`) or in nuclio spec (`-c`).
 we can use local environment variables in those commands with `${VAR_NAME}`, see `help` for details.
->note: `%` is used for single line commands and `%%` means the command apply to the entire cell 
+>note: `%` is used for single line commands and `%%` means the command apply to the entire cell, see [details](#controlling-function-code-and-configuration) 
 
 ```
-%%nuclio env
-USER=john
-VERSION=1.0
-```
-```
-%nuclio env PASSWORD=${PASSWORD}
-```
-```
-%%nuclio cmd
-pip install requests
-apt-get update && apt-get install -y wget
-```
-```
+%nuclio cmd pip install textblob
+%nuclio env TO_LANG=fr
 %nuclio config spec.build.baseImage = "python:3.6-jessie"
 ```
 
@@ -136,9 +125,10 @@ process.
 
 #### Example Notebook: 
 
-![](docs/nb-example.png)
+![](docs/nb-example2.png)
 
-<b>visit [this link](docs/nuclio-example.ipynb) to see the complete notebook<b>
+<b>visit [this link](docs/nlp-example.ipynb) to see the complete notebook<b>, 
+or check out this [other example](docs/nuclio-example.ipynb)
 
 The generated function spec for the above notebook will look like:
 
