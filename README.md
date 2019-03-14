@@ -138,6 +138,8 @@ process.
 
 ![](docs/nb-example.png)
 
+<b>visit [this link](docs/nuclio-example.ipynb) to see the complete notebook<b>
+
 The generated function spec for the above notebook will look like:
 
 ```yaml
