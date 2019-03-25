@@ -127,7 +127,8 @@ def args2auth(url, key, username, secret):
 def parse_archive_line(args):
     parser = ArgumentParser(prog='%nuclio', add_help=False)
     parser.add_argument('--file', '-f', default=[], action='append')
-
+    parser.add_argument(
+        '--add-notebook', '-n', action='store_true', default=False)
     if isinstance(args, str):
         args = path.expandvars(args)
         args = shlex.split(args)

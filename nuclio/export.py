@@ -27,11 +27,11 @@ import yaml
 from nbconvert.exporters import Exporter
 from nbconvert.filters import ipython2python
 
-from .utils import (env_keys, iter_env_lines, parse_config_line, Volume,
-                    update_in, get_in, set_env, set_commands, parse_mount_line,
-                    normalize_name)
+from .utils import (env_keys, iter_env_lines, parse_config_line,
+                    parse_mount_line, normalize_name)
 from .archive import parse_archive_line, build_zip
-from .config import new_config
+from .config import (new_config, update_in, get_in, set_env, set_commands,
+                     Volume)
 from .import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
@@ -91,7 +91,7 @@ class NuclioExporter(Exporter):
 
     def from_notebook_node(self, nb, resources=None, **kw):
         config = new_config()
-        name = get_in(resources, 'metadata.name')  # notebook name
+        nbname = name = get_in(resources, 'metadata.name')  # notebook name
         if name:
             config['metadata']['name'] = normalize_name(name)
         config['spec']['handler'] = handler_name()
@@ -128,6 +128,8 @@ class NuclioExporter(Exporter):
                 py_code = fp.read()
 
         if archive_settings:
+            if archive_settings['notebook'] and nbname:
+                archive_settings['files'] += [nbname + '.ipynb']
             buffer = BytesIO()
             build_zip(buffer, config, py_code,
                       archive_settings['files'])
@@ -383,7 +385,7 @@ def archive(magic, config):
         if not path.isfile(filename):
             raise MagicError('file {} doesnt exist'.format(filename))
 
-    archive_settings = {'files': files}
+    archive_settings = {'files': files, 'notebook': args.add_notebook}
     return ''
 
 

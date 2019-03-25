@@ -29,9 +29,11 @@ from IPython import get_ipython
 from IPython.core.magic import register_line_cell_magic
 from notebook.notebookapp import list_running_servers
 
-from .deploy import populate_parser as populate_deploy_parser
-from .utils import (env_keys, iter_env_lines, load_config, parse_config_line,
-                    parse_env, parse_export_line, parse_mount_line, is_url)
+from .deploy import populate_parser as populate_deploy_parser, deploy_from_args
+from .utils import (env_keys, iter_env_lines, parse_config_line, DeployError,
+                    parse_env, parse_export_line, parse_mount_line, is_url,
+                    notebook_file_name)
+from .config import load_config
 from .archive import parse_archive_line, args2auth, load_zip_config
 from .build import build_notebook
 
@@ -275,39 +277,32 @@ def deploy(line, cell):
     In [3] %nuclio deploy myfunc.py -n new-name -p faces -c
     %nuclio: function deployed
     """
-    class ParseError(Exception):
-        pass
 
-    def error(message):
-        raise ParseError(message)
+    if isinstance(line, str):
+        line = path.expandvars(line)
+        line = shlex.split(line)
 
-    cmd = shlex.split(line)
+    p = ArgumentParser(prog='%nuclio', add_help=False)
+    populate_deploy_parser(p)
+    args, rest = p.parse_known_args(line)
+
+    notebook = ''
+    if len(rest) > 0:
+        notebook = rest[0]
+
+    notebook = notebook or notebook_file_name(kernel)
+    if not notebook:
+        log_error('cannot find notebook name (try specifying its name)')
+        return
+
     try:
-        # See if we're missing notebook name
-        p = ArgumentParser()
-        populate_deploy_parser(p)
-        p.error = error
-        p.parse_args(cmd)
-    except ParseError:
-        nb_file = notebook_file_name()
-        if not nb_file:
-            log_error('cannot find notebook file name')
-            return
-
-        cmd.append(shlex.quote(nb_file))
-
-    cmd = [executable, '-m', 'nuclio', 'deploy'] + cmd
-    pipe = Popen(cmd, stderr=PIPE, stdout=PIPE)
-    for line in pipe.stdout:
-        log(line.decode('utf-8').rstrip())
-
-    if pipe.wait() != 0:
-        log_error('cannot deploy')
-        error = pipe.stderr.read().decode('utf-8')
-        log_error(error.rstrip())
+        addr = deploy_from_args(args, notebook)
+    except DeployError as err:
+        log_error('error: {}'.format(err))
         return
 
     log('function deployed')
+    return addr
 
 
 @command
@@ -327,26 +322,6 @@ def handler(line, cell):
         return 'Hello ' + event.body
     """
     kernel.run_cell(cell)
-
-
-# Based on
-# https://github.com/jupyter/notebook/issues/1000#issuecomment-359875246
-def notebook_file_name():
-    """Return the full path of the jupyter notebook."""
-    # Check that we're running under notebook
-    if not (kernel and kernel.config['IPKernelApp']):
-        return
-
-    kernel_id = re.search('kernel-(.*).json',
-                          ipykernel.connect.get_connection_file()).group(1)
-    servers = list_running_servers()
-    for srv in servers:
-        query = {'token': srv.get('token', '')}
-        url = urljoin(srv['url'], 'api/sessions') + '?' + urlencode(query)
-        for session in json.load(urlopen(url)):
-            if session['kernel']['id'] == kernel_id:
-                relative_path = session['notebook']['path']
-                return path.join(srv['notebook_dir'], relative_path)
 
 
 def save_handler(config_file, out_dir):
@@ -392,7 +367,7 @@ def export(line, cell, return_dir=False):
     if len(rest) > 0:
         notebook = rest[0]
 
-    notebook = notebook or notebook_file_name()
+    notebook = notebook or notebook_file_name(kernel)
     if not notebook:
         log_error('cannot find notebook name (try specifying its name)')
         return
@@ -453,7 +428,7 @@ def print_handler_code(notebook_file=None):
 
    You should save the notebook before calling this function.
     """
-    notebook_file = notebook_file or notebook_file_name()
+    notebook_file = notebook_file or notebook_file_name(kernel)
     if not notebook_file:
         raise ValueError('cannot find notebook file name')
 

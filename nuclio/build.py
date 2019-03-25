@@ -5,9 +5,9 @@ from sys import executable, stderr
 from subprocess import run, PIPE
 from base64 import b64encode
 
-from nuclio.utils import update_in, download_http, is_url, normalize_name
+from .utils import download_http, is_url, normalize_name
 from .archive import upload_file
-from .config import new_config
+from .config import update_in, new_config
 
 handler_name = 'NUCLIO_HANDLER_NAME'
 

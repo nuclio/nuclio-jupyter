@@ -25,17 +25,15 @@ from urllib.parse import urlparse
 
 import yaml
 import requests
-from nuclio.utils import (get_in, update_in, is_url, normalize_name,
-                          Volume, fill_config, load_config, read_or_download)
-from .archive import get_archive_config, build_zip, upload_file
+from .utils import (is_url, normalize_name, DeployError, list2dict, notebook_file_name)
+from .config import (get_in, update_in, load_config,
+                     read_or_download, ConfigSpec)
+from .archive import get_archive_config, build_zip, upload_file, args2auth
 from .build import code2config, build_notebook
+from IPython import get_ipython
 
 project_key = 'nuclio.io/project-name'
 tag_key = 'nuclio.io/tag'
-
-
-class DeployError(Exception):
-    pass
 
 
 def get_function(api_address, name):
@@ -71,13 +69,29 @@ def project_name(config):
     return labels.get(project_key)
 
 
-def deploy_file(nb_file, dashboard_url='', name='', project='', handler='',
+def deploy_from_args(args, name=''):
+    auth = args2auth(args.target_dir, args.key, args.username, args.secret)
+    envdict = list2dict(args.env)
+    spec = ConfigSpec(env=envdict)
+    return deploy_file(name, args.dashboard_url, name=args.name,
+                       project=args.project, verbose=args.verbose,
+                       create_new=args.create_project, spec=spec,
+                       target_dir=args.target_dir, auth=auth)
+
+
+def deploy_file(nb_file='', dashboard_url='', name='', project='', handler='',
                 tag='', verbose=False, create_new=False, target_dir='',
-                auth=None, env=[], extra_config={}, cmd='',
-                mount: Volume = None):
+                auth=None, spec: ConfigSpec=None):
 
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
+
+    if not nb_file:
+        kernel = get_ipython()
+        if kernel:
+            nb_file = notebook_file_name(kernel)
+        else:
+            raise DeployError('please specify file name/path/url')
 
     code = ''
     filebase, ext = path.splitext(path.basename(nb_file))
@@ -118,7 +132,7 @@ def deploy_file(nb_file, dashboard_url='', name='', project='', handler='',
             code_buf = config['spec']['build'].get('functionSourceCode')
             code = b64decode(code_buf).decode('utf-8')
         log('Python code:\n{}'.format(code))
-        fill_config(config, extra_config, env, cmd, mount)
+        spec.merge(config)
 
     log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
 
@@ -130,11 +144,10 @@ def deploy_file(nb_file, dashboard_url='', name='', project='', handler='',
 
 def deploy_code(code, dashboard_url='', name='', project='', handler='',
                 lang='.py', tag='', verbose=False, create_new=False,
-                archive='', auth=None, env=[], config={}, cmd='',
-                mount: Volume = None, files=[]):
+                archive='', auth=None, spec: ConfigSpec=None, files=[]):
 
     newconfig = code2config(code, name, handler, lang)
-    fill_config(newconfig, config, env, cmd, mount)
+    spec.merge(newconfig)
     if verbose:
         logger.info('Config:\n{}'.format(
             yaml.dump(newconfig, default_flow_style=False)))
@@ -221,7 +234,8 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
 
 
 def populate_parser(parser):
-    parser.add_argument('notebook', help='notebook file', type=FileType('r'))
+    parser.add_argument('notebook', help='notebook file', nargs='?',
+                        type=FileType('r'))
     parser.add_argument('--dashboard-url', '-d', help='dashboard URL')
     parser.add_argument('--name', '-n',
                         help='function name (notebook name by default)')
@@ -289,7 +303,10 @@ def process_resp(resp, last_time, verbose=False):
         last_time = timestamp
         logger.info('(%s) %s', log['level'], log['message'])
         if state == 'error' and 'errVerbose' in log.keys():
-            logger.info(str(log['errVerbose']))
+            msg = log['errVerbose']
+            msg = msg.replace('\\n', '\n')
+            msg = msg.replace('}{', '\n')
+            logger.info(msg)
         elif verbose:
             logger.info(str(log))
 
