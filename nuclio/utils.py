@@ -19,10 +19,10 @@ import shlex
 from argparse import ArgumentParser
 
 import ipykernel
-from IPython import get_ipython
 from notebook.notebookapp import list_running_servers
 from urllib.parse import urlencode, urljoin
 from urllib.request import urlopen
+
 
 class DeployError(Exception):
     pass
@@ -169,4 +169,3 @@ def notebook_file_name(ikernel):
             if session['kernel']['id'] == kernel_id:
                 relative_path = session['notebook']['path']
                 return path.join(srv['notebook_dir'], relative_path)
-

@@ -18,16 +18,11 @@ import shlex
 from argparse import ArgumentParser
 from base64 import b64decode
 from os import environ, path
-from subprocess import PIPE, Popen
-from sys import executable, stderr
-from urllib.parse import urlencode, urljoin
-from urllib.request import urlopen
+from sys import stderr
 
-import ipykernel
 import yaml
 from IPython import get_ipython
 from IPython.core.magic import register_line_cell_magic
-from notebook.notebookapp import list_running_servers
 
 from .deploy import populate_parser as populate_deploy_parser, deploy_from_args
 from .utils import (env_keys, iter_env_lines, parse_config_line, DeployError,

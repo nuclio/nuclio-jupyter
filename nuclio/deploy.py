@@ -25,7 +25,8 @@ from urllib.parse import urlparse
 
 import yaml
 import requests
-from .utils import (is_url, normalize_name, DeployError, list2dict, notebook_file_name)
+from .utils import (is_url, normalize_name, DeployError, list2dict,
+                    notebook_file_name)
 from .config import (get_in, update_in, load_config,
                      read_or_download, ConfigSpec)
 from .archive import get_archive_config, build_zip, upload_file, args2auth
