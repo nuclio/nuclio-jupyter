@@ -82,7 +82,7 @@ def deploy_from_args(args, name=''):
 
 def deploy_file(nb_file='', dashboard_url='', name='', project='', handler='',
                 tag='', verbose=False, create_new=False, target_dir='',
-                auth=None, spec: ConfigSpec=None):
+                auth=None, spec: ConfigSpec = None):
 
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
@@ -145,7 +145,7 @@ def deploy_file(nb_file='', dashboard_url='', name='', project='', handler='',
 
 def deploy_code(code, dashboard_url='', name='', project='', handler='',
                 lang='.py', tag='', verbose=False, create_new=False,
-                archive='', auth=None, spec: ConfigSpec=None, files=[]):
+                archive='', auth=None, spec: ConfigSpec = None, files=[]):
 
     newconfig = code2config(code, name, handler, lang)
     spec.merge(newconfig)

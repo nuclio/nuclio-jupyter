@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import json
-import re
 import shlex
 from argparse import ArgumentParser
 from base64 import b64decode

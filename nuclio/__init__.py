@@ -17,7 +17,7 @@ from . import magic  # noqa
 from .deploy import deploy_code, deploy_file  # noqa
 from .config import Volume, ConfigSpec  # noga
 
-__version__ = '0.7.0'
+__version__ = '0.7.1'
 
 _inject_context()
 del _inject_context
