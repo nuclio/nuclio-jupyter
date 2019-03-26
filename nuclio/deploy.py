@@ -133,7 +133,8 @@ def deploy_file(nb_file='', dashboard_url='', name='', project='', handler='',
             code_buf = config['spec']['build'].get('functionSourceCode')
             code = b64decode(code_buf).decode('utf-8')
         log('Python code:\n{}'.format(code))
-        spec.merge(config)
+        if spec:
+            spec.merge(config)
 
     log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
 
@@ -148,7 +149,8 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
                 archive='', auth=None, spec: ConfigSpec = None, files=[]):
 
     newconfig = code2config(code, name, handler, lang)
-    spec.merge(newconfig)
+    if spec:
+        spec.merge(newconfig)
     if verbose:
         logger.info('Config:\n{}'.format(
             yaml.dump(newconfig, default_flow_style=False)))
