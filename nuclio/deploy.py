@@ -81,7 +81,7 @@ def deploy_from_args(args, name=''):
 
 
 def deploy_file(nb_file='', dashboard_url='', name='', project='', handler='',
-                tag='', verbose=False, create_new=False, target_dir='',
+                tag='', verbose=False, create_project=True, target_dir='',
                 auth=None, spec: ConfigSpec = None):
 
     # logger level is INFO, debug won't emit
@@ -139,13 +139,13 @@ def deploy_file(nb_file='', dashboard_url='', name='', project='', handler='',
     log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
 
     addr = deploy_config(config, dashboard_url, name=name, project=project,
-                         tag=tag, verbose=verbose, create_new=create_new)
+                         tag=tag, verbose=verbose, create_new=create_project)
 
     return addr
 
 
 def deploy_code(code, dashboard_url='', name='', project='', handler='',
-                lang='.py', tag='', verbose=False, create_new=False,
+                lang='.py', tag='', verbose=False, create_project=True,
                 archive='', auth=None, spec: ConfigSpec = None, files=[]):
 
     newconfig = code2config(code, name, handler, lang)
@@ -167,7 +167,7 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
                 yaml.dump(newconfig, default_flow_style=False)))
 
     return deploy_config(newconfig, dashboard_url, name=name, project=project,
-                         tag=tag, verbose=verbose, create_new=create_new)
+                         tag=tag, verbose=verbose, create_new=create_project)
 
 
 def deploy_config(config, dashboard_url='', name='', project='', tag='',
@@ -250,7 +250,7 @@ def populate_parser(parser):
         help='emit more logs',
     )
     parser.add_argument(
-        '--create-project', '-c', action='store_true', default=False,
+        '--create-project', '-c', action='store_true', default=True,
         help='create new project if doesnt exist',
     )
     parser.add_argument('--env', '-e', default=[], action='append',
