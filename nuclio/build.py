@@ -47,7 +47,7 @@ def build_file(filename, name='', handler='', output='', tag="",
         code, config = load_config(filename)
         ext = get_lang_ext(config)
 
-    #todo: support rebuild of zip
+    # todo: support rebuild of zip
 
     else:
         raise ValueError('illegal filename or extension: '+filename)
