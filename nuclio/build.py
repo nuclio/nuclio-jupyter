@@ -47,11 +47,7 @@ def build_file(filename, name='', handler='', output='', tag="",
         code, config = load_config(filename)
         ext = get_lang_ext(config)
 
-    # todo: support rebuild of zip
-    #elif ext == '.zip':
-    #    if not is_url(filename):
-    #        raise ValueError('archive path must be a url (http(s)://..)')
-    #    config = get_archive_config(name, filename, auth=auth, workdir='')
+    #todo: support rebuild of zip
 
     else:
         raise ValueError('illegal filename or extension: '+filename)
@@ -163,4 +159,4 @@ def get_lang_ext(config):
         ext = '.java'
     else:
         raise ValueError('illegal ')
-
+    return ext

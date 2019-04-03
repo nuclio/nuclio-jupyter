@@ -137,17 +137,12 @@ class NuclioExporter(Exporter):
                 archive_settings['files'] += [nbname + '.ipynb']
             efiles = archive_settings['files']
             config['metadata']['annotations'][meta_keys.extra_files] = efiles
-            #buffer = BytesIO()
-            #build_zip(buffer, config, py_code,
-            #          archive_settings['files'])
-            #config = buffer.getvalue()
-            #resources['output_extension'] = '.zip'
 
         if env_keys.code_target_path in environ:
             with open(env_keys.code_target_path, 'wb') as fp:
                 fp.write(py_code)
                 fp.close()
-        elif efiles and not env_keys.drop_nb_outputs in environ:
+        elif efiles and env_keys.drop_nb_outputs not in environ:
             outputs = {'handler.py': py_code,
                        'function.yaml': gen_config(config)}
             for filename in efiles:
