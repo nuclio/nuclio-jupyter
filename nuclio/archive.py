@@ -4,18 +4,17 @@ from requests.auth import HTTPBasicAuth
 from base64 import b64encode
 import yaml
 import requests
-import shutil
-from os import path
+from os import path, remove
 import shlex
 from argparse import ArgumentParser
 import boto3
 
 
-def build_zip(zip_path, config, code, files=[]):
+def build_zip(zip_path, config, code, files=[], ext='.py'):
     z = zipfile.ZipFile(zip_path, "w")
     config['spec']['build'].pop("functionSourceCode", None)
     config['metadata'].pop("name", None)
-    z.writestr('handler.py', code)
+    z.writestr('handler' + ext, code)
     z.writestr('function.yaml', yaml.dump(config, default_flow_style=False))
     for f in files:
         if not path.isfile(f):
@@ -52,7 +51,7 @@ def upload_file(file_path, url, auth=None, del_file=False):
                 raise OSError(
                     'failed to upload to {} {}'.format(url, resp.status_code))
     if del_file:
-        shutil.rmtree(file_path, ignore_errors=True)
+        remove(file_path)
 
 
 def s3_upload(file_path, url, auth=None, region=None):
@@ -76,6 +75,8 @@ def get_archive_config(name, zip_url, auth=None, workdir=''):
         'kind': 'Function',
         'metadata': {
             'name': name,
+            'labels': {},
+            'annotations': {},
         },
         'spec': {
             'build': {

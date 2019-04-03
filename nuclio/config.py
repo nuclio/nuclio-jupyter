@@ -9,11 +9,18 @@ from .utils import read_or_download, parse_env
 default_volume_type = 'v3io'
 missing = object()
 
+class meta_keys:
+    project = 'nuclio.io/project-name'
+    tag = 'nuclio.io/tag'
+    extra_files = 'nuclio.io/extra_files'
+
 _function_config = {
     'apiVersion': 'nuclio.io/v1',
     'kind': 'Function',
     'metadata': {
         'name': 'notebook',
+        'labels': {},
+        'annotations': {},
     },
     'spec': {
         'runtime': 'python:3.6',

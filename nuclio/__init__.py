@@ -16,6 +16,7 @@ from .request import Context, Event, inject_context as _inject_context  # noqa
 from . import magic  # noqa
 from .deploy import deploy_code, deploy_file  # noqa
 from .config import Volume, ConfigSpec  # noqa
+from .build import build_file  # noqa
 
 __version__ = '0.7.1'
 

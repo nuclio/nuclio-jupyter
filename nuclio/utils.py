@@ -31,8 +31,11 @@ class DeployError(Exception):
 class env_keys:
     handler_name = 'NUCLIO_HANDLER_NAME'
     handler_path = 'NUCLIO_HANDLER_PATH'
-    no_embed_code = 'NUCLIO_NO_EMBED_CODE'
+    function_tag = 'NUCLIO_FUNCTION_TAG'
+    drop_nb_outputs = 'NUCLIO_NO_OUTPUTS'
+    code_target_path = 'NUCLIO_CODE_PATH'
     env_files = 'NUCLIO_ENV_FILES'
+    extra_files = 'NUCLIO_EXTRA_FILES'
 
 
 def list2dict(lines: list):

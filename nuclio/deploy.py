@@ -15,8 +15,7 @@
 
 import logging
 from argparse import FileType
-from base64 import b64decode
-from os import environ, path
+from os import environ
 from operator import itemgetter
 from sys import stdout
 from tempfile import mktemp
@@ -25,16 +24,10 @@ from urllib.parse import urlparse
 
 import yaml
 import requests
-from .utils import (is_url, normalize_name, DeployError, list2dict,
-                    notebook_file_name)
-from .config import (get_in, update_in, load_config,
-                     read_or_download, ConfigSpec)
+from .utils import DeployError, list2dict
+from .config import update_in, meta_keys, ConfigSpec
 from .archive import get_archive_config, build_zip, upload_file, args2auth
-from .build import code2config, build_notebook
-from IPython import get_ipython
-
-project_key = 'nuclio.io/project-name'
-tag_key = 'nuclio.io/tag'
+from .build import code2config, build_file
 
 
 def get_function(api_address, name):
@@ -67,7 +60,7 @@ logger = create_logger()
 
 def project_name(config):
     labels = config['metadata'].get('labels', {})
-    return labels.get(project_key)
+    return labels.get(meta_keys.project)
 
 
 def deploy_from_args(args, name=''):
@@ -82,60 +75,16 @@ def deploy_from_args(args, name=''):
 
 def deploy_file(nb_file='', dashboard_url='', name='', project='', handler='',
                 tag='', verbose=False, create_project=True, target_dir='',
-                auth=None, spec: ConfigSpec = None):
+                auth=None, spec: ConfigSpec = None, files=[]):
 
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
 
-    if not nb_file:
-        kernel = get_ipython()
-        if kernel:
-            nb_file = notebook_file_name(kernel)
-        else:
-            raise DeployError('please specify file name/path/url')
+    name, config, code = build_file(nb_file, name, handler=handler,
+                                    output=target_dir, tag=tag, spec=spec,
+                                    files=files, no_embed=False)
 
-    code = ''
-    filebase, ext = path.splitext(path.basename(nb_file))
-    name = normalize_name(name or filebase)
-    if ext == '.ipynb':
-
-        file_path, ext, has_url = build_notebook(nb_file, name, handler,
-                                                 target_dir, auth)
-        if ext == '.zip':
-            if not has_url:
-                raise DeployError('archive path must be a url (http(s)://..)')
-            config = get_archive_config(normalize_name(name), file_path,
-                                        auth=auth)
-        else:
-            if has_url:
-                raise DeployError('yaml path must be a local dir')
-            with open(file_path) as fp:
-                config_data = fp.read()
-            config = yaml.safe_load(config_data)
-
-    elif ext in ['.py', '.go', '.js']:
-        code = read_or_download(nb_file, auth)
-        config = code2config(code, name, handler, ext)
-
-    elif ext == '.yaml':
-        code, config = load_config(nb_file)
-
-    elif ext == '.zip':
-        if not is_url(nb_file):
-            raise DeployError('archive path must be a url (http(s)://..)')
-        config = get_archive_config(name, nb_file, auth=auth, workdir='')
-
-    else:
-        raise DeployError('illegal filename or extension: '+nb_file)
-
-    if get_in(config, 'spec.build.codeEntryType') != 'archive':
-        if not code:
-            code_buf = config['spec']['build'].get('functionSourceCode')
-            code = b64decode(code_buf).decode('utf-8')
-        log('Python code:\n{}'.format(code))
-        if spec:
-            spec.merge(config)
-
+    log('Code:\n{}'.format(code))
     log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
 
     addr = deploy_config(config, dashboard_url, name=name, project=project,
@@ -187,7 +136,7 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
         config['metadata']['name'] = name
 
     if tag:
-        update_in(config, ['metadata', 'labels', tag_key], tag)
+        update_in(config, ['metadata', 'labels', meta_keys.tag], tag)
 
     try:
         resp = get_function(api_address, name)
@@ -198,12 +147,13 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
     verb = 'creating' if is_new else 'updating'
     log('%s %s', verb, name)
     if resp.ok:
-        func_project = resp.json()['metadata']['labels'].get(project_key, '')
+        func_project = resp.json()['metadata']['labels'].get(
+            meta_keys.project, '')
         if func_project != project:
             raise DeployError('error: function name already exists under a '
                               + 'different project ({})'.format(func_project))
 
-    key = ['metadata', 'labels', project_key]
+    key = ['metadata', 'labels', meta_keys.project]
     update_in(config, key, project)
 
     headers = {

@@ -18,7 +18,7 @@ import re
 from base64 import b64encode
 from collections import namedtuple
 from datetime import datetime
-from io import StringIO, BytesIO
+from io import StringIO
 from os import environ, path
 from textwrap import indent
 from sys import stdout
@@ -29,9 +29,9 @@ from nbconvert.filters import ipython2python
 
 from .utils import (env_keys, iter_env_lines, parse_config_line,
                     parse_mount_line, normalize_name)
-from .archive import parse_archive_line, build_zip
+from .archive import parse_archive_line
 from .config import (new_config, update_in, get_in, set_env, set_commands,
-                     Volume)
+                     Volume, meta_keys)
 from .import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
@@ -96,6 +96,10 @@ class NuclioExporter(Exporter):
             config['metadata']['name'] = normalize_name(name)
         config['spec']['handler'] = handler_name()
 
+        if env_keys.function_tag in environ:
+            tag = environ.get(env_keys.function_tag)
+            config['metadata']['labels'][meta_keys.tag] = tag
+
         io = StringIO()
         print(header(), file=io)
 
@@ -127,21 +131,36 @@ class NuclioExporter(Exporter):
             with open(handler_path) as fp:
                 py_code = fp.read()
 
+        efiles = []
         if archive_settings:
             if archive_settings['notebook'] and nbname:
                 archive_settings['files'] += [nbname + '.ipynb']
-            buffer = BytesIO()
-            build_zip(buffer, config, py_code,
-                      archive_settings['files'])
-            config = buffer.getvalue()
-            resources['output_extension'] = '.zip'
+            efiles = archive_settings['files']
+            config['metadata']['annotations'][meta_keys.extra_files] = efiles
+            #buffer = BytesIO()
+            #build_zip(buffer, config, py_code,
+            #          archive_settings['files'])
+            #config = buffer.getvalue()
+            #resources['output_extension'] = '.zip'
 
+        if env_keys.code_target_path in environ:
+            with open(env_keys.code_target_path, 'wb') as fp:
+                fp.write(py_code)
+                fp.close()
+        elif efiles and not env_keys.drop_nb_outputs in environ:
+            outputs = {'handler.py': py_code,
+                       'function.yaml': gen_config(config)}
+            for filename in efiles:
+                with open(filename) as fp:
+                    data = fp.read()
+                    outputs[filename] = data
+            resources['outputs'] = outputs
         else:
             data = b64encode(py_code.encode('utf-8')).decode('utf-8')
-            if env_keys.no_embed_code not in environ:
-                update_in(config, 'spec.build.functionSourceCode', data)
-            config = gen_config(config)
-            resources['output_extension'] = '.yaml'
+            update_in(config, 'spec.build.functionSourceCode', data)
+
+        config = gen_config(config)
+        resources['output_extension'] = '.yaml'
 
         return config, resources
 
