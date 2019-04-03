@@ -25,11 +25,10 @@ from IPython.core.magic import register_line_cell_magic
 
 from .deploy import populate_parser as populate_deploy_parser, deploy_from_args
 from .utils import (env_keys, iter_env_lines, parse_config_line, DeployError,
-                    parse_env, parse_export_line, parse_mount_line, is_url,
+                    parse_env, parse_export_line, parse_mount_line,
                     notebook_file_name)
-from .config import load_config
-from .archive import parse_archive_line, args2auth, load_zip_config
-from .build import build_notebook, build_file
+from .archive import parse_archive_line, args2auth
+from .build import build_file
 
 log_prefix = '%nuclio: '
 here = path.dirname(path.abspath(__file__))
