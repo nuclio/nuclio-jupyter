@@ -30,5 +30,5 @@ def test_print_handler_code():
 
 def test_export():
     line = '{}/handler.ipynb'.format(here)
-    file_path = magic.export(line, None, return_dir=True)
-    assert file_path.endswith('handler.yaml'), 'bad returned filename'
+    config, code = magic.export(line, None, return_dir=True)
+    assert config.get('spec'), 'export failed, config={}'.format(config)

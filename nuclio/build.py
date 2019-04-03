@@ -14,7 +14,7 @@ from .config import (update_in, new_config, ConfigSpec, read_or_download,
                      load_config, meta_keys)
 
 
-def build_file(filename, name='', handler='', output='', tag="",
+def build_file(filename, name='', handler='', output='', tag="", auth=None,
                spec: ConfigSpec = None, files=[], no_embed=False):
 
     url_target = (output != '' and is_url(output))
@@ -26,7 +26,6 @@ def build_file(filename, name='', handler='', output='', tag="",
         else:
             raise ValueError('please specify file name/path/url')
 
-    auth = None
     code = ''
     filebase, ext = path.splitext(path.basename(filename))
     name = normalize_name(name or filebase)

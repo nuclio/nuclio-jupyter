@@ -29,7 +29,7 @@ from .utils import (env_keys, iter_env_lines, parse_config_line, DeployError,
                     notebook_file_name)
 from .config import load_config
 from .archive import parse_archive_line, args2auth, load_zip_config
-from .build import build_notebook
+from .build import build_notebook, build_file
 
 log_prefix = '%nuclio: '
 here = path.dirname(path.abspath(__file__))
@@ -369,10 +369,11 @@ def export(line, cell, return_dir=False):
     target_dir = args.target_dir
     auth = args2auth(target_dir, args.key, args.username, args.secret)
 
-    file_path, ext, is_url = build_notebook(notebook, args.name, args.handler,
-                                            target_dir, auth)
-    log('notebook exported to {}'.format(file_path))
-    return file_path
+    name, config, code = build_file(notebook, args.name, args.handler,
+                                    output=target_dir, auth=auth)
+
+    log('notebook {} exported'.format(name))
+    return config, code
 
 
 def uncomment(line):
@@ -427,22 +428,10 @@ def print_handler_code(notebook_file=None):
         raise ValueError('cannot find notebook file name')
 
     line = notebook_file = shlex.quote(notebook_file)
-    file_path = export(line, None, return_dir=True)
-    if not file_path:
-        raise ValueError('failed to export {}'.format(notebook_file))
-    if is_url(file_path):
-        print('cannot show content of URL files ({})'.format(file_path))
-
-    if file_path.endswith('.yaml'):
-        code, config = load_config(file_path)
-        print('Code:\n{}'.format(code))
-        config['spec']['build'].pop("functionSourceCode", None)
-        config_yaml = yaml.dump(config, default_flow_style=False)
-        print('Config:\n{}'.format(config_yaml))
-    else:
-        code, config = load_zip_config(file_path)
-        print('Code:\n{}'.format(code))
-        print('Config:\n{}'.format(config))
+    config, code = export(line, None, return_dir=True)
+    config_yaml = yaml.dump(config, default_flow_style=False)
+    print('Config:\n{}'.format(config_yaml))
+    print('Code:\n{}'.format(code))
 
 
 def update_env_files(file_name):

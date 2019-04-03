@@ -20,6 +20,7 @@ from conftest import here, patch
 import pytest
 
 from nuclio import deploy
+from nuclio.config import meta_keys
 
 handler_nb = '{}/handler.ipynb'.format(here)
 
@@ -29,7 +30,7 @@ functions = {
         'metadata': {
             'name': 'test-handler',
             'labels': {
-                deploy.project_key: 'test-project',
+                meta_keys.project: 'test-project',
             },
         },
     },
@@ -115,7 +116,7 @@ def first(seq):
 
 def test_deploy(requests):
     names = set(functions)
-    deploy.deploy_file(handler_nb, project='test-project', create_new=True)
+    deploy.deploy_file(handler_nb, project='test-project')
     new_names = set(functions)
     assert len(new_names) == len(names) + 1, 'not deployed'
     name = first(new_names - names)
