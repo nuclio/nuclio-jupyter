@@ -180,8 +180,8 @@ We currently don't support [Google Colaboratory][colab], [Kaggle Notebooks][kagg
 nuclio functions are a great way to provide well defined code + dependencies + environment definitions,
 functions can be versioned, archived, and restored by simply storing and re-applying their artifacts.
 
-after we defined a functions using the `%nuclio` magic commands or directly from the API, we can `export` them,
-we can also use the `archive` command to pack multiple files in the same `zip` archive with the code and spec,
+after we defined a functions using the `%nuclio` magic commands or directly from the API, we can `build` them,
+we can also use the `add` command to pack multiple files in the same `zip` archive with the code and spec,
 store it locally or upload the archive to cloud storage using a single command.<br>
 
 when we want to deploy the function, we use the `deploy` command or API, just specify the 
@@ -198,18 +198,18 @@ example:
 
 specify additional files to pack with the function (will force the use of `zip`)
 ```python
-%nuclio archive -f model.json -f mylib.py
+%nuclio add -f model.json -f mylib.py
 ```
 convert the current notebook into a function archive and upload into remote object store 
 ```python
-%nuclio export -t https://v3io-webapi:8081/projects -k ${V3IO_ACCESS_KEY}
+%nuclio build -t v1.1 -o https://v3io-webapi:8081/projects -k ${V3IO_ACCESS_KEY}
 ``` 
 deploy and older version from an archive and name it `oldfunc`
 ```python
 %nuclio deploy https://v3io-webapi:8081/projects/myfunc-v1.zip -n oldfunc -k ${V3IO_ACCESS_KEY}
 ``` 
 
-> note: `export` and `deploy` commands dont have to run from the same notebook, see `help` for detailed command options. 
+> note: `build` and `deploy` commands dont have to run from the same notebook, see `help` for detailed command options. 
 
 ## Creating and deploying functions using the python API
 in some cases working from a notebook is an overkill, or we may want to generate code and configurations programmatically,
@@ -241,7 +241,8 @@ print(resp.text)
 
 ```
 
-the `deploy_file` API allow deploying functions from files or archives 
+the `deploy_file` API allow deploying functions from files or archives <br>
+the `build_file` API is the equivalent of `%nuclio build` magic command (create deployable function or archive and can upload it)
 
 ## Controlling function code and configuration
 
