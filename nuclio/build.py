@@ -14,7 +14,7 @@ from .config import (update_in, new_config, ConfigSpec, read_or_download,
                      load_config, meta_keys)
 
 
-def build_file(filename, name='', handler='', output='', tag="", auth=None,
+def build_file(filename='', name='', handler='', output='', tag="", auth=None,
                spec: ConfigSpec = None, files=[], no_embed=False):
 
     url_target = (output != '' and is_url(output))
@@ -33,6 +33,7 @@ def build_file(filename, name='', handler='', output='', tag="", auth=None,
         config, code = build_notebook(filename, handler,
                                       no_embed or is_zip or url_target, tag)
         nb_files = config['metadata']['annotations'].get(meta_keys.extra_files)
+        update_in(config, 'metadata.name', name)
         ext = '.py'
         if nb_files:
             files += nb_files.split(',')
@@ -54,11 +55,16 @@ def build_file(filename, name='', handler='', output='', tag="", auth=None,
     if not code:
         code_buf = config['spec']['build'].get('functionSourceCode')
         code = b64decode(code_buf).decode('utf-8')
+
     if spec:
         spec.merge(config)
 
+    if tag:
+        config['metadata']['labels'][meta_keys.tag] = tag
+
     if output.endswith('/'):
         output += name
+
     if is_zip or url_target:
         zip_path = output
         if url_target:
@@ -69,12 +75,16 @@ def build_file(filename, name='', handler='', output='', tag="", auth=None,
         if url_target:
             upload_file(zip_path, output, auth, True)
             config = get_archive_config(name, output, auth=auth)
+
     elif output:
-        with open(output + '.yaml', 'wb') as fp:
+        targetpath = path.abspath(output)
+        dir = path.dirname(targetpath)
+        os.makedirs(dir, exist_ok=True)
+        with open(targetpath + '.yaml', 'w') as fp:
             fp.write(yaml.dump(config, default_flow_style=False))
             fp.close()
         if no_embed:
-            with open(output + ext, 'wb') as fp:
+            with open(targetpath + ext, 'w') as fp:
                 fp.write(code)
                 fp.close()
 
@@ -131,8 +141,8 @@ def code2config(code, name, handler='', ext='.py'):
     if not handler:
         handler = 'handler'
 
-    config['metadata']['name'] = normalize_name(name)
-    config['spec']['handler'] = 'handler:' + handler
+    update_in(config, 'metadata.name', normalize_name(name))
+    update_in(config, 'spec.handler', 'handler:' + handler)
     if ext == '.go':
         config['spec']['runtime'] = 'golang'
     elif ext == '.js':

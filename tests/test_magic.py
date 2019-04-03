@@ -14,13 +14,14 @@
 
 from contextlib import redirect_stdout
 from io import StringIO
+from os import path
 
 from conftest import here
 from nuclio import magic
 
 
 def test_print_handler_code():
-    fname = '{}/handler.ipynb'.format(here)
+    fname = path.join(here, "handler.ipynb")
     io = StringIO()
     with redirect_stdout(io):
         magic.print_handler_code(fname)
@@ -29,6 +30,7 @@ def test_print_handler_code():
 
 
 def test_export():
-    line = '{}/handler.ipynb'.format(here)
-    config, code = magic.export(line, None, return_dir=True)
+    line = path.join(here, "handler.ipynb")
+    line = line.replace("\\", "/")  # handle windows
+    config, code = magic.build(line, None, return_dir=True)
     assert config.get('spec'), 'export failed, config={}'.format(config)

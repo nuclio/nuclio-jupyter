@@ -96,10 +96,6 @@ class NuclioExporter(Exporter):
             config['metadata']['name'] = normalize_name(name)
         config['spec']['handler'] = handler_name()
 
-        if env_keys.function_tag in environ:
-            tag = environ.get(env_keys.function_tag)
-            config['metadata']['labels'][meta_keys.tag] = tag
-
         io = StringIO()
         print(header(), file=io)
 
@@ -139,7 +135,8 @@ class NuclioExporter(Exporter):
             config['metadata']['annotations'][meta_keys.extra_files] = efiles
 
         if env_keys.code_target_path in environ:
-            with open(env_keys.code_target_path, 'wb') as fp:
+            code_path = environ.get(env_keys.code_target_path)
+            with open(code_path, 'w') as fp:
                 fp.write(py_code)
                 fp.close()
         elif efiles and env_keys.drop_nb_outputs not in environ:
@@ -356,7 +353,7 @@ def handler_code(name, code):
 
 
 @magic_handler
-def export(magic, config):
+def build(magic, config):
     return ''
 
 
@@ -389,7 +386,7 @@ def mount(magic, config):
 
 
 @magic_handler
-def archive(magic, config):
+def add(magic, config):
     global archive_settings
     args, rest = parse_archive_line(magic.args)
 

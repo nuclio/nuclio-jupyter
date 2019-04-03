@@ -88,12 +88,15 @@ def parse_config_line(line):
 
 def parse_export_line(args):
     parser = ArgumentParser(prog='%nuclio', add_help=False)
-    parser.add_argument('--target-dir', '-t', default='')
+    parser.add_argument('--output', '-o', default='')
+    parser.add_argument('--tag', '-t', default='')
     parser.add_argument('--name', '-n', default='')
     parser.add_argument('--key', '-k', default='')
     parser.add_argument('--username', '-u', default='')
     parser.add_argument('--secret', '-s', default='')
     parser.add_argument('--handler')
+    parser.add_argument('--env', '-e', default=[], action='append',
+                        help='override environment variable (key=value)')
 
     if isinstance(args, str):
         args = path.expandvars(args)

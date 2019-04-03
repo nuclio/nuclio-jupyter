@@ -23,10 +23,11 @@ import yaml
 from IPython import get_ipython
 from IPython.core.magic import register_line_cell_magic
 
+from .config import ConfigSpec
 from .deploy import populate_parser as populate_deploy_parser, deploy_from_args
 from .utils import (env_keys, iter_env_lines, parse_config_line, DeployError,
                     parse_env, parse_export_line, parse_mount_line,
-                    notebook_file_name)
+                    notebook_file_name, list2dict)
 from .archive import parse_archive_line, args2auth
 from .build import build_file
 
@@ -328,31 +329,33 @@ def save_handler(config_file, out_dir):
 
 
 @command
-def export(line, cell, return_dir=False):
-    """Export or upload notebook + extra files/config to a file or archive.
+def build(line, cell, return_dir=False):
+    """Build notebook/code + config, and generate/upload yaml or archive.
 
-    %nuclio export [filename] [flags]
+    %nuclio build [filename] [flags]
 
-    -t, --target-dir path
-        Output directory or upload URL (object)
+    when running inside a notebook the the default filename will be the
+    notebook it self
+
+    -o, --output path
+        Output directory/file or upload URL (object)
     -n, --name path
-        override function name
+        function name, optional (default is filename)
     --handler name
-        Name of handler
-    -k, --key
+        Name of handler function
+    -t, --tag tag
+        version tag (label) for the function
+    -e, --env key=value
+        add/override environment variable
+    -k, --key key
         access/session key whn exporting to url
 
     Example:
-    In [1] %nuclio export
-    Notebook exported to handler at '/tmp/nuclio-handler-99'
-    In [2] %nuclio export --output-dir /tmp/handler
-    Notebook exported to handler at '/tmp/handler'
-    In [3] %nuclio export --notebook /path/to/notebook.ipynb
-    Notebook exported to handler at '/tmp/nuclio-handler-29803'
-    In [4] %nuclio export --handler-name faces
-    Notebook exported to handler at '/tmp/nuclio-handler-29804'
-    In [5] %nuclio export --handler-file /tmp/faces.py
-    Notebook exported to handler at '/tmp/nuclio-handler-29805'
+    In [1] %nuclio build
+    In [2] %nuclio build --output /tmp/handler
+    In [3] %nuclio build /path/to/code.py
+    In [4] %nuclio build --handler faces
+    In [5] %nuclio build --tag v1.1 -e ENV_VAR1="some text" -e ENV_VAR2=xx
     """
 
     args, rest = parse_export_line(line)
@@ -365,11 +368,14 @@ def export(line, cell, return_dir=False):
         log_error('cannot find notebook name (try specifying its name)')
         return
 
-    target_dir = args.target_dir
-    auth = args2auth(target_dir, args.key, args.username, args.secret)
+    output = args.output
+    auth = args2auth(output, args.key, args.username, args.secret)
+    envdict = list2dict(args.env)
+    spec = ConfigSpec(env=envdict)
 
     name, config, code = build_file(notebook, args.name, args.handler,
-                                    output=target_dir, auth=auth)
+                                    spec=spec, output=output, auth=auth,
+                                    tag=args.tag)
 
     log('notebook {} exported'.format(name))
     return config, code
@@ -427,7 +433,7 @@ def print_handler_code(notebook_file=None):
         raise ValueError('cannot find notebook file name')
 
     line = notebook_file = shlex.quote(notebook_file)
-    config, code = export(line, None, return_dir=True)
+    config, code = build(line, None, return_dir=True)
     config_yaml = yaml.dump(config, default_flow_style=False)
     print('Config:\n{}'.format(config_yaml))
     print('Code:\n{}'.format(code))
@@ -456,11 +462,11 @@ def mount(line, cell):
 
 
 @command
-def archive(line, cell):
-    """define the function output as archive (zip) and add files.
+def add(line, cell):
+    """add files, will be stored in an archive (zip) or git
 
     Example:
-    In [1]: %nuclio archive -f model.json -f mylib.py
+    In [1]: %nuclio add -f model.json -f mylib.py
     """
     args, rest = parse_archive_line(line)
     file_list = args.file
