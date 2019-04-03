@@ -31,4 +31,3 @@ def test_build_file_nb():
 
     maxRep = get_in(config, 'spec.maxReplicas')
     assert maxRep == 2, 'failed to set replicas, {}'.format(maxRep)
-
