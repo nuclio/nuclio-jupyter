@@ -1,10 +1,25 @@
+# Copyright 2018 Iguazio
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from base64 import b64decode
 from copy import deepcopy
 from os import path, environ
 import yaml
 from IPython import get_ipython
 
-from .utils import read_or_download, parse_env
+from .utils import parse_env
+from .archive import url2repo
 
 default_volume_type = 'v3io'
 missing = object()
@@ -80,12 +95,12 @@ def update_in(obj, key, value, append=False):
         obj[last_key] = value
 
 
-def load_config(config_file, auth=None):
-    config_data = read_or_download(config_file, auth)
+def load_config(config_file):
+    config_data = url2repo(config_file).get()
     return load_config_data(config_data)
 
 
-def load_config_data(config_data, auth=None):
+def load_config_data(config_data):
     config = yaml.safe_load(config_data)
     code = config['spec']['build'].get('functionSourceCode')
     if code:

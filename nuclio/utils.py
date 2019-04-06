@@ -91,9 +91,6 @@ def parse_export_line(args):
     parser.add_argument('--output', '-o', default='')
     parser.add_argument('--tag', '-t', default='')
     parser.add_argument('--name', '-n', default='')
-    parser.add_argument('--key', '-k', default='')
-    parser.add_argument('--username', '-u', default='')
-    parser.add_argument('--secret', '-s', default='')
     parser.add_argument('--handler')
     parser.add_argument('--env', '-e', default=[], action='append',
                         help='override environment variable (key=value)')
@@ -117,36 +114,6 @@ def parse_mount_line(args):
         args = shlex.split(args)
 
     return parser.parse_known_args(args)
-
-
-def read_or_download(urlpath, auth=None):
-    if urlpath.startswith('http://') or urlpath.startswith('https://'):
-        return download_http(urlpath, auth)
-
-    with open(urlpath) as fp:
-        return fp.read()
-
-
-def download_http(url, auth=None):
-    headers = {}
-    if isinstance(auth, dict):
-        headers = auth
-        auth = None
-
-    try:
-        resp = requests.get(url, headers=headers, auth=auth)
-    except OSError:
-        raise OSError('error: cannot connect to {}'.format(url))
-
-    if not resp.ok:
-        raise OSError('failed to read file in {}'.format(url))
-
-    return resp.text
-
-
-def is_url(file_path):
-    return file_path.startswith('http://') or \
-           file_path.startswith('https://') or file_path.startswith('s3://')
 
 
 def normalize_name(name):

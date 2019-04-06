@@ -1,3 +1,17 @@
+# Copyright 2018 Iguazio
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 from os import path, environ
 from tempfile import mktemp
@@ -8,16 +22,15 @@ from base64 import b64encode, b64decode
 import yaml
 from IPython import get_ipython
 
-from .utils import is_url, normalize_name, env_keys, notebook_file_name
-from .archive import upload_file, build_zip, get_archive_config
-from .config import (update_in, new_config, ConfigSpec, read_or_download,
-                     load_config, meta_keys)
+from .utils import normalize_name, env_keys, notebook_file_name
+from .archive import build_zip, get_archive_config, url2repo
+from .config import (update_in, new_config, ConfigSpec, load_config, meta_keys)
 
 
-def build_file(filename='', name='', handler='', output='', tag="", auth=None,
+def build_file(filename='', name='', handler='', output='', tag="",
                spec: ConfigSpec = None, files=[], no_embed=False):
 
-    url_target = (output != '' and is_url(output))
+    url_target = (output != '' and ('://' in output))
     is_zip = output.endswith('.zip')
     if not filename:
         kernel = get_ipython()
@@ -40,7 +53,7 @@ def build_file(filename='', name='', handler='', output='', tag="", auth=None,
             config['metadata']['annotations'].pop(meta_keys.extra_files, None)
 
     elif ext in ['.py', '.go', '.js', '.java']:
-        code = read_or_download(filename, auth)
+        code = url2repo(filename).get()
         config = code2config(code, name, handler, ext)
 
     elif ext == '.yaml':
@@ -73,8 +86,8 @@ def build_file(filename='', name='', handler='', output='', tag="", auth=None,
             output += '.zip'
         build_zip(zip_path, config, code, files, ext)
         if url_target:
-            upload_file(zip_path, output, auth, True)
-            config = get_archive_config(name, output, auth=auth)
+            url2repo(output).upload(zip_path)
+            config = get_archive_config(name, output)
 
     elif output:
         targetpath = path.abspath(output)

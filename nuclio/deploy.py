@@ -26,7 +26,7 @@ import yaml
 import requests
 from .utils import DeployError, list2dict
 from .config import update_in, meta_keys, ConfigSpec
-from .archive import get_archive_config, build_zip, upload_file, args2auth
+from .archive import get_archive_config, build_zip, upload_file
 from .build import code2config, build_file
 
 
@@ -64,24 +64,23 @@ def project_name(config):
 
 
 def deploy_from_args(args, name=''):
-    auth = args2auth(args.target_dir, args.key, args.username, args.secret)
     envdict = list2dict(args.env)
     spec = ConfigSpec(env=envdict)
     return deploy_file(name, args.dashboard_url, name=args.name,
                        project=args.project, verbose=args.verbose,
-                       create_new=args.create_project, spec=spec,
-                       target_dir=args.target_dir, auth=auth)
+                       create_project=args.create_project, spec=spec,
+                       output=args.output, tag=args.tag)
 
 
 def deploy_file(nb_file='', dashboard_url='', name='', project='', handler='',
-                tag='', verbose=False, create_project=True, target_dir='',
-                auth=None, spec: ConfigSpec = None, files=[]):
+                tag='', verbose=False, create_project=True, output='',
+                spec: ConfigSpec = None, files=[]):
 
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
 
     name, config, code = build_file(nb_file, name, handler=handler,
-                                    output=target_dir, tag=tag, spec=spec,
+                                    output=output, tag=tag, spec=spec,
                                     files=files, no_embed=False)
 
     log('Code:\n{}'.format(code))
@@ -95,7 +94,7 @@ def deploy_file(nb_file='', dashboard_url='', name='', project='', handler='',
 
 def deploy_code(code, dashboard_url='', name='', project='', handler='',
                 lang='.py', tag='', verbose=False, create_project=True,
-                archive='', auth=None, spec: ConfigSpec = None, files=[]):
+                archive='', spec: ConfigSpec = None, files=[]):
 
     newconfig = code2config(code, name, handler, lang)
     if spec:
@@ -109,8 +108,8 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
     if archive:
         tmp_file = mktemp('.zip')
         build_zip(tmp_file, newconfig, code, files)
-        upload_file(tmp_file, archive, auth, True)
-        newconfig = get_archive_config(name, archive, auth=auth)
+        upload_file(tmp_file, archive, True)
+        newconfig = get_archive_config(name, archive)
         if verbose:
             logger.info('Archive Config:\n{}'.format(
                 yaml.dump(newconfig, default_flow_style=False)))
@@ -193,8 +192,9 @@ def populate_parser(parser):
     parser.add_argument('--name', '-n',
                         help='function name (notebook name by default)')
     parser.add_argument('--project', '-p', help='project name')
-    parser.add_argument('--target-dir', '-t', default='',
+    parser.add_argument('--output', '-o', default='',
                         help='target dir/url for .zip or .yaml files')
+    parser.add_argument('--tag', '-t', default='', help='version tag')
     parser.add_argument(
         '--verbose', '-v', action='store_true', default=False,
         help='emit more logs',
@@ -205,12 +205,6 @@ def populate_parser(parser):
     )
     parser.add_argument('--env', '-e', default=[], action='append',
                         help='override environment variable (key=value)')
-    parser.add_argument('--key', '-k', default='',
-                        help='authentication/access key')
-    parser.add_argument('--username', '-u', default='',
-                        help='username for authentication')
-    parser.add_argument('--secret', '-s', default='',
-                        help='secret-key/password for authentication')
 
 
 def deploy_progress(api_address, name, verbose=False):

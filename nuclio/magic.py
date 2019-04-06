@@ -28,7 +28,7 @@ from .deploy import populate_parser as populate_deploy_parser, deploy_from_args
 from .utils import (env_keys, iter_env_lines, parse_config_line, DeployError,
                     parse_env, parse_export_line, parse_mount_line,
                     notebook_file_name, list2dict)
-from .archive import parse_archive_line, args2auth
+from .archive import parse_archive_line
 from .build import build_file
 
 log_prefix = '%nuclio: '
@@ -250,16 +250,33 @@ def deploy(line, cell):
     %nuclio deploy [file-path|url] [options]
 
     parameters:
-        -n, --name            override function name
-        -p, --project         project name (required)
-        -d, --dashboard-url   nuclio dashboard url
-        -t, --target-dir      target dir/url for .zip or .yaml files
-        -e, --env             add/override environment variable (key=value)
-        -k, --key             authentication/access key for remote archive
-        -u, --username        username for authentication
-        -s, --secret          secret-key/password for authentication
-        -c, --create-project  create project if not found
-        -v, --verbose         emit more logs
+    -n, --name path
+        function name, optional (default is filename)
+    -p, --project
+        project name (required)
+    -d, --dashboard-url
+        nuclio dashboard url
+    -o, --output path
+        Output directory/file or upload URL (see below)
+    --handler name
+        Name of handler function (if other than 'handler')
+    -t, --tag tag
+        version tag (label) for the function
+    -e, --env key=value
+        add/override environment variable, can be repeated
+    -v, --verbose
+        emit more logs
+
+    supported output options:
+        format:  [scheme://[username:secret@]path/to/dir/[name[.zip|yaml]]
+                 name will be derived from function name if not specified
+                 .zip extensions are used for archives (multiple files)
+
+        supported schemes and examples:
+            local file: my-dir/func
+            AWS S3:     s3://<bucket>/<key-path>
+            http(s):    http://<api-url>/path
+            iguazio:    v3io://<api-url>/<data-container>/path
 
     Examples:
     In [1]: %nuclio deploy
@@ -268,7 +285,7 @@ def deploy(line, cell):
     In [2] %nuclio deploy -d http://localhost:8080 -p tango
     %nuclio: function deployed
 
-    In [3] %nuclio deploy myfunc.py -n new-name -p faces -c
+    In [3] %nuclio deploy myfunc.py -n new-name -p faces
     %nuclio: function deployed
     """
 
@@ -338,17 +355,26 @@ def build(line, cell, return_dir=False):
     notebook it self
 
     -o, --output path
-        Output directory/file or upload URL (object)
+        Output directory/file or upload URL (see below)
     -n, --name path
         function name, optional (default is filename)
     --handler name
-        Name of handler function
+        Name of handler function (if other than 'handler')
     -t, --tag tag
         version tag (label) for the function
     -e, --env key=value
-        add/override environment variable
-    -k, --key key
-        access/session key whn exporting to url
+        add/override environment variable, can be repeated
+
+    supported output options:
+        format:  [scheme://[username:secret@]path/to/dir/[name[.zip|yaml]]
+                 name will be derived from function name if not specified
+                 .zip extensions are used for archives (multiple files)
+
+        supported schemes and examples:
+            local file: my-dir/func
+            AWS S3:     s3://<bucket>/<key-path>
+            http(s):    http://<api-url>/path
+            iguazio:    v3io://<api-url>/<data-container>/path
 
     Example:
     In [1] %nuclio build
@@ -369,13 +395,11 @@ def build(line, cell, return_dir=False):
         return
 
     output = args.output
-    auth = args2auth(output, args.key, args.username, args.secret)
     envdict = list2dict(args.env)
     spec = ConfigSpec(env=envdict)
 
     name, config, code = build_file(notebook, args.name, args.handler,
-                                    spec=spec, output=output, auth=auth,
-                                    tag=args.tag)
+                                    spec=spec, output=output, tag=args.tag)
 
     log('notebook {} exported'.format(name))
     return config, code

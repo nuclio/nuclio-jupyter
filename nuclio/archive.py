@@ -1,13 +1,28 @@
+# Copyright 2018 Iguazio
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import io
 import zipfile
-from requests.auth import HTTPBasicAuth
 from base64 import b64encode
 import yaml
 import requests
-from os import path, remove
+from os import path, remove, environ
 import shlex
 from argparse import ArgumentParser
 import boto3
+from urllib.parse import urlparse, ParseResult
+from shutil import copyfile
 
 
 def build_zip(zip_path, config, code, files=[], ext='.py'):
@@ -37,39 +52,14 @@ def get_from_zip(zip_path, files=[]):
     return files_data
 
 
-def upload_file(file_path, url, auth=None, del_file=False):
-    if url.startswith('s3://'):
-        s3_upload(file_path, url, auth)
-    else:
-        headers = get_auth_header(auth)
-        with open(file_path, 'rb') as data:
-            try:
-                resp = requests.put(url, data=data, headers=headers)
-            except OSError:
-                raise OSError('error: cannot connect to {}'.format(url))
-            if not resp.ok:
-                raise OSError(
-                    'failed to upload to {} {}'.format(url, resp.status_code))
+def upload_file(file_path, url, del_file=False):
+    url2repo(url).upload(file_path)
     if del_file:
         remove(file_path)
 
 
-def s3_upload(file_path, url, auth=None, region=None):
-    path_parts = url.replace("s3://", "").split("/")
-    bucket = path_parts.pop(0)
-    key = "/".join(path_parts)
-    if auth:
-        access, secret = auth
-        s3 = boto3.client('s3', region_name=region, aws_access_key_id=access,
-                          aws_secret_access_key=secret)
-    else:
-        s3 = boto3.client('s3', region_name=region)
-
-    s3.meta.client.upload_file(file_path, bucket, key)
-
-
-def get_archive_config(name, zip_url, auth=None, workdir=''):
-    headers = get_auth_header(auth)
+def get_archive_config(name, zip_url):
+    zip_path, headers, workdir = url2repo(zip_url).archive_cfg()
     return {
         'apiVersion': 'nuclio.io/v1',
         'kind': 'Function',
@@ -85,32 +75,10 @@ def get_archive_config(name, zip_url, auth=None, workdir=''):
                     'workDir': workdir,
                 },
                 'codeEntryType': 'archive',
-                'path': zip_url
+                'path': zip_path
             },
         },
     }
-
-
-def get_auth_header(auth):
-    headers = {}
-    if auth and isinstance(auth, str):
-        headers['X-v3io-session-key'] = auth
-    elif auth:
-        if isinstance(auth, tuple):
-            username, password = auth
-        elif isinstance(auth, HTTPBasicAuth):
-            username = auth.username
-            password = auth.password
-        else:
-            raise Exception('unsupported authentication method')
-
-        username = username.encode('latin1')
-        password = password.encode('latin1')
-        base = b64encode(b':'.join((username, password))).strip()
-        authstr = 'Basic ' + base.decode('ascii')
-        headers['Authorization'] = authstr
-
-    return headers
 
 
 def args2auth(url, key, username, secret):
@@ -135,3 +103,172 @@ def parse_archive_line(args):
         args = shlex.split(args)
 
     return parser.parse_known_args(args)
+
+
+def url2repo(url=''):
+    if '://' not in url:
+        return FileRepo(url)
+    p = urlparse(url)
+    scheme = p.scheme.lower()
+    if scheme == 's3':
+        return S3Repo(p)
+    elif scheme == 'http' or scheme == 'https':
+        return HttpRepo(p)
+    elif scheme == 'v3io' or scheme == 'v3ios':
+        return S3Repo(p)
+    else:
+        raise ValueError('unsupported repo scheme ({})'.format(scheme))
+
+
+class ExternalRepo:
+    def __init__(self, urlobj: ParseResult):
+        self.urlobj = urlobj
+        self.kind = ''
+
+    def get(self):
+        pass
+
+    def download(self, target_path):
+        pass
+
+    def upload(self, src_path):
+        pass
+
+    def archive_cfg(self):
+        # return (path, headers {}, workdir)
+        raise Exception('unimplemented (nuclio cant load zip from this repo)')
+
+
+class FileRepo(ExternalRepo):
+    def __init__(self, path=''):
+        self.path = path
+        self.kind = 'file'
+
+    def get(self):
+        with open(self.path, 'r') as fp:
+            return fp.read()
+
+    def download(self, target_path):
+        copyfile(self.path, target_path)
+
+    def upload(self, src_path):
+        copyfile(src_path, self.path)
+
+
+class S3Repo(ExternalRepo):
+    def __init__(self, urlobj: ParseResult):
+        self.kind = 's3'
+        self.bucket = urlobj.hostname
+        self.key = urlobj.path[1:]
+        region = None
+        s3 = boto3.resource('s3')
+        if urlobj.username or urlobj.password:
+            self.s3 = boto3.resource('s3', region_name=region,
+                                     aws_access_key_id=urlobj.username,
+                                     aws_secret_access_key=urlobj.password)
+        else:
+            self.s3 = boto3.resource('s3', region_name=region)
+
+    def upload(self, src_path):
+        self.s3.Object(self.bucket, self.key).put(Body=open(src_path, 'rb'))
+
+    def get(self):
+        obj = self.s3.Object(self.bucket, self.key)
+        return obj.get()['Body'].read()
+
+    def archive_cfg(self):
+        raise Exception('unimplemented (nuclio load from private s3)')
+
+
+def basic_auth_header(user, password):
+    username = user.encode('latin1')
+    password = password.encode('latin1')
+    base = b64encode(b':'.join((username, password))).strip()
+    authstr = 'Basic ' + base.decode('ascii')
+    return {'Authorization': authstr}
+
+
+def http_get(url, headers=None, auth=None):
+    try:
+        resp = requests.get(url, headers=headers, auth=auth)
+    except OSError:
+        raise OSError('error: cannot connect to {}'.format(url))
+
+    if not resp.ok:
+        raise OSError('failed to read file in {}'.format(url))
+    return resp.text
+
+
+def http_upload(url, file_path, headers=None, auth=None):
+    with open(file_path, 'rb') as data:
+        try:
+            resp = requests.put(url, data=data, headers=headers, auth=auth)
+        except OSError:
+            raise OSError('error: cannot connect to {}'.format(url))
+        if not resp.ok:
+            raise OSError(
+                'failed to upload to {} {}'.format(url, resp.status_code))
+
+
+class HttpRepo(ExternalRepo):
+    def __init__(self, urlobj: ParseResult):
+        self.kind - 'http'
+        host = urlobj.hostname
+        if urlobj.port:
+            host += ':{}'.format(urlobj.port)
+        self.url = '{}://{}{}'.format(urlobj.scheme, host, urlobj.path)
+        if urlobj.username or urlobj.password:
+            self.auth = (urlobj.username, urlobj.password)
+            self.nuclio_header = basic_auth_header(urlobj.username,
+                                                   urlobj.password)
+        else:
+            self.auth = None
+            self.nuclio_header = None
+
+        self.path = urlobj.path
+        self.workdir = urlobj.fragment
+
+    def upload(self, src_path):
+        raise Exception('unimplemented')
+
+    def get(self):
+        return http_get(self.url, None, self.auth)
+
+    def archive_cfg(self):
+        # return path, headers {}, workdir
+        return self.url, self.nuclio_header, self.workdir
+
+
+class V3ioRepo(ExternalRepo):
+    def __init__(self, urlobj: ParseResult):
+        self.kind - 'v3io'
+        host = urlobj.hostname or environ.get('V3IO_API')
+        if urlobj.port:
+            host += ':{}'.format(urlobj.port)
+        self.url = '{}://{}{}'.format(urlobj.scheme, host, urlobj.path)
+
+        token = environ.get('V3IO_ACCESS_KEY')
+
+        username = urlobj.username or environ.get('V3IO_USERNAME')
+        password = urlobj.password or environ.get('V3IO_PASSWORD')
+
+        self.headers = None
+        self.auth = None
+        if (not urlobj.username and urlobj.password) or token:
+            token = urlobj.password or token
+            self.headers = {'X-v3io-session-key': token}
+        elif username and password:
+            self.headers = basic_auth_header(username, password)
+
+        self.path = urlobj.path
+        self.workdir = urlobj.fragment
+
+    def upload(self, src_path):
+        http_upload(self.url, src_path, self.headers, None)
+
+    def get(self):
+        return http_get(self.url, self.headers, None)
+
+    def archive_cfg(self):
+        # return path, headers {}, workdir
+        return self.url, self.headers, self.workdir
