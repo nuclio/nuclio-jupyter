@@ -161,7 +161,6 @@ class S3Repo(ExternalRepo):
         self.bucket = urlobj.hostname
         self.key = urlobj.path[1:]
         region = None
-        s3 = boto3.resource('s3')
         if urlobj.username or urlobj.password:
             self.s3 = boto3.resource('s3', region_name=region,
                                      aws_access_key_id=urlobj.username,

@@ -13,7 +13,6 @@
 # limitations under the License.
 import json
 import re
-import requests
 from os import path
 import shlex
 from argparse import ArgumentParser
