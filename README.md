@@ -12,7 +12,7 @@ simple debugging, lifecycle management, and native integration into data-science
 * Automatically convert code/files + dependencies (environment, packages configuration, data/files)<br> into nuclio function spec or archive
 * Automatically build and deploy nuclio functions (code, spec, or archive) onto a cluster
 * Provide native integration into [Jupyter](https://jupyter.org/) IDE (Menu and %magic commands)
-* Handle function+spec versioning and archiving against an external object storage (s3, http/s or iguazio)
+* Handle function+spec versioning and archiving against an external object storage (s3, http/s, git or iguazio)
 
 #### What is nuclio?<br>
 nuclio is a high performance serverless platform which runs over docker or kubernetes 
@@ -28,6 +28,10 @@ function spec allow you to [define everything](https://github.com/nuclio/nuclio/
 
 this package is trying to simplify the configuration and deployment through more abstract APIs and `%nuclio` magic commands which eventually build the code + spec artifacts in YAML or Archive formats 
 (archives are best used when additional files need to be packaged or for version control)
+
+the `%nuclio` magic commands are simple to use, but may be limited, if you want more 
+programmability use the [python API calls](#creating-and-deploying-functions-using-the-python-api)
+(`build_file`, `deploy_file` and `deploy_code`) from your code or a notebook cell.
 ## Usage
 * [Installing](#installing) 
 * [Creating and debugging functions inside a notebook using `%nuclio` magic](#creating-and-debugging-functions-using-nuclio-magic)
@@ -35,13 +39,14 @@ this package is trying to simplify the configuration and deployment through more
 * [Exporting/importing functions to/from local or cloud storage](#exportingimporting-functions-tofrom-local-or-cloud-storage)
 * [Creating and deploying functions using the python API](#creating-and-deploying-functions-using-the-python-api)
 * [Controlling function code and configuration](#controlling-function-code-and-configuration):
-  * `%nuclio config` - resources, spec, and triggers configuration 
-  * `%nuclio cmd` - defining package dependencies 
-  * `%nuclio env` and `env_file` - configuring local and remote env variables
-  * `%nuclio mount` - mounting shared volumes into a function
-  * `%nuclio deploy` - deploy functions onto the cluster
-  * `%nuclio show` - show generated function code and spec (YAML)
-  * `%nuclio handler` - function handler wrapper
+  * [`%nuclio cmd`](#cmd) - defining package dependencies 
+  * [`%nuclio env`](#env) and [`env_file`](#env_file) - configuring local and remote env variables
+  * [`%nuclio handler`](#handler) - function handler wrapper
+  * [`%nuclio mount`](#mount) - mounting shared volumes into a function
+  * [`%nuclio config`](#config) - resources, spec, and triggers configuration 
+  * [`%nuclio build`](#build) - generate and/or upload function spec or archive 
+  * [`%nuclio deploy`](#deploy) - deploy functions onto the cluster
+  * [`%nuclio show`](#show) - show generated function code and spec (YAML)
 * [Advanced topics](#advanced-topics) 
   * nuclio `init_context()` hook for initializing resources (across invocations)
   * changing `context.logger` verbosity level to DEBUG
@@ -70,8 +75,13 @@ cells which we do not plan to include in the final function (e.g. prints, plots,
 if we want settings such as environment variables and package installations to automatically appear in the fucntion spec 
 we use the `env` or `cmd` commands and those will copy them self into the function spec.<br>
 
+> Note: if we want to ignore many cells at the beginning of the notebook (e.g. 
+data exploration and model training) we can use `# nuclio: start` at the first relevant code cell 
+instead of marking all the cells above with `# nuclio: ignore`.
+<br>
+
 after we finish writing the code we can simulate the code with the built-in nuclio `context` object
-(see: debugging functions)and when we are done we can use the `export` command to generate the function YAML/archive 
+(see: debugging functions) and when we are done we can use the `export` command to generate the function YAML/archive 
 or use `deploy` to automatically deploy the function on a nuclio/kubernetes cluster.  
 
 we can use other commands like `show` to print out the generated function + spec, 
@@ -80,7 +90,7 @@ and `mount` to auto-mount shared volumes into the function.<br>
 
 for more details use the `%nuclio help` or `%nuclio help <command>`.
   
-#### Example:
+### Example:
 
 Can see the following example for configuring resources, writing and testing code, 
 deploying the function, and testing the final function.
@@ -97,6 +107,8 @@ this section should not be copied to the function so we mark this cell with `# n
 import nuclio
 ```
 
+#### Function spec/configuration
+
 the following sections set an environment variable, install desired package, 
 and set some special configuration (e.g. set the base docker image used for the function).
 note the environment variables and packages will be deployed in the notebook AND in the function, 
@@ -110,20 +122,67 @@ we can use local environment variables in those commands with `${VAR_NAME}`, see
 %nuclio config spec.build.baseImage = "python:3.6-jessie"
 ```
 
+magic commands only accept constant values or local environment variables as parameters 
+if you are interested in more flexibility use `nuclio.build_file()` or `nuclio.deploy_file()`
+API calls, see [python API calls](#creating-and-deploying-functions-using-the-python-api)
+<br>
+
+#### Function code
+
 In the cell you'd like to become the handler, you can use one of two ways:
 * create a `def handler(context, event)` function (the traditional nuclio way)
 * or mark a cell with `%%nuclio handler` which means this cell is the handler function (the Jupyter way)
 
 when using the 2nd approach we mark the return line using `# nuclio:return` at the end of it.
 
-we can use the nuclio `context` and `Event` objects to simulate our functions,
-once we are done we use the `%nuclio deploy` command to run it on a real cluster, 
-note the deploy command return a valid HTTP end-point which we can use to test/use our real function.
+#### Local function testing
 
-Cells containing `# nuclio: ignore` comment will be omitted in the export
+we can use the built-in nuclio `context` and `nuclio.Event` objects to simulate our functions locally,
+we create an event object (message body, headers, etc.) and call our function with 
+the `context` object and our new `event` object, this will simulate a generated event trigger.
+we can also simulate the function with multiple events simply by using a `for` loop 
+
+```python
+# nuclio: ignore
+event = nuclio.Event(body=b'good morninng')
+handler(context, event)
+```
+
+
+#### Function build or deploy
+
+once we are done we use the `%nuclio deploy` command to build the function and run it on a real cluster, 
+note the deploy command return a valid HTTP end-point which can be used to test/use our real function.
+
+deploy the code as nuclio function `nlp` under project `ai`:
+
+    %nuclio deploy -n nlp -p ai
+
+we can use `%nuclio build` if we only want to generate the function code + spec or 
+archive and/or upload/commit them to an external repository without running them on the cluster 
+this can also be used for automated CI/CD, functions can be built and pushed to GIT 
+and trigger a CI process which will only deploy the function after it passed tests.
+
+if you would like to see the generated code and YAML configuration file before you deploy use `%nuclio show` command
+
+for more flexibility use the `nuclio.build_file()` or `nuclio.deploy_file()` API calls, see the example below:
+
+```python
+# nuclio: ignore
+# deploy the notebook code with extra configuration (env vars, config, etc.)
+spec = nuclio.ConfigSpec(config={'spec.maxReplicas': 2}, env={'EXTRA_VAR': 'something'})
+addr = nuclio.deploy_file(name='nlp',project='ai',verbose=True, spec=spec, tag='v1.1')
+
+# invoke the generated function 
+resp = requests.get(addr)
+print(resp.text)
+``` 
+
+> Note: Cells containing `# nuclio: ignore` comment will be omitted in the build
 process.
 
-#### Example Notebook: 
+
+### Example Notebook: 
 
 ![](docs/nb-example2.png)
 
@@ -141,16 +200,11 @@ spec:
   build:
     baseImage: python:3.6-jessie
     commands:
-    - pip install requests
-    - apt-get update && apt-get install -y wget
+    - pip install textblob
     noBaseImagesPull: true
   env:
-  - name: USER
-    value: john
-  - name: VERSION
-    value: '1.0'
-  - name: PASSWORD
-    value: t0ps3cr3t
+  - name: TO_LANG
+    value: fr
   handler: handler:handler
   runtime: python:3.6
 ```
@@ -230,10 +284,11 @@ def handler(context, event):
 # substitute a string in the template 
 code = code.format('Hello World!')
 # define a file share (mount my shared fs home dir into the function /data dir)
-vol = Volume('data','~/')
+vol = nuclio.Volume('data','~/')
 
 # deploy my code with extra configuration (env vars, mount)
-addr = nuclio.deploy_code(code,name='myfunc',project='proj',verbose=True, create_new=True, env=['XXX=1234'], mount=vol)
+spec = nuclio.ConfigSpec(env={'MYENV_VAR': 'something'}, mount=vol)
+addr = nuclio.deploy_code(code,name='myfunc',project='proj',verbose=True, spec=spec)
 
 # invoke the generated function 
 resp = requests.get(addr)
@@ -241,25 +296,10 @@ print(resp.text)
 
 ```
 
-the `deploy_file` API allow deploying functions from files or archives <br>
+the `deploy_file` API allow deploying functions from various file formats (`.py`, `.go`, `.js`, `.java`, `.yaml`, or `.zip` archives) <br>
 the `build_file` API is the equivalent of `%nuclio build` magic command (create deployable function or archive and can upload it)
 
 ## Controlling function code and configuration
-
-### config
-
-Set function configuration value (resources, triggers, build, etc.).
-Values need to numeric, strings, or json strings (1, "debug", 3.3, {..})
-You can use += to append values to a list.
-
-see the [nuclio configuration reference](https://github.com/nuclio/nuclio/blob/master/docs/reference/function-configuration/function-configuration-reference.md)
-
-    Example:
-    In [1] %nuclio config spec.maxReplicas = 5
-    In [2]: %%nuclio config
-    ...: spec.maxReplicas = 5
-    ...: spec.runtime = "python2.7"
-    ...: build.commands +=  "apk --update --no-cache add ca-certificates"
 
 ### cmd
 
@@ -312,43 +352,6 @@ Set environment from file(s). Will update "spec.env" in configuration.
     ...: env.yml
     ...: dev-env.yml
     
-### mount
-Mount a shared file Volume into the function.
-
-    Example:
-    In [1]: %nuclio mount /data /projects/netops/data
-    mounting volume path /projects/netops/data as /data
-    
-### deploy
-Deploy notebook/file with configuration as nuclio function.
-
-    %nuclio deploy [file-path|url] [options]
-
-    parameters:
-        -n, --name            override function name
-        -p, --project         project name (required)
-        -d, --dashboard-url   nuclio dashboard url 
-        -t, --target-dir      target dir/url for .zip or .yaml files 
-        -e, --env             add/override environment variable (key=value)
-        -k, --key             authentication/access key for remote archive 
-        -u, --username        username for authentication
-        -s, --secret          secret-key/password for authentication
-        -c, --create-project  create project if not found
-        -v, --verbose         emit more logs
-
-    Examples:
-    In [1]: %nuclio deploy
-    %nuclio: function deployed -p faces
-
-    In [2] %nuclio deploy -d http://localhost:8080 -p tango
-    %nuclio: function deployed
-
-    In [3] %nuclio deploy myfunc.py -n new-name -p faces -c
-    %nuclio: function deployed
-### show
-Print out the function code and spec (YAML).
-You should save the notebook before calling this function.
-
 ### handler
 Mark this cell as handler function. You can give optional name
 
@@ -364,6 +367,115 @@ Mark this cell as handler function. You can give optional name
         # nuclio:return
         return 'Hello ' + event.body
         
+### mount
+Mount a shared file Volume into the function.
+
+    Example:
+    In [1]: %nuclio mount /data /projects/netops/data
+    mounting volume path /projects/netops/data as /data
+    
+### config
+
+Set function configuration value (resources, triggers, build, etc.).
+Values need to numeric, strings, or json strings (1, "debug", 3.3, {..})
+You can use += to append values to a list.
+
+see the [nuclio configuration reference](https://github.com/nuclio/nuclio/blob/master/docs/reference/function-configuration/function-configuration-reference.md)
+
+    Example:
+    In [1] %nuclio config spec.maxReplicas = 5
+    In [2]: %%nuclio config
+    ...: spec.maxReplicas = 5
+    ...: spec.runtime = "python2.7"
+    ...: build.commands +=  "apk --update --no-cache add ca-certificates"
+
+### build
+
+Build notebook/code + config, and generate/upload yaml or archive.
+
+    %nuclio build [filename] [flags]
+
+    when running inside a notebook the the default filename will be the
+    notebook it self
+
+    -o, --output path
+        Output directory/file or upload URL (see below)
+    -n, --name path
+        function name, optional (default is filename)
+    --handler name
+        Name of handler function (if other than 'handler')
+    -t, --tag tag
+        version tag (label) for the function
+    -e, --env key=value
+        add/override environment variable, can be repeated
+
+    supported output options:
+        format:  [scheme://[username:secret@]path/to/dir/[name[.zip|yaml]]
+                 name will be derived from function name if not specified
+                 .zip extensions are used for archives (multiple files)
+
+        supported schemes and examples:
+            local file: my-dir/func
+            AWS S3:     s3://<bucket>/<key-path>
+            http(s):    http://<api-url>/path
+            iguazio:    v3io://<api-url>/<data-container>/path
+
+    Example:
+    In [1] %nuclio build
+    In [2] %nuclio build --output /tmp/handler
+    In [3] %nuclio build /path/to/code.py
+    In [4] %nuclio build --handler faces
+    In [5] %nuclio build --tag v1.1 -e ENV_VAR1="some text" -e ENV_VAR2=xx
+
+
+### deploy
+Deploy notebook/file with configuration as nuclio function.
+
+    %nuclio deploy [file-path|url] [options]
+
+    parameters:
+    -n, --name path
+        function name, optional (default is filename)
+    -p, --project
+        project name (required)
+    -d, --dashboard-url
+        nuclio dashboard url
+    -o, --output path
+        Output directory/file or upload URL (see below)
+    --handler name
+        Name of handler function (if other than 'handler')
+    -t, --tag tag
+        version tag (label) for the function
+    -e, --env key=value
+        add/override environment variable, can be repeated
+    -v, --verbose
+        emit more logs
+
+    supported output options:
+        format:  [scheme://[username:secret@]path/to/dir/[name[.zip|yaml]]
+                 name will be derived from function name if not specified
+                 .zip extensions are used for archives (multiple files)
+
+        supported schemes and examples:
+            local file: my-dir/func
+            AWS S3:     s3://<bucket>/<key-path>
+            http(s):    http://<api-url>/path
+            iguazio:    v3io://<api-url>/<data-container>/path
+
+    Examples:
+    In [1]: %nuclio deploy
+    %nuclio: function deployed -p faces
+
+    In [2] %nuclio deploy -d http://localhost:8080 -p tango
+    %nuclio: function deployed
+
+    In [3] %nuclio deploy myfunc.py -n new-name -p faces
+    %nuclio: function deployed
+    
+### show
+Print out the function code and spec (YAML).
+You should save the notebook before calling this function.
+
 ## Advanced topics
 
 ### nuclio `init_context()` hook for initializing resources (across invocations)
