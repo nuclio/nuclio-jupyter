@@ -19,7 +19,7 @@ from os import path, environ
 import yaml
 from IPython import get_ipython
 
-from .utils import parse_env, normalize_name
+from .utils import parse_env
 from .archive import url2repo
 
 default_volume_type = 'v3io'

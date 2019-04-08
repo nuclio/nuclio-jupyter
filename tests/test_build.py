@@ -42,4 +42,3 @@ def test_build_url():
     assert name == 'javatst', 'build failed, name doesnt match={}'.format(name)
     assert config.get('spec'), 'build failed, config={}'.format(config)
     assert get_in(config, 'spec.runtime') == 'java', 'not java runtime'
-

@@ -22,7 +22,8 @@ from base64 import b64encode, b64decode
 import yaml
 from IPython import get_ipython
 
-from .utils import env_keys, notebook_file_name, logger, normalize_name, BuildError
+from .utils import (env_keys, notebook_file_name, logger, normalize_name,
+                    BuildError)
 from .archive import build_zip, get_archive_config, url2repo, upload_file
 from .config import (update_in, new_config, ConfigSpec, load_config,
                      meta_keys, extend_config, set_handler)

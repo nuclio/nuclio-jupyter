@@ -24,6 +24,7 @@ from notebook.notebookapp import list_running_servers
 from urllib.parse import urlencode, urljoin
 from urllib.request import urlopen
 
+
 def create_logger():
     handler = logging.StreamHandler(stdout)
     handler.setFormatter(

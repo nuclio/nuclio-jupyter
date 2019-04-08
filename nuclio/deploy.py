@@ -23,7 +23,8 @@ from urllib.parse import urlparse
 import yaml
 import requests
 from .utils import DeployError, list2dict, str2nametag, logger, normalize_name
-from .config import update_in, meta_keys, ConfigSpec, extend_config, set_handler
+from .config import (update_in, meta_keys, ConfigSpec, extend_config,
+                     set_handler)
 from .archive import get_archive_config, build_zip, upload_file
 from .build import code2config, build_file, archive_path
 
