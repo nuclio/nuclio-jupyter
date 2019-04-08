@@ -211,7 +211,7 @@ def http_upload(url, file_path, headers=None, auth=None):
 
 class HttpRepo(ExternalRepo):
     def __init__(self, urlobj: ParseResult):
-        self.kind - 'http'
+        self.kind = 'http'
         host = urlobj.hostname
         if urlobj.port:
             host += ':{}'.format(urlobj.port)

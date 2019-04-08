@@ -27,7 +27,7 @@ from .config import ConfigSpec
 from .deploy import populate_parser as populate_deploy_parser, deploy_from_args
 from .utils import (env_keys, iter_env_lines, parse_config_line, DeployError,
                     parse_env, parse_export_line, parse_mount_line,
-                    notebook_file_name, list2dict)
+                    notebook_file_name, list2dict, BuildError)
 from .archive import parse_archive_line
 from .build import build_file
 
@@ -308,7 +308,7 @@ def deploy(line, cell):
 
     try:
         addr = deploy_from_args(args, notebook)
-    except DeployError as err:
+    except (DeployError, BuildError, ValueError) as err:
         log_error('error: {}'.format(err))
         return
 

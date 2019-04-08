@@ -251,21 +251,26 @@ class ConfigSpec:
                 ipy.system(path.expandvars(line))
 
 
-def extend_config(config, spec, name, tag, source=''):
+def extend_config(config, spec, tag, source=''):
     if spec:
         spec.merge(config)
     if tag:
         config['metadata']['labels'][meta_keys.tag] = tag
     if source:
-        now = datetime.utcnow().strftime("%Y%m%d")
+        now = datetime.utcnow().strftime("%d-%m-%Y")
         if environ.get('V3IO_USERNAME'):
             now += ' by ' + environ.get('V3IO_USERNAME')
         genstr = 'function generated at {} from {}'.format(now, source)
         config['metadata']['annotations'][meta_keys.generated_by] = genstr
-    if name:
-        name = normalize_name(name)
-        update_in(config, 'metadata.name', name)
 
-    return name, config
+    return config
 
 
+def set_handler(config, module, handler, ext):
+    if not module:
+        module = 'handler'
+    if not handler:
+        handler = 'handler'
+    if ext == '.sh':
+        module += '.sh'
+    update_in(config, 'spec.handler', '{}:{}'.format(module, handler))

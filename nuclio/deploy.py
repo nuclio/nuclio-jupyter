@@ -13,19 +13,17 @@
 # limitations under the License.
 """Deploy notebook to nuclio"""
 
-import logging
 from argparse import FileType
 from os import environ
 from operator import itemgetter
-from sys import stdout
 from tempfile import mktemp
 from time import sleep, time
 from urllib.parse import urlparse
 
 import yaml
 import requests
-from .utils import DeployError, list2dict, str2nametag
-from .config import update_in, meta_keys, ConfigSpec, extend_config
+from .utils import DeployError, list2dict, str2nametag, logger, normalize_name
+from .config import update_in, meta_keys, ConfigSpec, extend_config, set_handler
 from .archive import get_archive_config, build_zip, upload_file
 from .build import code2config, build_file, archive_path
 
@@ -43,19 +41,6 @@ def find_dashboard_url():
         addr = urlparse(value).netloc
 
     return 'http://' + addr
-
-
-def create_logger():
-    handler = logging.StreamHandler(stdout)
-    handler.setFormatter(
-        logging.Formatter('[%(name)s] %(asctime)s %(message)s'))
-    logger = logging.getLogger('nuclio.deploy')
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
-    return logger
-
-
-logger = create_logger()
 
 
 def project_name(config):
@@ -76,10 +61,8 @@ def deploy_file(source='', dashboard_url='', name='', project='', handler='',
                 tag='', verbose=False, create_project=True, archive='',
                 spec: ConfigSpec = None, files=[]):
 
-    # logger level is INFO, debug won't emit
-    log = logger.info if verbose else logger.debug
-    if source.startswith('$'):
-        return deploy_zip(source[1:], name, project, tag,
+    if source.startswith('$') or source.endswith('.zip'):
+        return deploy_zip(source, name, project, tag,
                           dashboard_url=dashboard_url, archive=archive,
                           verbose=verbose, spec=spec,
                           create_project=create_project)
@@ -87,9 +70,6 @@ def deploy_file(source='', dashboard_url='', name='', project='', handler='',
     name, config, code = build_file(source, name, handler=handler,
                                     archive=archive, tag=tag, spec=spec,
                                     files=files, project=project)
-
-    log('Code:\n{}'.format(code))
-    log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
 
     addr = deploy_config(config, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_project)
@@ -101,15 +81,17 @@ def deploy_zip(source='', name='', project='', tag='', dashboard_url='',
                archive='', verbose=False, spec: ConfigSpec = None,
                create_project=True):
 
-    # logger level is INFO, debug won't emit
-    oproject, oname, otag = str2nametag(source)
-    archive, url_target = archive_path(archive, name=oname,
-                                       project=oproject, tag=otag)
-    if not (archive and url_target):
+    if source.startswith('$'):
+        oproject, oname, otag = str2nametag(source)
+        archive, _ = archive_path(archive, name=oname, project=oproject,
+                                  tag=otag)
+
+    if not archive or ('://' not in archive):
         raise DeployError('archive URL must be specified')
 
+    name = normalize_name(name)
     config = get_archive_config(name, archive)
-    name, config = extend_config(config, spec, name, tag, 'archive '+source)
+    config = extend_config(config, spec, tag, 'archive '+source)
 
     addr = deploy_config(config, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_project)
@@ -121,12 +103,13 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
                 lang='.py', tag='', verbose=False, create_project=True,
                 archive='', spec: ConfigSpec = None, files=[]):
 
+    name = normalize_name(name)
     newconfig = code2config(code, lang)
-    handler = handler or 'handler'
-    update_in(newconfig, 'spec.handler', 'handler:{}'.format(handler))
+    set_handler(newconfig, '', handler, lang)
     if spec:
         spec.merge(newconfig)
     if verbose:
+        logger.info('Code:\n{}'.format(code))
         logger.info('Config:\n{}'.format(
             yaml.dump(newconfig, default_flow_style=False)))
 
@@ -146,7 +129,9 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
             logger.info('Archive Config:\n{}'.format(
                 yaml.dump(newconfig, default_flow_style=False)))
 
-    name, newconfig = extend_config(newconfig, None, name, tag, 'code')
+    newconfig = extend_config(newconfig, None, tag, 'code')
+    update_in(newconfig, 'metadata.name', name)
+
     return deploy_config(newconfig, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_project)
 

@@ -11,26 +11,43 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
 import json
 import re
 from os import path
 import shlex
 from argparse import ArgumentParser
+from sys import stdout
 
 import ipykernel
 from notebook.notebookapp import list_running_servers
 from urllib.parse import urlencode, urljoin
 from urllib.request import urlopen
 
+def create_logger():
+    handler = logging.StreamHandler(stdout)
+    handler.setFormatter(
+        logging.Formatter('[%(name)s] %(asctime)s %(message)s'))
+    logger = logging.getLogger('nuclio.deploy')
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    return logger
+
+
+logger = create_logger()
+
 
 class DeployError(Exception):
+    pass
+
+
+class BuildError(Exception):
     pass
 
 
 class env_keys:
     handler_name = 'NUCLIO_HANDLER_NAME'
     handler_path = 'NUCLIO_HANDLER_PATH'
-    function_tag = 'NUCLIO_FUNCTION_TAG'
     drop_nb_outputs = 'NUCLIO_NO_OUTPUTS'
     code_target_path = 'NUCLIO_CODE_PATH'
     env_files = 'NUCLIO_ENV_FILES'
@@ -124,14 +141,14 @@ def normalize_name(name):
     return name.lower()
 
 
-def str2nametag(input=''):
+def str2nametag(input):
     parts = input.split('/')
     if len(parts) != 2:
         raise ValueError('function should be <project>/<name>:<tag>')
     project = parts[0]
     namever = parts[1].split(':')
     name = namever[0]
-    if len(namever)>1:
+    if len(namever) > 1:
         tag = namever[1]
     else:
         tag = ''

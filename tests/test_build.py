@@ -31,3 +31,15 @@ def test_build_file_nb():
 
     maxRep = get_in(config, 'spec.maxReplicas')
     assert maxRep == 2, 'failed to set replicas, {}'.format(maxRep)
+
+
+def test_build_url():
+    filepath = 'https://raw.githubusercontent.com/nuclio/nuclio/master/hack/' \
+               + 'examples/java/empty/EmptyHandler.java'
+
+    name, config, code = build_file(filepath, name='javatst', output_dir='.')
+
+    assert name == 'javatst', 'build failed, name doesnt match={}'.format(name)
+    assert config.get('spec'), 'build failed, config={}'.format(config)
+    assert get_in(config, 'spec.runtime') == 'java', 'not java runtime'
+

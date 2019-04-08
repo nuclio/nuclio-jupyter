@@ -22,14 +22,15 @@ from base64 import b64encode, b64decode
 import yaml
 from IPython import get_ipython
 
-from .utils import env_keys, notebook_file_name
+from .utils import env_keys, notebook_file_name, logger, normalize_name, BuildError
 from .archive import build_zip, get_archive_config, url2repo, upload_file
 from .config import (update_in, new_config, ConfigSpec, load_config,
-                     meta_keys, extend_config)
+                     meta_keys, extend_config, set_handler)
 
 
 def build_file(filename='', name='', handler='', archive='', project='',
-               tag="", spec: ConfigSpec = None, files=[], output_dir=''):
+               tag="", spec: ConfigSpec = None, files=[], output_dir='',
+               verbose=False):
 
     dont_embed = (len(files) > 0) or output_dir != '' or archive != ''
 
@@ -49,7 +50,7 @@ def build_file(filename='', name='', handler='', archive='', project='',
             files += nb_files.split(',')
             config['metadata']['annotations'].pop(meta_keys.extra_files, None)
 
-    elif ext in ['.py', '.go', '.js', '.java']:
+    elif ext in ['.py', '.go', '.js', '.java', '.sh']:
         code = url2repo(filename).get()
         config = code2config(code, ext)
 
@@ -57,24 +58,23 @@ def build_file(filename='', name='', handler='', archive='', project='',
         code, config = load_config(filename)
         ext = get_lang_ext(config)
 
-    # todo: support rebuild of zip
-
     else:
-        raise ValueError('illegal filename or extension: '+filename)
+        raise BuildError('illegal filename or extension: '+filename)
 
     if not code:
         code_buf = config['spec']['build'].get('functionSourceCode')
         code = b64decode(code_buf).decode('utf-8')
 
-    name = name or filebase
-    name, config = extend_config(config, spec, name, tag, filename)
+    name = normalize_name(name or filebase)
+    update_in(config, 'metadata.name', name)
+    config = extend_config(config, spec, tag, filename)
+    set_handler(config, filebase, handler, ext)
 
-    if not handler:
-        handler = 'handler'
-    update_in(config, 'spec.handler', '{}:{}'.format(filebase, handler))
+    log = logger.info if verbose else logger.debug
+    log('Code:\n{}'.format(code))
+    log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
 
     if output_dir:
-        # todo: update handler name
         output_dir = path.abspath(output_dir)
         os.makedirs(output_dir, exist_ok=True)
         config['metadata'].pop("name", None)
@@ -82,21 +82,24 @@ def build_file(filename='', name='', handler='', archive='', project='',
             fp.write(yaml.dump(config, default_flow_style=False))
             fp.close()
         update_in(config, 'metadata.name', name)
-        with open('{}/{}.{}'.format(output_dir, filebase, ext), 'w') as fp:
+        with open('{}/{}{}'.format(output_dir, filebase, ext), 'w') as fp:
             fp.write(code)
             fp.close()
 
     archive, url_target = archive_path(archive, name=name,
                                        project=project, tag=tag)
     if archive:
-        zip_path = archive
         if url_target:
             zip_path = mktemp('.zip')
+        else:
+            zip_path = path.abspath(archive)
         build_zip(zip_path, config, code, files, ext)
         if url_target:
             upload_file(zip_path, archive, True)
             config = get_archive_config(name, archive)
-            name, config = extend_config(config, None, name, tag, filename)
+            config = extend_config(config, None, tag, filename)
+            config_text = yaml.dump(config, default_flow_style=False)
+            log('Archive Config:\n{}'.format(config_text))
 
     return name, config, code
 
@@ -119,9 +122,6 @@ def build_notebook(nb_file, no_embed=False, tag=""):
     if no_embed:
         py_path = mktemp('.py')
         env[env_keys.code_target_path] = py_path
-
-    if tag:
-        env[env_keys.function_tag] = tag
     env[env_keys.drop_nb_outputs] = 'y'
 
     cmd = [
@@ -134,10 +134,10 @@ def build_notebook(nb_file, no_embed=False, tag=""):
     if out.returncode != 0:
         print(out.stdout.decode('utf-8'))
         print(out.stderr.decode('utf-8'), file=stderr)
-        raise Exception('cannot convert notebook')
+        raise BuildError('cannot convert notebook')
 
     if not path.isfile(yaml_path):
-        raise Exception('failed to convert, tmp file %s not found', yaml_path)
+        raise BuildError('failed to convert, tmp file %s not found', yaml_path)
 
     with open(yaml_path) as yp:
         config_data = yp.read()
@@ -160,6 +160,10 @@ def code2config(code, ext='.py'):
         config['spec']['runtime'] = 'nodejs'
     elif ext == '.java':
         config['spec']['runtime'] = 'java'
+    elif ext == '.sh':
+        config['spec']['runtime'] = 'shell'
+    elif ext != '.py':
+        raise ValueError('unsupported extension {}'.format(ext))
 
     data = b64encode(code.encode('utf-8')).decode('utf-8')
     update_in(config, 'spec.build.functionSourceCode', data)
@@ -177,6 +181,8 @@ def get_lang_ext(config):
         ext = '.js'
     elif func_runtime == 'java':
         ext = '.java'
+    elif func_runtime == 'shell':
+        ext = '.sh'
     else:
-        raise ValueError('illegal ')
+        raise ValueError('unsupported extension {}'.format(ext))
     return ext
