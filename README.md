@@ -291,7 +291,7 @@ spec = nuclio.ConfigSpec(env={'MYENV_VAR': 'something'}, mount=vol)
 addr = nuclio.deploy_code(code,name='myfunc',project='proj',verbose=True, spec=spec)
 
 # invoke the generated function 
-resp = requests.get(addr)
+resp = requests.get('http://' + addr)
 print(resp.text)
 
 ```
@@ -299,6 +299,36 @@ print(resp.text)
 the `deploy_file` API allow deploying functions from various file formats (`.py`, `.go`, `.js`, `.java`, `.yaml`, or `.zip` archives) <br>
 the `build_file` API is the equivalent of `%nuclio build` magic command (create deployable function or archive and can upload it)
 
+**Running non python functions**
+
+the library is not limited to python code, it support other languages such as `go`, 
+`node.js`, `java`, and `bash`. see the following example with bash code. note that 
+you can install any package/binary inside the function using the build commands (`cmd=`).<br>
+
+```python
+import requests
+import nuclio
+
+code = '''
+echo "good morning"
+echo $SOME_ENV
+'''
+
+spec = nuclio.ConfigSpec(env={'SOME_ENV':'env text'}, 
+                         cmd=['apk --update --no-cache add imagemagick'])
+                         
+addr = nuclio.deploy_code(code, lang='.sh', name='mysh', project='demo', spec=spec)
+
+# invoke the generated function 
+resp = requests.get('http://' + addr)
+print(resp.text)
+```
+
+output:
+
+    good morning
+    env text
+ 
 ## Controlling function code and configuration
 
 ### cmd
