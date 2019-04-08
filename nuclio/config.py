@@ -14,11 +14,12 @@
 
 from base64 import b64decode
 from copy import deepcopy
+from datetime import datetime
 from os import path, environ
 import yaml
 from IPython import get_ipython
 
-from .utils import parse_env
+from .utils import parse_env, normalize_name
 from .archive import url2repo
 
 default_volume_type = 'v3io'
@@ -29,6 +30,7 @@ class meta_keys:
     project = 'nuclio.io/project-name'
     tag = 'nuclio.io/tag'
     extra_files = 'nuclio.io/extra_files'
+    generated_by = 'nuclio.io/generated_by'
 
 
 _function_config = {
@@ -247,3 +249,23 @@ class ConfigSpec:
             ipy = get_ipython()
             for line in self.cmd:
                 ipy.system(path.expandvars(line))
+
+
+def extend_config(config, spec, name, tag, source=''):
+    if spec:
+        spec.merge(config)
+    if tag:
+        config['metadata']['labels'][meta_keys.tag] = tag
+    if source:
+        now = datetime.utcnow().strftime("%Y%m%d")
+        if environ.get('V3IO_USERNAME'):
+            now += ' by ' + environ.get('V3IO_USERNAME')
+        genstr = 'function generated at {} from {}'.format(now, source)
+        config['metadata']['annotations'][meta_keys.generated_by] = genstr
+    if name:
+        name = normalize_name(name)
+        update_in(config, 'metadata.name', name)
+
+    return name, config
+
+

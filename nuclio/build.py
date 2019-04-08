@@ -22,16 +22,17 @@ from base64 import b64encode, b64decode
 import yaml
 from IPython import get_ipython
 
-from .utils import normalize_name, env_keys, notebook_file_name
-from .archive import build_zip, get_archive_config, url2repo
-from .config import (update_in, new_config, ConfigSpec, load_config, meta_keys)
+from .utils import env_keys, notebook_file_name
+from .archive import build_zip, get_archive_config, url2repo, upload_file
+from .config import (update_in, new_config, ConfigSpec, load_config,
+                     meta_keys, extend_config)
 
 
-def build_file(filename='', name='', handler='', output='', tag="",
-               spec: ConfigSpec = None, files=[], no_embed=False):
+def build_file(filename='', name='', handler='', archive='', project='',
+               tag="", spec: ConfigSpec = None, files=[], output_dir=''):
 
-    url_target = (output != '' and ('://' in output))
-    is_zip = output.endswith('.zip')
+    dont_embed = (len(files) > 0) or output_dir != '' or archive != ''
+
     if not filename:
         kernel = get_ipython()
         if kernel:
@@ -39,14 +40,10 @@ def build_file(filename='', name='', handler='', output='', tag="",
         else:
             raise ValueError('please specify file name/path/url')
 
-    code = ''
     filebase, ext = path.splitext(path.basename(filename))
-    name = normalize_name(name or filebase)
     if ext == '.ipynb':
-        config, code = build_notebook(filename, handler,
-                                      no_embed or is_zip or url_target, tag)
+        config, code = build_notebook(filename, dont_embed, tag)
         nb_files = config['metadata']['annotations'].get(meta_keys.extra_files)
-        update_in(config, 'metadata.name', name)
         ext = '.py'
         if nb_files:
             files += nb_files.split(',')
@@ -54,7 +51,7 @@ def build_file(filename='', name='', handler='', output='', tag="",
 
     elif ext in ['.py', '.go', '.js', '.java']:
         code = url2repo(filename).get()
-        config = code2config(code, name, handler, ext)
+        config = code2config(code, ext)
 
     elif ext == '.yaml':
         code, config = load_config(filename)
@@ -69,42 +66,52 @@ def build_file(filename='', name='', handler='', output='', tag="",
         code_buf = config['spec']['build'].get('functionSourceCode')
         code = b64decode(code_buf).decode('utf-8')
 
-    if spec:
-        spec.merge(config)
+    name = name or filebase
+    name, config = extend_config(config, spec, name, tag, filename)
 
-    if tag:
-        config['metadata']['labels'][meta_keys.tag] = tag
+    if not handler:
+        handler = 'handler'
+    update_in(config, 'spec.handler', '{}:{}'.format(filebase, handler))
 
-    if output.endswith('/'):
-        output += name
-
-    if is_zip or url_target:
-        zip_path = output
-        if url_target:
-            zip_path = mktemp('.zip')
-        if not is_zip:
-            output += '.zip'
-        build_zip(zip_path, config, code, files, ext)
-        if url_target:
-            url2repo(output).upload(zip_path)
-            config = get_archive_config(name, output)
-
-    elif output:
-        targetpath = path.abspath(output)
-        dir = path.dirname(targetpath)
-        os.makedirs(dir, exist_ok=True)
-        with open(targetpath + '.yaml', 'w') as fp:
+    if output_dir:
+        # todo: update handler name
+        output_dir = path.abspath(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+        config['metadata'].pop("name", None)
+        with open('{}/function.yaml'.format(output_dir), 'w') as fp:
             fp.write(yaml.dump(config, default_flow_style=False))
             fp.close()
-        if no_embed:
-            with open(targetpath + ext, 'w') as fp:
-                fp.write(code)
-                fp.close()
+        update_in(config, 'metadata.name', name)
+        with open('{}/{}.{}'.format(output_dir, filebase, ext), 'w') as fp:
+            fp.write(code)
+            fp.close()
+
+    archive, url_target = archive_path(archive, name=name,
+                                       project=project, tag=tag)
+    if archive:
+        zip_path = archive
+        if url_target:
+            zip_path = mktemp('.zip')
+        build_zip(zip_path, config, code, files, ext)
+        if url_target:
+            upload_file(zip_path, archive, True)
+            config = get_archive_config(name, archive)
+            name, config = extend_config(config, None, name, tag, filename)
 
     return name, config, code
 
 
-def build_notebook(nb_file, handler='', no_embed=False, tag=""):
+def archive_path(archive, **kw):
+    archive = archive or environ.get(env_keys.default_archive)
+    if not archive:
+        return '', False
+
+    url_target = '://' in archive
+    archive = archive.format(**kw) + '.zip'
+    return archive, url_target
+
+
+def build_notebook(nb_file, no_embed=False, tag=""):
     env = environ.copy()  # Pass argument to exporter via environment
     yaml_path = mktemp('.yaml')
     py_path = ''
@@ -113,8 +120,6 @@ def build_notebook(nb_file, handler='', no_embed=False, tag=""):
         py_path = mktemp('.py')
         env[env_keys.code_target_path] = py_path
 
-    if handler:
-        env[env_keys.handler_name] = handler
     if tag:
         env[env_keys.function_tag] = tag
     env[env_keys.drop_nb_outputs] = 'y'
@@ -147,15 +152,8 @@ def build_notebook(nb_file, handler='', no_embed=False, tag=""):
     return config, code
 
 
-def code2config(code, name, handler='', ext='.py'):
+def code2config(code, ext='.py'):
     config = new_config()
-    if not name:
-        raise Exception('function name must be specified')
-    if not handler:
-        handler = 'handler'
-
-    update_in(config, 'metadata.name', normalize_name(name))
-    update_in(config, 'spec.handler', 'handler:' + handler)
     if ext == '.go':
         config['spec']['runtime'] = 'golang'
     elif ext == '.js':

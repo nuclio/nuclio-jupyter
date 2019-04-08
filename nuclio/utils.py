@@ -34,7 +34,7 @@ class env_keys:
     drop_nb_outputs = 'NUCLIO_NO_OUTPUTS'
     code_target_path = 'NUCLIO_CODE_PATH'
     env_files = 'NUCLIO_ENV_FILES'
-    extra_files = 'NUCLIO_EXTRA_FILES'
+    default_archive = 'NUCLIO_ARCHIVE_PATH'
 
 
 def list2dict(lines: list):
@@ -87,12 +87,13 @@ def parse_config_line(line):
 
 def parse_export_line(args):
     parser = ArgumentParser(prog='%nuclio', add_help=False)
-    parser.add_argument('--output', '-o', default='')
+    parser.add_argument('--output_dir', '-o', default='')
     parser.add_argument('--tag', '-t', default='')
     parser.add_argument('--name', '-n', default='')
+    parser.add_argument('--project', '-p', default='')
     parser.add_argument('--handler')
-    parser.add_argument('--env', '-e', default=[], action='append',
-                        help='override environment variable (key=value)')
+    parser.add_argument('--env', '-e', default=[], action='append')
+    parser.add_argument('--archive', '-a', default='')
 
     if isinstance(args, str):
         args = path.expandvars(args)
@@ -121,6 +122,20 @@ def normalize_name(name):
     name = re.sub(r'\s+', '-', name)
     name = name.replace('_', '-')
     return name.lower()
+
+
+def str2nametag(input=''):
+    parts = input.split('/')
+    if len(parts) != 2:
+        raise ValueError('function should be <project>/<name>:<tag>')
+    project = parts[0]
+    namever = parts[1].split(':')
+    name = namever[0]
+    if len(namever)>1:
+        tag = namever[1]
+    else:
+        tag = ''
+    return project, name, tag
 
 
 # Based on

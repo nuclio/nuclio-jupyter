@@ -394,12 +394,13 @@ def build(line, cell, return_dir=False):
         log_error('cannot find notebook name (try specifying its name)')
         return
 
-    output = args.output
+    output = args.output_dir
     envdict = list2dict(args.env)
     spec = ConfigSpec(env=envdict)
 
     name, config, code = build_file(notebook, args.name, args.handler,
-                                    spec=spec, output=output, tag=args.tag)
+                                    spec=spec, output_dir=output, tag=args.tag,
+                                    archive=args.archive, project=args.project)
 
     log('notebook {} exported'.format(name))
     return config, code

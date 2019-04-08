@@ -24,10 +24,10 @@ from urllib.parse import urlparse
 
 import yaml
 import requests
-from .utils import DeployError, list2dict
-from .config import update_in, meta_keys, ConfigSpec
+from .utils import DeployError, list2dict, str2nametag
+from .config import update_in, meta_keys, ConfigSpec, extend_config
 from .archive import get_archive_config, build_zip, upload_file
-from .build import code2config, build_file
+from .build import code2config, build_file, archive_path
 
 
 def get_function(api_address, name):
@@ -69,22 +69,47 @@ def deploy_from_args(args, name=''):
     return deploy_file(name, args.dashboard_url, name=args.name,
                        project=args.project, verbose=args.verbose,
                        create_project=args.create_project, spec=spec,
-                       output=args.output, tag=args.tag)
+                       archive=args.archive, tag=args.tag)
 
 
-def deploy_file(nb_file='', dashboard_url='', name='', project='', handler='',
-                tag='', verbose=False, create_project=True, output='',
+def deploy_file(source='', dashboard_url='', name='', project='', handler='',
+                tag='', verbose=False, create_project=True, archive='',
                 spec: ConfigSpec = None, files=[]):
 
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
+    if source.startswith('$'):
+        return deploy_zip(source[1:], name, project, tag,
+                          dashboard_url=dashboard_url, archive=archive,
+                          verbose=verbose, spec=spec,
+                          create_project=create_project)
 
-    name, config, code = build_file(nb_file, name, handler=handler,
-                                    output=output, tag=tag, spec=spec,
-                                    files=files, no_embed=False)
+    name, config, code = build_file(source, name, handler=handler,
+                                    archive=archive, tag=tag, spec=spec,
+                                    files=files, project=project)
 
     log('Code:\n{}'.format(code))
     log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
+
+    addr = deploy_config(config, dashboard_url, name=name, project=project,
+                         tag=tag, verbose=verbose, create_new=create_project)
+
+    return addr
+
+
+def deploy_zip(source='', name='', project='', tag='', dashboard_url='',
+               archive='', verbose=False, spec: ConfigSpec = None,
+               create_project=True):
+
+    # logger level is INFO, debug won't emit
+    oproject, oname, otag = str2nametag(source)
+    archive, url_target = archive_path(archive, name=oname,
+                                       project=oproject, tag=otag)
+    if not (archive and url_target):
+        raise DeployError('archive URL must be specified')
+
+    config = get_archive_config(name, archive)
+    name, config = extend_config(config, spec, name, tag, 'archive '+source)
 
     addr = deploy_config(config, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_project)
@@ -96,24 +121,32 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
                 lang='.py', tag='', verbose=False, create_project=True,
                 archive='', spec: ConfigSpec = None, files=[]):
 
-    newconfig = code2config(code, name, handler, lang)
+    newconfig = code2config(code, lang)
+    handler = handler or 'handler'
+    update_in(newconfig, 'spec.handler', 'handler:{}'.format(handler))
     if spec:
         spec.merge(newconfig)
     if verbose:
         logger.info('Config:\n{}'.format(
             yaml.dump(newconfig, default_flow_style=False)))
 
-    if files and not archive:
-        raise DeployError('archive must be specified when packing files')
-    if archive:
-        tmp_file = mktemp('.zip')
-        build_zip(tmp_file, newconfig, code, files)
-        upload_file(tmp_file, archive, True)
+    archive, url_target = archive_path(archive, name=name,
+                                       project=project, tag=tag)
+    if files and not (archive and url_target):
+        raise DeployError('archive URL must be specified when packing files')
+
+    if files:
+        zip_path = archive
+        if url_target:
+            zip_path = mktemp('.zip')
+        build_zip(zip_path, newconfig, code, files, lang)
+        upload_file(zip_path, archive, True)
         newconfig = get_archive_config(name, archive)
         if verbose:
             logger.info('Archive Config:\n{}'.format(
                 yaml.dump(newconfig, default_flow_style=False)))
 
+    name, newconfig = extend_config(newconfig, None, name, tag, 'code')
     return deploy_config(newconfig, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_project)
 
@@ -128,14 +161,6 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
 
     api_address = dashboard_url or find_dashboard_url()
     project = find_or_create_project(api_address, project, create_new)
-
-    if not name:
-        name = config['metadata']['name']
-    else:
-        config['metadata']['name'] = name
-
-    if tag:
-        update_in(config, ['metadata', 'labels', meta_keys.tag], tag)
 
     try:
         resp = get_function(api_address, name)
@@ -192,8 +217,8 @@ def populate_parser(parser):
     parser.add_argument('--name', '-n',
                         help='function name (notebook name by default)')
     parser.add_argument('--project', '-p', help='project name')
-    parser.add_argument('--output', '-o', default='',
-                        help='target dir/url for .zip or .yaml files')
+    parser.add_argument('--archive', '-a', default='',
+                        help='remote archive for storing versioned functions')
     parser.add_argument('--tag', '-t', default='', help='version tag')
     parser.add_argument(
         '--verbose', '-v', action='store_true', default=False,
