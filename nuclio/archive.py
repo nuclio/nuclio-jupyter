@@ -25,11 +25,11 @@ from urllib.parse import urlparse, ParseResult
 from shutil import copyfile
 
 
-def build_zip(zip_path, config, code, files=[], ext='.py'):
+def build_zip(zip_path, config, code, files=[], ext='.py', handler='handler'):
     z = zipfile.ZipFile(zip_path, "w")
     config['spec']['build'].pop("functionSourceCode", None)
     config['metadata'].pop("name", None)
-    z.writestr('handler' + ext, code)
+    z.writestr(handler + ext, code)
     z.writestr('function.yaml', yaml.dump(config, default_flow_style=False))
     for f in files:
         if not path.isfile(f):
@@ -69,6 +69,8 @@ def get_archive_config(name, zip_url):
             'annotations': {},
         },
         'spec': {
+            'env': [],
+            'volumes': [],
             'build': {
                 'codeEntryAttributes': {
                     'headers': headers,
@@ -115,7 +117,7 @@ def url2repo(url=''):
     elif scheme == 'http' or scheme == 'https':
         return HttpRepo(p)
     elif scheme == 'v3io' or scheme == 'v3ios':
-        return S3Repo(p)
+        return V3ioRepo(p)
     else:
         raise ValueError('unsupported repo scheme ({})'.format(scheme))
 
@@ -240,11 +242,11 @@ class HttpRepo(ExternalRepo):
 
 class V3ioRepo(ExternalRepo):
     def __init__(self, urlobj: ParseResult):
-        self.kind - 'v3io'
+        self.kind = 'v3io'
         host = urlobj.hostname or environ.get('V3IO_API')
         if urlobj.port:
             host += ':{}'.format(urlobj.port)
-        self.url = '{}://{}{}'.format(urlobj.scheme, host, urlobj.path)
+        self.url = 'http://{}{}'.format(host, urlobj.path)
 
         token = environ.get('V3IO_ACCESS_KEY')
 

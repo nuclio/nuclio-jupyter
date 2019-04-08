@@ -90,11 +90,11 @@ def build_file(filename='', name='', handler='', archive='', project='',
     archive, url_target = archive_path(archive, name=name,
                                        project=project, tag=tag)
     if archive:
+        zip_path = archive
         if url_target:
             zip_path = mktemp('.zip')
-        else:
-            zip_path = path.abspath(archive)
-        build_zip(zip_path, config, code, files, ext)
+        log('Build archive in: {}'.format(zip_path))
+        build_zip(zip_path, config, code, files, ext, filebase)
         if url_target:
             upload_file(zip_path, archive, True)
             config = get_archive_config(name, archive)
@@ -105,13 +105,24 @@ def build_file(filename='', name='', handler='', archive='', project='',
     return name, config, code
 
 
-def archive_path(archive, **kw):
+def archive_path(archive='', **kw):
     archive = archive or environ.get(env_keys.default_archive)
     if not archive:
         return '', False
 
     url_target = '://' in archive
-    archive = archive.format(**kw) + '.zip'
+    if not url_target:
+        archive = path.abspath(archive)
+        os.makedirs(archive, exist_ok=True)
+    if not archive.endswith('/'):
+        archive += '/'
+
+    if kw.get('project'):
+        archive += '{}_'.format(kw.get('project'))
+    archive += kw.get('name')
+    if kw.get('tag'):
+        archive += '_{}'.format(kw.get('tag'))
+    archive += '.zip'
     return archive, url_target
 
 

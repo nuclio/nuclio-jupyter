@@ -83,7 +83,7 @@ def deploy_zip(source='', name='', project='', tag='', dashboard_url='',
                create_project=True):
 
     if source.startswith('$'):
-        oproject, oname, otag = str2nametag(source)
+        oproject, oname, otag = str2nametag(source[1:])
         archive, _ = archive_path(archive, name=oname, project=oproject,
                                   tag=otag)
 
@@ -93,6 +93,10 @@ def deploy_zip(source='', name='', project='', tag='', dashboard_url='',
     name = normalize_name(name)
     config = get_archive_config(name, archive)
     config = extend_config(config, spec, tag, 'archive '+source)
+
+    if verbose:
+        logger.info('Config:\n{}'.format(
+            yaml.dump(config, default_flow_style=False)))
 
     addr = deploy_config(config, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_project)

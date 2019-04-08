@@ -131,7 +131,7 @@ class NuclioExporter(Exporter):
         if archive_settings:
             if archive_settings['notebook'] and nbname:
                 archive_settings['files'] += [nbname + '.ipynb']
-            efiles = archive_settings['files']
+            efiles = ','.join(archive_settings['files'])
             config['metadata']['annotations'][meta_keys.extra_files] = efiles
 
         if env_keys.code_target_path in environ:
