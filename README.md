@@ -187,7 +187,7 @@ process.
 
 ![](docs/nb-example2.png)
 
-<b>visit [this link](docs/nlp-example.ipynb) to see the complete notebook<b>
+visit [this link](docs/nlp-example.ipynb) to see the complete notebook
 , or check out this [other example](docs/nuclio-example.ipynb)
  
 
