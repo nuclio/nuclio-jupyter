@@ -58,6 +58,10 @@ def upload_file(file_path, url, del_file=False):
         remove(file_path)
 
 
+def put_data(url, data):
+    url2repo(url).put(data)
+
+
 def get_archive_config(name, zip_url):
     zip_path, headers, workdir = url2repo(zip_url).archive_cfg()
     return {
@@ -83,18 +87,6 @@ def get_archive_config(name, zip_url):
     }
 
 
-def args2auth(url, key, username, secret):
-    if not url:
-        return None
-    elif username:
-        return (username, secret)
-    elif url.startswith('s3://') and key:
-        return (key, secret)
-    elif key:
-        return key
-    return None
-
-
 def parse_archive_line(args):
     parser = ArgumentParser(prog='%nuclio', add_help=False)
     parser.add_argument('--file', '-f', default=[], action='append')
@@ -105,6 +97,14 @@ def parse_archive_line(args):
         args = shlex.split(args)
 
     return parser.parse_known_args(args)
+
+
+def is_archive(url):
+    p = urlparse(url)
+    val = p.path.endswith('.zip')
+    if val and '://' not in url:
+        raise ValueError('load from archive require a remote path')
+    return val
 
 
 def url2repo(url=''):
@@ -130,6 +130,9 @@ class ExternalRepo:
     def get(self):
         pass
 
+    def put(self, data):
+        pass
+
     def download(self, target_path):
         pass
 
@@ -149,6 +152,11 @@ class FileRepo(ExternalRepo):
     def get(self):
         with open(self.path, 'r') as fp:
             return fp.read()
+
+    def put(self, data):
+        with open(self.path, 'w') as fp:
+            fp.write(data)
+            fp.close()
 
     def download(self, target_path):
         copyfile(self.path, target_path)
@@ -177,6 +185,9 @@ class S3Repo(ExternalRepo):
         obj = self.s3.Object(self.bucket, self.key)
         return obj.get()['Body'].read()
 
+    def put(self, data):
+        self.s3.Object(self.bucket, self.key).put(Body=data)
+
     def archive_cfg(self):
         raise Exception('unimplemented (nuclio load from private s3)')
 
@@ -200,15 +211,19 @@ def http_get(url, headers=None, auth=None):
     return resp.text
 
 
+def http_put(url, data, headers=None, auth=None):
+    try:
+        resp = requests.put(url, data=data, headers=headers, auth=auth)
+    except OSError:
+        raise OSError('error: cannot connect to {}'.format(url))
+    if not resp.ok:
+        raise OSError(
+            'failed to upload to {} {}'.format(url, resp.status_code))
+
+
 def http_upload(url, file_path, headers=None, auth=None):
     with open(file_path, 'rb') as data:
-        try:
-            resp = requests.put(url, data=data, headers=headers, auth=auth)
-        except OSError:
-            raise OSError('error: cannot connect to {}'.format(url))
-        if not resp.ok:
-            raise OSError(
-                'failed to upload to {} {}'.format(url, resp.status_code))
+        http_put(url, data, headers, auth)
 
 
 class HttpRepo(ExternalRepo):
@@ -230,6 +245,9 @@ class HttpRepo(ExternalRepo):
         self.workdir = urlobj.fragment
 
     def upload(self, src_path):
+        raise Exception('unimplemented')
+
+    def put(self, data):
         raise Exception('unimplemented')
 
     def get(self):
@@ -269,6 +287,9 @@ class V3ioRepo(ExternalRepo):
 
     def get(self):
         return http_get(self.url, self.headers, None)
+
+    def put(self, data):
+        http_put(self.url, data, self.headers, None)
 
     def archive_cfg(self):
         # return path, headers {}, workdir

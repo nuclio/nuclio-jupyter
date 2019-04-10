@@ -25,7 +25,7 @@ import requests
 from .utils import DeployError, list2dict, str2nametag, logger, normalize_name
 from .config import (update_in, meta_keys, ConfigSpec, extend_config,
                      set_handler)
-from .archive import get_archive_config, build_zip, upload_file
+from .archive import get_archive_config, build_zip, upload_file, is_archive
 from .build import code2config, build_file, archive_path
 
 
@@ -59,18 +59,24 @@ def deploy_from_args(args, name=''):
 
 
 def deploy_file(source='', dashboard_url='', name='', project='', handler='',
-                tag='', verbose=False, create_project=True, archive='',
-                spec: ConfigSpec = None, files=[]):
+                tag='', verbose=False, create_project=True, archive=False,
+                spec: ConfigSpec = None, files=[], output_dir=''):
 
-    if source.startswith('$') or source.endswith('.zip'):
+    if source.startswith('$') or is_archive(source):
         return deploy_zip(source, name, project, tag,
-                          dashboard_url=dashboard_url, archive=archive,
+                          dashboard_url=dashboard_url,
                           verbose=verbose, spec=spec,
                           create_project=create_project)
 
+    if archive or files:
+        _, url_target = archive_path(output_dir, project, name, tag)
+        if not url_target:
+            raise DeployError('deploy from archive require a remote path')
+
     name, config, code = build_file(source, name, handler=handler,
                                     archive=archive, tag=tag, spec=spec,
-                                    files=files, project=project)
+                                    files=files, project=project,
+                                    output_dir=output_dir)
 
     addr = deploy_config(config, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_project)
@@ -79,19 +85,18 @@ def deploy_file(source='', dashboard_url='', name='', project='', handler='',
 
 
 def deploy_zip(source='', name='', project='', tag='', dashboard_url='',
-               archive='', verbose=False, spec: ConfigSpec = None,
+               verbose=False, spec: ConfigSpec = None,
                create_project=True):
 
     if source.startswith('$'):
         oproject, oname, otag = str2nametag(source[1:])
-        archive, _ = archive_path(archive, name=oname, project=oproject,
-                                  tag=otag)
+        source, _ = archive_path('', oproject, oname, otag)
 
-    if not archive or ('://' not in archive):
+    if not source or ('://' not in source):
         raise DeployError('archive URL must be specified')
 
     name = normalize_name(name)
-    config = get_archive_config(name, archive)
+    config = get_archive_config(name, source)
     config = extend_config(config, spec, tag, 'archive '+source)
 
     if verbose:
@@ -118,8 +123,9 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
         logger.info('Config:\n{}'.format(
             yaml.dump(newconfig, default_flow_style=False)))
 
-    archive, url_target = archive_path(archive, name=name,
-                                       project=project, tag=tag)
+    if archive:
+        archive, url_target = archive_path(archive, name=name,
+                                           project=project, tag=tag)
     if files and not (archive and url_target):
         raise DeployError('archive URL must be specified when packing files')
 
@@ -207,8 +213,10 @@ def populate_parser(parser):
     parser.add_argument('--name', '-n',
                         help='function name (notebook name by default)')
     parser.add_argument('--project', '-p', help='project name')
-    parser.add_argument('--archive', '-a', default='',
+    parser.add_argument('--archive', '-a', action='store_true', default=False,
                         help='remote archive for storing versioned functions')
+    parser.add_argument('--output_dir', '-o', default='',
+                        help='output dir for files/archives')
     parser.add_argument('--tag', '-t', default='', help='version tag')
     parser.add_argument(
         '--verbose', '-v', action='store_true', default=False,

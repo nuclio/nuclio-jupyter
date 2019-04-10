@@ -24,16 +24,17 @@ from IPython import get_ipython
 
 from .utils import (env_keys, notebook_file_name, logger, normalize_name,
                     BuildError)
-from .archive import build_zip, get_archive_config, url2repo, upload_file
+from .archive import (build_zip, get_archive_config, url2repo, upload_file,
+                      put_data)
 from .config import (update_in, new_config, ConfigSpec, load_config,
                      meta_keys, extend_config, set_handler)
 
 
-def build_file(filename='', name='', handler='', archive='', project='',
+def build_file(filename='', name='', handler='', archive=False, project='',
                tag="", spec: ConfigSpec = None, files=[], output_dir='',
                verbose=False):
 
-    dont_embed = (len(files) > 0) or output_dir != '' or archive != ''
+    dont_embed = (len(files) > 0) or output_dir != '' or archive
 
     if not filename:
         kernel = get_ipython()
@@ -43,6 +44,7 @@ def build_file(filename='', name='', handler='', archive='', project='',
             raise ValueError('please specify file name/path/url')
 
     filebase, ext = path.splitext(path.basename(filename))
+    is_source = False
     if ext == '.ipynb':
         config, code = build_notebook(filename, dont_embed, tag)
         nb_files = config['metadata']['annotations'].get(meta_keys.extra_files)
@@ -54,6 +56,7 @@ def build_file(filename='', name='', handler='', archive='', project='',
     elif ext in ['.py', '.go', '.js', '.java', '.sh']:
         code = url2repo(filename).get()
         config = code2config(code, ext)
+        is_source = True
 
     elif ext == '.yaml':
         code, config = load_config(filename)
@@ -75,40 +78,44 @@ def build_file(filename='', name='', handler='', archive='', project='',
     log('Code:\n{}'.format(code))
     log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
 
-    if output_dir:
-        output_dir = path.abspath(output_dir)
-        os.makedirs(output_dir, exist_ok=True)
-        config['metadata'].pop("name", None)
-        with open('{}/function.yaml'.format(output_dir), 'w') as fp:
-            fp.write(yaml.dump(config, default_flow_style=False))
-            fp.close()
-        update_in(config, 'metadata.name', name)
-        with open('{}/{}{}'.format(output_dir, filebase, ext), 'w') as fp:
-            fp.write(code)
-            fp.close()
-
-    archive, url_target = archive_path(archive, name=name,
-                                       project=project, tag=tag)
-    if archive:
-        zip_path = archive
+    if archive or files:
+        output, url_target = archive_path(output_dir, project, name, tag)
+        zip_path = output
         if url_target:
             zip_path = mktemp('.zip')
-        log('Build archive in: {}'.format(zip_path))
+        log('Build/upload archive in: {}'.format(output))
         build_zip(zip_path, config, code, files, ext, filebase)
         if url_target:
-            upload_file(zip_path, archive, True)
-            config = get_archive_config(name, archive)
+            upload_file(zip_path, output, True)
+            config = get_archive_config(name, output)
             config = extend_config(config, None, tag, filename)
             config_text = yaml.dump(config, default_flow_style=False)
             log('Archive Config:\n{}'.format(config_text))
 
+    elif output_dir:
+        if '://' not in output_dir:
+            output_dir = path.abspath(output_dir)
+            os.makedirs(output_dir, exist_ok=True)
+
+        config['metadata'].pop("name", None)
+        put_data('{}/function.yaml'.format(output_dir),
+                 yaml.dump(config, default_flow_style=False))
+        update_in(config, 'metadata.name', name)
+
+        # make sure we dont overwrite the source code
+        output_path = '{}/{}{}'.format(output_dir, filebase, ext)
+        if not is_source or (output_path != path.abspath(filename)):
+            put_data(output_path, code)
+
     return name, config, code
 
 
-def archive_path(archive='', **kw):
+def archive_path(archive, project, name, tag=''):
     archive = archive or environ.get(env_keys.default_archive)
+    if not project:
+        raise BuildError('project name must be specified for archives')
     if not archive:
-        return '', False
+        raise BuildError('archive path must be provided via output_dir or env')
 
     url_target = '://' in archive
     if not url_target:
@@ -117,11 +124,9 @@ def archive_path(archive='', **kw):
     if not archive.endswith('/'):
         archive += '/'
 
-    if kw.get('project'):
-        archive += '{}_'.format(kw.get('project'))
-    archive += kw.get('name')
-    if kw.get('tag'):
-        archive += '_{}'.format(kw.get('tag'))
+    archive += '{}_{}'.format(project, name)
+    if tag:
+        archive += '_{}'.format(tag)
     archive += '.zip'
     return archive, url_target
 
@@ -159,7 +164,7 @@ def build_notebook(nb_file, no_embed=False, tag=""):
     if py_path:
         with open(py_path) as pp:
             code = pp.read()
-            os.remove(py_path)
+        os.remove(py_path)
 
     return config, code
 

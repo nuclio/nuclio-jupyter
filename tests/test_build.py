@@ -42,3 +42,15 @@ def test_build_url():
     assert name == 'javatst', 'build failed, name doesnt match={}'.format(name)
     assert config.get('spec'), 'build failed, config={}'.format(config)
     assert get_in(config, 'spec.runtime') == 'java', 'not java runtime'
+
+
+def test_build_file_zip():
+    filepath = '{}/handler.py'.format(here)
+    filepath = filepath.replace("\\", "/")  # handle windows
+    spec = ConfigSpec(env={'MYENV': 'text'})
+    name, config, code = build_file(filepath, name='hw', spec=spec,
+                                    archive=True, project='p1', tag='v7',
+                                    output_dir='.')
+
+    assert name == 'hw', 'build failed, name doesnt match={}'.format(name)
+    assert config.get('spec'), 'build failed, config={}'.format(config)
