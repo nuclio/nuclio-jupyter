@@ -36,7 +36,8 @@ programmability use the [python API calls](#creating-and-deploying-functions-usi
 * [Installing](#installing) 
 * [Creating and debugging functions inside a notebook using `%nuclio` magic](#creating-and-debugging-functions-using-nuclio-magic)
 * [Exporting functions using Jupyter UI](#creating-and-debugging-functions-using-nuclio-magic)
-* [Exporting/importing functions to/from local or cloud storage](#exportingimporting-functions-tofrom-local-or-cloud-storage)
+* [Exporting, versioning, and archiving functions](#exporting-versioning-and-archiving-functions)
+* [Deploy functions or versions directly from archive or git](#deploy-functions-or-versions-directly-from-archive-or-git)
 * [Creating and deploying functions using the python API](#creating-and-deploying-functions-using-the-python-api)
 * [Controlling function code and configuration](#controlling-function-code-and-configuration):
   * [`%nuclio cmd`](#cmd) - defining package dependencies 
@@ -230,40 +231,94 @@ We currently don't support [Google Colaboratory][colab], [Kaggle Notebooks][kagg
 [colab]: https://colab.research.google.com
 [dashboard]: https://nuclio.io/docs/latest/introduction/#dashboard
 [kaggle]: https://www.kaggle.com/kernels
-## Exporting/importing functions to/from local or cloud storage
+
+## Exporting, versioning, and archiving functions 
 nuclio functions are a great way to provide well defined code + dependencies + environment definitions,
 functions can be versioned, archived, and restored by simply storing and re-applying their artifacts.
 
 after we defined a functions using the `%nuclio` magic commands or directly from the API, we can `build` them,
-we can also use the `add` command to pack multiple files in the same `zip` archive with the code and spec,
+we can also use the `add` magic command or `files` API attribute to pack multiple files in the same `zip` archive with the code and spec,
 store it locally or upload the archive to cloud storage using a single command.<br>
 
-when we want to deploy the function, we use the `deploy` command or API, just specify the 
-archive as the source (vs the code or notebook)
+when we want to deploy a function from a URL or archive we use the `deploy` command or API, 
+specify the URL (vs the code or notebook) as source and the function will be deployed automatically. 
 
 we currently support the following archive options:<br>
-local/shared file system, http(s) unauthenticated or with Basic auth, Github, AWS S3, and iguazio PaaS
+local/shared file system, http(s) unauthenticated or with Basic auth, Github, AWS S3, and iguazio PaaS.
 > note: that at this point nuclio doesnt support pulling archives directly from secret protected S3 buckets  
 
-for AWS S3 the url path convention is `s3://bucket-name/path/to/key.zip`, the access and secret keys should be set 
-[the standard boto3 way](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html) or using the `-k` and `-s` flags.
+see `build` and `deploy` commands help below for details 
 
-example:
+
+#### Example using magic commands
 
 specify additional files to pack with the function (will force the use of `zip`)
-```python
+```
 %nuclio add -f model.json -f mylib.py
 ```
 convert the current notebook into a function archive and upload into remote object store 
-```python
-%nuclio build -t v1.1 -o https://v3io-webapi:8081/projects -k ${V3IO_ACCESS_KEY}
+```
+%nuclio build -p myproj -t v1.1 -o s3://my-bucket/sub-dir -a
 ``` 
 deploy and older version from an archive and name it `oldfunc`
-```python
-%nuclio deploy https://v3io-webapi:8081/projects/myfunc-v1.zip -n oldfunc -k ${V3IO_ACCESS_KEY}
+```
+%nuclio deploy https://my-bucket.s3.amazonaws.com/sub-dir/myproj/funcname_v1.1.zip -n newfunc 
 ``` 
 
 > note: `build` and `deploy` commands dont have to run from the same notebook, see `help` for detailed command options. 
+
+#### Example using the API
+
+```python
+# nuclio: ignore
+spec = nuclio.ConfigSpec(env={'TO_LANG':'de'})
+nuclio.build_file(name='nlp', spec=spec, project='proj',tag='v7', verbose=True, 
+                  output_dir='v3io:///bigdata', archive=True)
+
+# deploy the archived function  
+spec = nuclio.ConfigSpec(env={'TO_LANG':'fr'})               
+addr = nuclio.deploy_file('v3io:///bigdata/proj/nlp_v7.zip', name='nlp2', spec=spec, project='p1',tag='v8')
+
+# invoke the generated function 
+resp = requests.get('http://' + addr)
+print(resp.text)
+```
+## Deploy functions or versions directly from archive or git 
+
+users can deploy functions from an archive (`.zip` file) or Git repository, 
+and override various function `spec` parameters (e.g. change environment variables, 
+add a custom trigger, etc.). 
+
+functions are versioned (using the `tag` attribute), we can load from a version 
+and deploy under a version (which can have a different tag)
+
+in order to deploy from an archive you must specify an archive source URL (must start with
+ `http(s)://`, `v3io://`, or `git://`)
+ 
+example:
+
+    %nuclio deploy https://myurl.com/projects/myfunc-v1.zip -n myfunc -p myproj
+
+### Deploy functions directly from Github
+
+example: deploying functions from nuclio examples repository 
+
+```python
+addr = nuclio.deploy_file('git://github.com/nuclio/nuclio#master:/hack/examples/python/helloworld',name='hw', project='myproj')
+resp = requests.get('http://' + addr)
+print(resp.text)
+```
+
+the Git URL convention is: `git://[token@]github.com/org/repo#master[:<workdir>]`, 
+tokens are only needed for private repositories and can also be provided through the
+`GIT_ACCESS_TOKEN` environment variable.
+
+`workdir` is optional, specify the sub directory for the function within the repository
+
+To upload function artifact (`function.yaml` + code + extra files) to git you can generate the artifacts using the `build` 
+command (specify desired `output-dir`), followed by committing and pushing the updates into your Git repo. 
+
+note that you can specify the desired branch in the url.
 
 ## Creating and deploying functions using the python API
 in some cases working from a notebook is an overkill, or we may want to generate code and configurations programmatically,
@@ -428,54 +483,18 @@ Build notebook/code + config, and generate/upload yaml or archive.
     when running inside a notebook the the default filename will be the
     notebook it self
 
-    -o, --output path
-        Output directory/file or upload URL (see below)
     -n, --name path
         function name, optional (default is filename)
-    --handler name
-        Name of handler function (if other than 'handler')
     -t, --tag tag
         version tag (label) for the function
-    -e, --env key=value
-        add/override environment variable, can be repeated
-
-    supported output options:
-        format:  [scheme://[username:secret@]path/to/dir/[name[.zip|yaml]]
-                 name will be derived from function name if not specified
-                 .zip extensions are used for archives (multiple files)
-
-        supported schemes and examples:
-            local file: my-dir/func
-            AWS S3:     s3://<bucket>/<key-path>
-            http(s):    http://<api-url>/path
-            iguazio:    v3io://<api-url>/<data-container>/path
-
-    Example:
-    In [1] %nuclio build
-    In [2] %nuclio build --output /tmp/handler
-    In [3] %nuclio build /path/to/code.py
-    In [4] %nuclio build --handler faces
-    In [5] %nuclio build --tag v1.1 -e ENV_VAR1="some text" -e ENV_VAR2=xx
-
-
-### deploy
-Deploy notebook/file with configuration as nuclio function.
-
-    %nuclio deploy [file-path|url] [options]
-
-    parameters:
-    -n, --name path
-        function name, optional (default is filename)
     -p, --project
-        project name (required)
-    -d, --dashboard-url
-        nuclio dashboard url
-    -o, --output path
+        project name (required for archives)
+    -a, --archive
+        indicate that the output is an archive (zip)
+    -o, --output-dir path
         Output directory/file or upload URL (see below)
     --handler name
         Name of handler function (if other than 'handler')
-    -t, --tag tag
-        version tag (label) for the function
     -e, --env key=value
         add/override environment variable, can be repeated
     -v, --verbose
@@ -492,15 +511,55 @@ Deploy notebook/file with configuration as nuclio function.
             http(s):    http://<api-url>/path
             iguazio:    v3io://<api-url>/<data-container>/path
 
+    Example:
+    In [1] %nuclio build -v
+    In [2] %nuclio build --output-dir .
+    In [3] %nuclio build /path/to/code.py --handler faces
+    In [4] %nuclio build --tag v1.1 -e ENV_VAR1="some text" -e ENV_VAR2=xx
+    In [5] %nuclio build -p myproj -t v1.1 --output-dir v3io:///bigdata -a
+
+
+### deploy
+Deploy notebook/file with configuration as nuclio function.
+
+    %nuclio deploy [file-path|url] [options]
+
+    parameters:
+    -n, --name path
+        function name, optional (default is filename)
+    -p, --project
+        project name (required)
+    -t, --tag tag
+        version tag (label) for the function
+    -d, --dashboard-url
+        nuclio dashboard url
+    -o, --output-dir path
+        Output directory/file or upload URL (see below)
+    -a, --archive
+        indicate that the output is an archive (zip)
+    --handler name
+        Name of handler function (if other than 'handler')
+    -e, --env key=value
+        add/override environment variable, can be repeated
+    -v, --verbose
+        emit more logs
+
+    when deploying a function which contains extra files or if we want to
+    archive/version functions we specify output-dir with archiving option (-a)
+    (or pre-set the output using the NUCLIO_ARCHIVE_PATH env var
+    supported output options include local path, S3, and iguazio v3io
+
+    following urls can be used to deploy functions from a remote archive:
+      http(s):  http://<api-url>/path.zip[#workdir]
+      iguazio:  v3io://<api-url>/<data-container>/project/name_v1.zip[#workdir]
+      git:      git://[token@]github.com/org/repo#master[:<workdir>]
+
     Examples:
     In [1]: %nuclio deploy
-    %nuclio: function deployed -p faces
-
     In [2] %nuclio deploy -d http://localhost:8080 -p tango
-    %nuclio: function deployed
-
     In [3] %nuclio deploy myfunc.py -n new-name -p faces
-    %nuclio: function deployed
+    In [4] %nuclio deploy git://github.com/myorg/repo#master -n myfunc -p proj
+
     
 ### show
 Print out the function code and spec (YAML).

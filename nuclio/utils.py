@@ -112,6 +112,7 @@ def parse_export_line(args):
     parser.add_argument('--handler')
     parser.add_argument('--env', '-e', default=[], action='append')
     parser.add_argument('--archive', '-a', action='store_true', default=False)
+    parser.add_argument('--verbose', '-v', action='store_true', default=False)
 
     if isinstance(args, str):
         args = path.expandvars(args)

@@ -254,39 +254,37 @@ def deploy(line, cell):
         function name, optional (default is filename)
     -p, --project
         project name (required)
-    -d, --dashboard-url
-        nuclio dashboard url
-    -o, --output path
-        Output directory/file or upload URL (see below)
-    --handler name
-        Name of handler function (if other than 'handler')
     -t, --tag tag
         version tag (label) for the function
+    -d, --dashboard-url
+        nuclio dashboard url
+    -o, --output-dir path
+        Output directory/file or upload URL (see below)
+    -a, --archive
+        indicate that the output is an archive (zip)
+    --handler name
+        Name of handler function (if other than 'handler')
     -e, --env key=value
         add/override environment variable, can be repeated
     -v, --verbose
         emit more logs
 
-    supported output options:
-        format:  [scheme://[username:secret@]path/to/dir/[name[.zip|yaml]]
-                 name will be derived from function name if not specified
-                 .zip extensions are used for archives (multiple files)
+    when deploying a function which contains extra files or if we want to
+    archive/version functions we specify output-dir with archiving option (-a)
+    (or pre-set the output using the NUCLIO_ARCHIVE_PATH env var
+    supported output options include local path, S3, and iguazio v3io
 
-        supported schemes and examples:
-            local file: my-dir/func
-            AWS S3:     s3://<bucket>/<key-path>
-            http(s):    http://<api-url>/path
-            iguazio:    v3io://<api-url>/<data-container>/path
+    following urls can be used to deploy functions from a remote archive:
+      http(s):  http://<api-url>/path.zip[#workdir]
+      iguazio:  v3io://<api-url>/<data-container>/project/name_v1.zip[#workdir]
+      git:      git://[token@]github.com/org/repo#master[:<workdir>]
 
     Examples:
     In [1]: %nuclio deploy
-    %nuclio: function deployed -p faces
-
     In [2] %nuclio deploy -d http://localhost:8080 -p tango
-    %nuclio: function deployed
-
     In [3] %nuclio deploy myfunc.py -n new-name -p faces
-    %nuclio: function deployed
+    In [4] %nuclio deploy git://github.com/myorg/repo#master -n myfunc -p proj
+
     """
 
     if isinstance(line, str):
@@ -354,16 +352,22 @@ def build(line, cell, return_dir=False):
     when running inside a notebook the the default filename will be the
     notebook it self
 
-    -o, --output path
-        Output directory/file or upload URL (see below)
     -n, --name path
         function name, optional (default is filename)
-    --handler name
-        Name of handler function (if other than 'handler')
     -t, --tag tag
         version tag (label) for the function
+    -p, --project
+        project name (required for archives)
+    -a, --archive
+        indicate that the output is an archive (zip)
+    -o, --output-dir path
+        Output directory/file or upload URL (see below)
+    --handler name
+        Name of handler function (if other than 'handler')
     -e, --env key=value
         add/override environment variable, can be repeated
+    -v, --verbose
+        emit more logs
 
     supported output options:
         format:  [scheme://[username:secret@]path/to/dir/[name[.zip|yaml]]
@@ -377,11 +381,11 @@ def build(line, cell, return_dir=False):
             iguazio:    v3io://<api-url>/<data-container>/path
 
     Example:
-    In [1] %nuclio build
-    In [2] %nuclio build --output /tmp/handler
-    In [3] %nuclio build /path/to/code.py
-    In [4] %nuclio build --handler faces
-    In [5] %nuclio build --tag v1.1 -e ENV_VAR1="some text" -e ENV_VAR2=xx
+    In [1] %nuclio build -v
+    In [2] %nuclio build --output-dir .
+    In [3] %nuclio build /path/to/code.py --handler faces
+    In [4] %nuclio build --tag v1.1 -e ENV_VAR1="some text" -e ENV_VAR2=xx
+    In [5] %nuclio build -p myproj -t v1.1 --output-dir v3io:///bigdata -a
     """
 
     args, rest = parse_export_line(line)
@@ -400,7 +404,8 @@ def build(line, cell, return_dir=False):
 
     name, config, code = build_file(notebook, args.name, args.handler,
                                     spec=spec, output_dir=output, tag=args.tag,
-                                    archive=args.archive, project=args.project)
+                                    archive=args.archive, project=args.project,
+                                    verbose=args.verbose)
 
     log('notebook {} exported'.format(name))
     return config, code
