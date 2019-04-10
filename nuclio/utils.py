@@ -11,25 +11,59 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
 import json
 import re
-from os import path, environ
+from os import path
 import shlex
 from argparse import ArgumentParser
-from base64 import b64decode
+from sys import stdout
 
-import yaml
-import requests
+import ipykernel
+from notebook.notebookapp import list_running_servers
+from urllib.parse import urlencode, urljoin
+from urllib.request import urlopen
 
-default_volume_type = 'v3io'
-missing = object()
+
+def create_logger():
+    handler = logging.StreamHandler(stdout)
+    handler.setFormatter(
+        logging.Formatter('[%(name)s] %(asctime)s %(message)s'))
+    logger = logging.getLogger('nuclio.deploy')
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    return logger
+
+
+logger = create_logger()
+
+
+class DeployError(Exception):
+    pass
+
+
+class BuildError(Exception):
+    pass
 
 
 class env_keys:
     handler_name = 'NUCLIO_HANDLER_NAME'
     handler_path = 'NUCLIO_HANDLER_PATH'
-    no_embed_code = 'NUCLIO_NO_EMBED_CODE'
+    drop_nb_outputs = 'NUCLIO_NO_OUTPUTS'
+    code_target_path = 'NUCLIO_CODE_PATH'
     env_files = 'NUCLIO_ENV_FILES'
+    default_archive = 'NUCLIO_ARCHIVE_PATH'
+
+
+def list2dict(lines: list):
+    out = {}
+    for line in lines:
+        key, value = parse_env(line)
+        if key is None:
+            raise ValueError('cannot find "=" in line')
+            return
+        out[key] = value
+    return out
 
 
 def parse_env(line):
@@ -71,70 +105,20 @@ def parse_config_line(line):
 
 def parse_export_line(args):
     parser = ArgumentParser(prog='%nuclio', add_help=False)
-    parser.add_argument('--target-dir', '-t', default='')
+    parser.add_argument('--output_dir', '-o', default='')
+    parser.add_argument('--tag', '-t', default='')
     parser.add_argument('--name', '-n', default='')
-    parser.add_argument('--key', '-k', default='')
-    parser.add_argument('--username', '-u', default='')
-    parser.add_argument('--secret', '-s', default='')
+    parser.add_argument('--project', '-p', default='')
     parser.add_argument('--handler')
+    parser.add_argument('--env', '-e', default=[], action='append')
+    parser.add_argument('--archive', '-a', action='store_true', default=False)
+    parser.add_argument('--verbose', '-v', action='store_true', default=False)
 
     if isinstance(args, str):
         args = path.expandvars(args)
         args = shlex.split(args)
 
     return parser.parse_known_args(args)
-
-
-def get_in(obj, keys):
-    """
-    >>> get_in({'a': {'b': 1}}, 'a.b')
-    1
-    """
-    if isinstance(keys, str):
-        keys = keys.split('.')
-
-    for key in keys:
-        if not obj or key not in obj:
-            return None
-        obj = obj[key]
-    return obj
-
-
-def update_in(obj, key, value, append=False):
-    parts = key.split('.') if isinstance(key, str) else key
-    for part in parts[:-1]:
-        sub = obj.get(part, missing)
-        if sub is missing:
-            sub = obj[part] = {}
-        obj = sub
-
-    last_key = parts[-1]
-    if last_key not in obj:
-        if append:
-            obj[last_key] = []
-        else:
-            obj[last_key] = {}
-
-    if append:
-        if isinstance(value, list):
-            obj[last_key] += value
-        else:
-            obj[last_key].append(value)
-    else:
-        obj[last_key] = value
-
-
-def load_config(config_file, auth=None):
-    config_data = read_or_download(config_file, auth)
-    return load_config_data(config_data)
-
-
-def load_config_data(config_data, auth=None):
-    config = yaml.safe_load(config_data)
-    code = config['spec']['build'].get('functionSourceCode')
-    if code:
-        code = b64decode(code).decode('utf-8')
-    return code, config
 
 
 def parse_mount_line(args):
@@ -151,143 +135,43 @@ def parse_mount_line(args):
     return parser.parse_known_args(args)
 
 
-class Volume:
-    """nuclio volume mount"""
-
-    def __init__(self, local, remote, typ='', name='fs',
-                 key='', readonly=False):
-        self.local = local
-        self.remote = remote
-        self.name = name
-        self.key = key
-        self.type = typ
-        if not typ:
-            self.type = default_volume_type
-        self.readonly = readonly
-
-    def render(self, config):
-
-        if self.remote.startswith('~/'):
-            user = environ.get('V3IO_USERNAME', '')
-            self.remote = 'users/' + user + self.remote[1:]
-
-        container, subpath = split_path(self.remote)
-        key = self.key or environ.get('V3IO_ACCESS_KEY', '')
-
-        if self.type == 'v3io':
-            vol = {'name': self.name, 'flexVolume': {
-                'driver': 'v3io/fuse',
-                'options': {
-                    'container': container,
-                    'subPath': subpath,
-                    'accessKey': key,
-                }
-            }}
-
-            mnt = {'name': self.name, 'mountPath': self.local}
-            update_in(config, 'spec.volumes',
-                      {'volumeMount': mnt, 'volume': vol}, append=True)
-
-        else:
-            raise Exception('unknown volume type {}'.format(self.type))
-
-
-def split_path(mntpath=''):
-    if mntpath[0] == '/':
-        mntpath = mntpath[1:]
-    paths = mntpath.split('/')
-    container = paths[0]
-    subpath = ''
-    if len(paths) > 1:
-        subpath = mntpath[len(container):]
-    return container, subpath
-
-
-def fill_config(config, extra_config={}, env=[], cmd='', mount: Volume = None):
-    if config:
-        for k, v in extra_config.items():
-            current = get_in(config, k)
-            update_in(config, k, v, isinstance(current, list))
-    if env:
-        set_env(config, env)
-    if cmd:
-        set_commands(config, cmd.splitlines())
-    if mount:
-        mount.render(config)
-
-
-def set_env(config, env):
-    for line in env:
-        line = line.strip()
-        if not line or line[0] == '#':
-            continue
-
-        key, value = parse_env(line)
-        if not key:
-            raise ValueError(
-                'cannot parse environment value from: {}'.format(line))
-
-        i = find_env_var(config['spec']['env'], key)
-        item = {'name': key, 'value': value}
-        if i >= 0:
-            config['spec']['env'][i] = item
-        else:
-            config['spec']['env'].append(item)
-
-
-def find_env_var(env_list, key):
-    i = 0
-    for v in env_list:
-        if v['name'] == key:
-            return i
-        i += 1
-
-    return -1
-
-
-def set_commands(config, commands):
-    for line in commands:
-        line = line.strip()
-        if not line or line[0] == '#':
-            continue
-
-        line = path.expandvars(line)
-        update_in(config, 'spec.build.commands', line, append=True)
-
-
-def read_or_download(urlpath, auth=None):
-    if urlpath.startswith('http://') or urlpath.startswith('https://'):
-        return download_http(urlpath, auth)
-
-    with open(urlpath) as fp:
-        return fp.read()
-
-
-def download_http(url, auth=None):
-    headers = {}
-    if isinstance(auth, dict):
-        headers = auth
-        auth = None
-
-    try:
-        resp = requests.get(url, headers=headers, auth=auth)
-    except OSError:
-        raise OSError('error: cannot connect to {}'.format(url))
-
-    if not resp.ok:
-        raise OSError('failed to read file in {}'.format(url))
-
-    return resp.text
-
-
-def is_url(file_path):
-    return file_path.startswith('http://') or \
-           file_path.startswith('https://') or file_path.startswith('s3://')
-
-
 def normalize_name(name):
     # TODO: Must match
     # [a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?
     name = re.sub(r'\s+', '-', name)
     name = name.replace('_', '-')
     return name.lower()
+
+
+def str2nametag(input):
+    parts = input.split('/')
+    if len(parts) != 2:
+        raise ValueError('function should be <project>/<name>:<tag>')
+    project = parts[0]
+    namever = parts[1].split(':')
+    name = namever[0]
+    if len(namever) > 1:
+        tag = namever[1]
+    else:
+        tag = ''
+    return project, name, tag
+
+
+# Based on
+# https://github.com/jupyter/notebook/issues/1000#issuecomment-359875246
+def notebook_file_name(ikernel):
+    """Return the full path of the jupyter notebook."""
+    # Check that we're running under notebook
+    if not (ikernel and ikernel.config['IPKernelApp']):
+        return
+
+    kernel_id = re.search('kernel-(.*).json',
+                          ipykernel.connect.get_connection_file()).group(1)
+    servers = list_running_servers()
+    for srv in servers:
+        query = {'token': srv.get('token', '')}
+        url = urljoin(srv['url'], 'api/sessions') + '?' + urlencode(query)
+        for session in json.load(urlopen(url)):
+            if session['kernel']['id'] == kernel_id:
+                relative_path = session['notebook']['path']
+                return path.join(srv['notebook_dir'], relative_path)

@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from nuclio import utils
+from nuclio import config
 
 
 def test_update_in():
     obj = {}
-    utils.update_in(obj, 'a.b.c', 2)
+    config.update_in(obj, 'a.b.c', 2)
     assert obj['a']['b']['c'] == 2
-    utils.update_in(obj, 'a.b.c', 3)
+    config.update_in(obj, 'a.b.c', 3)
     assert obj['a']['b']['c'] == 3
 
-    utils.update_in(obj, 'a.b.d', 3, append=True)
+    config.update_in(obj, 'a.b.d', 3, append=True)
     assert obj['a']['b']['d'] == [3]
-    utils.update_in(obj, 'a.b.d', 4, append=True)
+    config.update_in(obj, 'a.b.d', 4, append=True)
     assert obj['a']['b']['d'] == [3, 4]

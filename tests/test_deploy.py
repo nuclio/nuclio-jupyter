@@ -20,6 +20,7 @@ from conftest import here, patch
 import pytest
 
 from nuclio import deploy
+from nuclio.config import meta_keys, ConfigSpec, Volume
 
 handler_nb = '{}/handler.ipynb'.format(here)
 
@@ -29,7 +30,7 @@ functions = {
         'metadata': {
             'name': 'test-handler',
             'labels': {
-                deploy.project_key: 'test-project',
+                meta_keys.project: 'test-project',
             },
         },
     },
@@ -113,9 +114,31 @@ def first(seq):
     return next(iter(seq))
 
 
-def test_deploy(requests):
+def test_deploy_nb(requests):
     names = set(functions)
-    deploy.deploy_file(handler_nb, project='test-project', create_new=True)
+    deploy.deploy_file(handler_nb, project='test-project')
+    new_names = set(functions)
+    assert len(new_names) == len(names) + 1, 'not deployed'
+    name = first(new_names - names)
+    func = functions[name]
+    assert func['status']['state'] == 'ready', 'not ready'
+
+
+def test_deploy_code(requests):
+    # define my function code template
+    code = '''
+    def handler(context, event):
+        context.logger.info('text')
+        return 'something'
+    '''
+
+    # deploy my code with extra configuration (env vars, mount)
+    vol = Volume('data', '~/')
+    spec = ConfigSpec(env={'MYENV_VAR': 'something'}, mount=vol)
+    names = set(functions)
+    deploy.deploy_code(code, name='myfunc', project='test-project',
+                       verbose=True, spec=spec)
+
     new_names = set(functions)
     assert len(new_names) == len(names) + 1, 'not deployed'
     name = first(new_names - names)

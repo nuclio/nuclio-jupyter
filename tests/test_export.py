@@ -25,7 +25,8 @@ import yaml
 
 from conftest import here
 from nuclio import export
-from nuclio.utils import env_keys, load_config, load_config_data
+from nuclio.utils import env_keys
+from nuclio.config import load_config, load_config_data
 
 
 @contextmanager

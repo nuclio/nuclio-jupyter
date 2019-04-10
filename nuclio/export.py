@@ -18,7 +18,7 @@ import re
 from base64 import b64encode
 from collections import namedtuple
 from datetime import datetime
-from io import StringIO, BytesIO
+from io import StringIO
 from os import environ, path
 from textwrap import indent
 from sys import stdout
@@ -27,11 +27,11 @@ import yaml
 from nbconvert.exporters import Exporter
 from nbconvert.filters import ipython2python
 
-from .utils import (env_keys, iter_env_lines, parse_config_line, Volume,
-                    update_in, get_in, set_env, set_commands, parse_mount_line,
-                    normalize_name)
-from .archive import parse_archive_line, build_zip
-from .config import new_config
+from .utils import (env_keys, iter_env_lines, parse_config_line,
+                    parse_mount_line, normalize_name)
+from .archive import parse_archive_line
+from .config import (new_config, update_in, get_in, set_env, set_commands,
+                     Volume, meta_keys)
 from .import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
@@ -91,7 +91,7 @@ class NuclioExporter(Exporter):
 
     def from_notebook_node(self, nb, resources=None, **kw):
         config = new_config()
-        name = get_in(resources, 'metadata.name')  # notebook name
+        nbname = name = get_in(resources, 'metadata.name')  # notebook name
         if name:
             config['metadata']['name'] = normalize_name(name)
         config['spec']['handler'] = handler_name()
@@ -127,19 +127,32 @@ class NuclioExporter(Exporter):
             with open(handler_path) as fp:
                 py_code = fp.read()
 
+        efiles = []
         if archive_settings:
-            buffer = BytesIO()
-            build_zip(buffer, config, py_code,
-                      archive_settings['files'])
-            config = buffer.getvalue()
-            resources['output_extension'] = '.zip'
+            if archive_settings['notebook'] and nbname:
+                archive_settings['files'] += [nbname + '.ipynb']
+            efiles = ','.join(archive_settings['files'])
+            config['metadata']['annotations'][meta_keys.extra_files] = efiles
 
+        if env_keys.code_target_path in environ:
+            code_path = environ.get(env_keys.code_target_path)
+            with open(code_path, 'w') as fp:
+                fp.write(py_code)
+                fp.close()
+        elif efiles and env_keys.drop_nb_outputs not in environ:
+            outputs = {'handler.py': py_code,
+                       'function.yaml': gen_config(config)}
+            for filename in efiles:
+                with open(filename) as fp:
+                    data = fp.read()
+                    outputs[filename] = data
+            resources['outputs'] = outputs
         else:
             data = b64encode(py_code.encode('utf-8')).decode('utf-8')
-            if env_keys.no_embed_code not in environ:
-                update_in(config, 'spec.build.functionSourceCode', data)
-            config = gen_config(config)
-            resources['output_extension'] = '.yaml'
+            update_in(config, 'spec.build.functionSourceCode', data)
+
+        config = gen_config(config)
+        resources['output_extension'] = '.yaml'
 
         return config, resources
 
@@ -340,7 +353,7 @@ def handler_code(name, code):
 
 
 @magic_handler
-def export(magic, config):
+def build(magic, config):
     return ''
 
 
@@ -373,7 +386,7 @@ def mount(magic, config):
 
 
 @magic_handler
-def archive(magic, config):
+def add(magic, config):
     global archive_settings
     args, rest = parse_archive_line(magic.args)
 
@@ -383,7 +396,7 @@ def archive(magic, config):
         if not path.isfile(filename):
             raise MagicError('file {} doesnt exist'.format(filename))
 
-    archive_settings = {'files': files}
+    archive_settings = {'files': files, 'notebook': args.add_notebook}
     return ''
 
 

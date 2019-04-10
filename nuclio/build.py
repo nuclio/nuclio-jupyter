@@ -1,85 +1,207 @@
-import shutil
+# Copyright 2018 Iguazio
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import os
 from os import path, environ
-from tempfile import mkdtemp
+from tempfile import mktemp
 from sys import executable, stderr
 from subprocess import run, PIPE
-from base64 import b64encode
+from base64 import b64encode, b64decode
 
-from nuclio.utils import update_in, download_http, is_url, normalize_name
-from .archive import upload_file
-from .config import new_config
+import yaml
+from IPython import get_ipython
 
-handler_name = 'NUCLIO_HANDLER_NAME'
+from .utils import (env_keys, notebook_file_name, logger, normalize_name,
+                    BuildError)
+from .archive import (build_zip, get_archive_config, url2repo, upload_file,
+                      put_data)
+from .config import (update_in, new_config, ConfigSpec, load_config,
+                     meta_keys, extend_config, set_handler)
 
 
-def build_notebook(nb_file, name='', handler='', targetdir='',
-                   auth=None, verbose=False):
-    tmp_dir = targetdir
-    url_target = (targetdir != '' and is_url(targetdir))
-    if not targetdir or url_target:
-        tmp_dir = mkdtemp()
+def build_file(filename='', name='', handler='', archive=False, project='',
+               tag="", spec: ConfigSpec = None, files=[], output_dir='',
+               verbose=False):
 
-    basename = path.basename(nb_file)
-    filebase, ext = path.splitext(basename)
-    if is_url(nb_file):
-        content = download_http(nb_file, auth)
-        nb_file = '{}/{}'.format(tmp_dir, basename)
-        with open(nb_file, "wb") as fp:
-            fp.write(content)
+    dont_embed = (len(files) > 0) or output_dir != '' or archive
 
+    if not filename:
+        kernel = get_ipython()
+        if kernel:
+            filename = notebook_file_name(kernel)
+        else:
+            raise ValueError('please specify file name/path/url')
+
+    filebase, ext = path.splitext(path.basename(filename))
+    is_source = False
+    if ext == '.ipynb':
+        config, code = build_notebook(filename, dont_embed, tag)
+        nb_files = config['metadata']['annotations'].get(meta_keys.extra_files)
+        ext = '.py'
+        if nb_files:
+            files += nb_files.split(',')
+            config['metadata']['annotations'].pop(meta_keys.extra_files, None)
+
+    elif ext in ['.py', '.go', '.js', '.java', '.sh']:
+        code = url2repo(filename).get()
+        config = code2config(code, ext)
+        is_source = True
+
+    elif ext == '.yaml':
+        code, config = load_config(filename)
+        ext = get_lang_ext(config)
+
+    else:
+        raise BuildError('illegal filename or extension: '+filename)
+
+    if not code:
+        code_buf = config['spec']['build'].get('functionSourceCode')
+        code = b64decode(code_buf).decode('utf-8')
+
+    name = normalize_name(name or filebase)
+    update_in(config, 'metadata.name', name)
+    config = extend_config(config, spec, tag, filename)
+    set_handler(config, filebase, handler, ext)
+
+    log = logger.info if verbose else logger.debug
+    log('Code:\n{}'.format(code))
+    log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
+
+    if archive or files:
+        output, url_target = archive_path(output_dir, project, name, tag)
+        if url_target:
+            zip_path = mktemp('.zip')
+        else:
+            zip_path = path.abspath(output)
+            os.makedirs(path.dirname(zip_path), exist_ok=True)
+
+        log('Build/upload archive in: {}'.format(output))
+        build_zip(zip_path, config, code, files, ext, filebase)
+        if url_target:
+            upload_file(zip_path, output, True)
+            config = get_archive_config(name, output)
+            config = extend_config(config, None, tag, filename)
+            config_text = yaml.dump(config, default_flow_style=False)
+            log('Archive Config:\n{}'.format(config_text))
+
+    elif output_dir:
+        if '://' not in output_dir:
+            output_dir = path.abspath(output_dir)
+            os.makedirs(output_dir, exist_ok=True)
+
+        config['metadata'].pop("name", None)
+        put_data('{}/function.yaml'.format(output_dir),
+                 yaml.dump(config, default_flow_style=False))
+        update_in(config, 'metadata.name', name)
+
+        # make sure we dont overwrite the source code
+        output_path = '{}/{}{}'.format(output_dir, filebase, ext)
+        if not is_source or (output_path != path.abspath(filename)):
+            put_data(output_path, code)
+
+    return name, config, code
+
+
+def archive_path(archive, project, name, tag=''):
+    archive = archive or environ.get(env_keys.default_archive)
+    if not project:
+        raise BuildError('project name must be specified for archives')
+    if not archive:
+        raise BuildError('archive path must be provided via output_dir or env')
+
+    url_target = '://' in archive
+    if not url_target:
+        archive = path.abspath(archive)
+        os.makedirs(archive, exist_ok=True)
+    if not archive.endswith('/'):
+        archive += '/'
+    if tag:
+        name = '{}_{}'.format(name, tag)
+
+    archive += '{}/{}.zip'.format(project, name)
+    return archive, url_target
+
+
+def build_notebook(nb_file, no_embed=False, tag=""):
     env = environ.copy()  # Pass argument to exporter via environment
-    if handler:
-        env[handler_name] = handler
+    yaml_path = mktemp('.yaml')
+    py_path = ''
+    code = ''
+    if no_embed:
+        py_path = mktemp('.py')
+        env[env_keys.code_target_path] = py_path
+    env[env_keys.drop_nb_outputs] = 'y'
 
     cmd = [
         executable, '-m', 'nbconvert',
         '--to', 'nuclio.export.NuclioExporter',
-        '--output-dir', tmp_dir,
+        '--output', yaml_path,
         nb_file,
     ]
     out = run(cmd, env=env, stdout=PIPE, stderr=PIPE)
     if out.returncode != 0:
         print(out.stdout.decode('utf-8'))
         print(out.stderr.decode('utf-8'), file=stderr)
-        raise Exception('cannot convert notebook')
+        raise BuildError('cannot convert notebook')
 
-    returned_name = '{}/{}'.format(tmp_dir, filebase)
-    if path.isfile(returned_name + '.zip'):
-        file_ext = '.zip'
-    elif path.isfile(returned_name + '.yaml'):
-        file_ext = '.yaml'
-    else:
-        raise Exception('cannot convert notebook, %s yaml/zip files not found',
-                        returned_name)
+    if not path.isfile(yaml_path):
+        raise BuildError('failed to convert, tmp file %s not found', yaml_path)
 
-    file_path = returned_name + file_ext
-    if url_target:
-        if name:
-            filebase = name
-        if not targetdir.endswith('/'):
-            targetdir += '/'
-        upload_path = targetdir + filebase + file_ext
-        upload_file(file_path, upload_path, auth, False)
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        file_path = upload_path
+    with open(yaml_path) as yp:
+        config_data = yp.read()
+    config = yaml.safe_load(config_data)
+    os.remove(yaml_path)
 
-    return file_path, file_ext, url_target
+    if py_path:
+        with open(py_path) as pp:
+            code = pp.read()
+        os.remove(py_path)
+
+    return config, code
 
 
-def code2config(code, name, handler='', ext='.py'):
+def code2config(code, ext='.py'):
     config = new_config()
-    if not name:
-        raise Exception('function name must be specified')
-    if not handler:
-        handler = 'handler'
-
-    config['metadata']['name'] = normalize_name(name)
-    config['spec']['handler'] = 'handler:' + handler
     if ext == '.go':
         config['spec']['runtime'] = 'golang'
     elif ext == '.js':
         config['spec']['runtime'] = 'nodejs'
+    elif ext == '.java':
+        config['spec']['runtime'] = 'java'
+    elif ext == '.sh':
+        config['spec']['runtime'] = 'shell'
+    elif ext != '.py':
+        raise ValueError('unsupported extension {}'.format(ext))
 
     data = b64encode(code.encode('utf-8')).decode('utf-8')
     update_in(config, 'spec.build.functionSourceCode', data)
     return config
+
+
+def get_lang_ext(config):
+    ext = '.py'
+    func_runtime = config['spec']['runtime']
+    if func_runtime.startswith('python'):
+        ext = '.py'
+    elif func_runtime == 'golang':
+        ext = '.go'
+    elif func_runtime == 'nodejs':
+        ext = '.js'
+    elif func_runtime == 'java':
+        ext = '.java'
+    elif func_runtime == 'shell':
+        ext = '.sh'
+    else:
+        raise ValueError('unsupported extension {}'.format(ext))
+    return ext

@@ -13,27 +13,23 @@
 # limitations under the License.
 
 import json
-import re
 import shlex
 from argparse import ArgumentParser
 from base64 import b64decode
 from os import environ, path
-from subprocess import PIPE, Popen
-from sys import executable, stderr
-from urllib.parse import urlencode, urljoin
-from urllib.request import urlopen
+from sys import stderr
 
-import ipykernel
 import yaml
 from IPython import get_ipython
 from IPython.core.magic import register_line_cell_magic
-from notebook.notebookapp import list_running_servers
 
-from .deploy import populate_parser as populate_deploy_parser
-from .utils import (env_keys, iter_env_lines, load_config, parse_config_line,
-                    parse_env, parse_export_line, parse_mount_line, is_url)
-from .archive import parse_archive_line, args2auth, load_zip_config
-from .build import build_notebook
+from .config import ConfigSpec
+from .deploy import populate_parser as populate_deploy_parser, deploy_from_args
+from .utils import (env_keys, iter_env_lines, parse_config_line, DeployError,
+                    parse_env, parse_export_line, parse_mount_line,
+                    notebook_file_name, list2dict, BuildError)
+from .archive import parse_archive_line
+from .build import build_file
 
 log_prefix = '%nuclio: '
 here = path.dirname(path.abspath(__file__))
@@ -254,60 +250,68 @@ def deploy(line, cell):
     %nuclio deploy [file-path|url] [options]
 
     parameters:
-        -n, --name            override function name
-        -p, --project         project name (required)
-        -d, --dashboard-url   nuclio dashboard url
-        -t, --target-dir      target dir/url for .zip or .yaml files
-        -e, --env             add/override environment variable (key=value)
-        -k, --key             authentication/access key for remote archive
-        -u, --username        username for authentication
-        -s, --secret          secret-key/password for authentication
-        -c, --create-project  create project if not found
-        -v, --verbose         emit more logs
+    -n, --name path
+        function name, optional (default is filename)
+    -p, --project
+        project name (required)
+    -t, --tag tag
+        version tag (label) for the function
+    -d, --dashboard-url
+        nuclio dashboard url
+    -o, --output-dir path
+        Output directory/file or upload URL (see below)
+    -a, --archive
+        indicate that the output is an archive (zip)
+    --handler name
+        Name of handler function (if other than 'handler')
+    -e, --env key=value
+        add/override environment variable, can be repeated
+    -v, --verbose
+        emit more logs
+
+    when deploying a function which contains extra files or if we want to
+    archive/version functions we specify output-dir with archiving option (-a)
+    (or pre-set the output using the NUCLIO_ARCHIVE_PATH env var
+    supported output options include local path, S3, and iguazio v3io
+
+    following urls can be used to deploy functions from a remote archive:
+      http(s):  http://<api-url>/path.zip[#workdir]
+      iguazio:  v3io://<api-url>/<data-container>/project/name_v1.zip[#workdir]
+      git:      git://[token@]github.com/org/repo#master[:<workdir>]
 
     Examples:
     In [1]: %nuclio deploy
-    %nuclio: function deployed -p faces
-
     In [2] %nuclio deploy -d http://localhost:8080 -p tango
-    %nuclio: function deployed
+    In [3] %nuclio deploy myfunc.py -n new-name -p faces
+    In [4] %nuclio deploy git://github.com/myorg/repo#master -n myfunc -p proj
 
-    In [3] %nuclio deploy myfunc.py -n new-name -p faces -c
-    %nuclio: function deployed
     """
-    class ParseError(Exception):
-        pass
 
-    def error(message):
-        raise ParseError(message)
+    if isinstance(line, str):
+        line = path.expandvars(line)
+        line = shlex.split(line)
 
-    cmd = shlex.split(line)
+    p = ArgumentParser(prog='%nuclio', add_help=False)
+    populate_deploy_parser(p)
+    args, rest = p.parse_known_args(line)
+
+    notebook = ''
+    if len(rest) > 0:
+        notebook = rest[0]
+
+    notebook = notebook or notebook_file_name(kernel)
+    if not notebook:
+        log_error('cannot find notebook name (try specifying its name)')
+        return
+
     try:
-        # See if we're missing notebook name
-        p = ArgumentParser()
-        populate_deploy_parser(p)
-        p.error = error
-        p.parse_args(cmd)
-    except ParseError:
-        nb_file = notebook_file_name()
-        if not nb_file:
-            log_error('cannot find notebook file name')
-            return
-
-        cmd.append(shlex.quote(nb_file))
-
-    cmd = [executable, '-m', 'nuclio', 'deploy'] + cmd
-    pipe = Popen(cmd, stderr=PIPE, stdout=PIPE)
-    for line in pipe.stdout:
-        log(line.decode('utf-8').rstrip())
-
-    if pipe.wait() != 0:
-        log_error('cannot deploy')
-        error = pipe.stderr.read().decode('utf-8')
-        log_error(error.rstrip())
+        addr = deploy_from_args(args, notebook)
+    except (DeployError, BuildError, ValueError) as err:
+        log_error('error: {}'.format(err))
         return
 
     log('function deployed')
+    return addr
 
 
 @command
@@ -329,26 +333,6 @@ def handler(line, cell):
     kernel.run_cell(cell)
 
 
-# Based on
-# https://github.com/jupyter/notebook/issues/1000#issuecomment-359875246
-def notebook_file_name():
-    """Return the full path of the jupyter notebook."""
-    # Check that we're running under notebook
-    if not (kernel and kernel.config['IPKernelApp']):
-        return
-
-    kernel_id = re.search('kernel-(.*).json',
-                          ipykernel.connect.get_connection_file()).group(1)
-    servers = list_running_servers()
-    for srv in servers:
-        query = {'token': srv.get('token', '')}
-        url = urljoin(srv['url'], 'api/sessions') + '?' + urlencode(query)
-        for session in json.load(urlopen(url)):
-            if session['kernel']['id'] == kernel_id:
-                relative_path = session['notebook']['path']
-                return path.join(srv['notebook_dir'], relative_path)
-
-
 def save_handler(config_file, out_dir):
     with open(config_file) as fp:
         config = yaml.load(fp)
@@ -360,31 +344,48 @@ def save_handler(config_file, out_dir):
 
 
 @command
-def export(line, cell, return_dir=False):
-    """Export or upload notebook + extra files/config to a file or archive.
+def build(line, cell, return_dir=False):
+    """Build notebook/code + config, and generate/upload yaml or archive.
 
-    %nuclio export [filename] [flags]
+    %nuclio build [filename] [flags]
 
-    -t, --target-dir path
-        Output directory or upload URL (object)
+    when running inside a notebook the the default filename will be the
+    notebook it self
+
     -n, --name path
-        override function name
+        function name, optional (default is filename)
+    -t, --tag tag
+        version tag (label) for the function
+    -p, --project
+        project name (required for archives)
+    -a, --archive
+        indicate that the output is an archive (zip)
+    -o, --output-dir path
+        Output directory/file or upload URL (see below)
     --handler name
-        Name of handler
-    -k, --key
-        access/session key whn exporting to url
+        Name of handler function (if other than 'handler')
+    -e, --env key=value
+        add/override environment variable, can be repeated
+    -v, --verbose
+        emit more logs
+
+    supported output options:
+        format:  [scheme://[username:secret@]path/to/dir/[name[.zip|yaml]]
+                 name will be derived from function name if not specified
+                 .zip extensions are used for archives (multiple files)
+
+        supported schemes and examples:
+            local file: my-dir/func
+            AWS S3:     s3://<bucket>/<key-path>
+            http(s):    http://<api-url>/path
+            iguazio:    v3io://<api-url>/<data-container>/path
 
     Example:
-    In [1] %nuclio export
-    Notebook exported to handler at '/tmp/nuclio-handler-99'
-    In [2] %nuclio export --output-dir /tmp/handler
-    Notebook exported to handler at '/tmp/handler'
-    In [3] %nuclio export --notebook /path/to/notebook.ipynb
-    Notebook exported to handler at '/tmp/nuclio-handler-29803'
-    In [4] %nuclio export --handler-name faces
-    Notebook exported to handler at '/tmp/nuclio-handler-29804'
-    In [5] %nuclio export --handler-file /tmp/faces.py
-    Notebook exported to handler at '/tmp/nuclio-handler-29805'
+    In [1] %nuclio build -v
+    In [2] %nuclio build --output-dir .
+    In [3] %nuclio build /path/to/code.py --handler faces
+    In [4] %nuclio build --tag v1.1 -e ENV_VAR1="some text" -e ENV_VAR2=xx
+    In [5] %nuclio build -p myproj -t v1.1 --output-dir v3io:///bigdata -a
     """
 
     args, rest = parse_export_line(line)
@@ -392,18 +393,22 @@ def export(line, cell, return_dir=False):
     if len(rest) > 0:
         notebook = rest[0]
 
-    notebook = notebook or notebook_file_name()
+    notebook = notebook or notebook_file_name(kernel)
     if not notebook:
         log_error('cannot find notebook name (try specifying its name)')
         return
 
-    target_dir = args.target_dir
-    auth = args2auth(target_dir, args.key, args.username, args.secret)
+    output = args.output_dir
+    envdict = list2dict(args.env)
+    spec = ConfigSpec(env=envdict)
 
-    file_path, ext, is_url = build_notebook(notebook, args.name, args.handler,
-                                            target_dir, auth)
-    log('notebook exported to {}'.format(file_path))
-    return file_path
+    name, config, code = build_file(notebook, args.name, args.handler,
+                                    spec=spec, output_dir=output, tag=args.tag,
+                                    archive=args.archive, project=args.project,
+                                    verbose=args.verbose)
+
+    log('notebook {} exported'.format(name))
+    return config, code
 
 
 def uncomment(line):
@@ -453,27 +458,15 @@ def print_handler_code(notebook_file=None):
 
    You should save the notebook before calling this function.
     """
-    notebook_file = notebook_file or notebook_file_name()
+    notebook_file = notebook_file or notebook_file_name(kernel)
     if not notebook_file:
         raise ValueError('cannot find notebook file name')
 
     line = notebook_file = shlex.quote(notebook_file)
-    file_path = export(line, None, return_dir=True)
-    if not file_path:
-        raise ValueError('failed to export {}'.format(notebook_file))
-    if is_url(file_path):
-        print('cannot show content of URL files ({})'.format(file_path))
-
-    if file_path.endswith('.yaml'):
-        code, config = load_config(file_path)
-        print('Code:\n{}'.format(code))
-        config['spec']['build'].pop("functionSourceCode", None)
-        config_yaml = yaml.dump(config, default_flow_style=False)
-        print('Config:\n{}'.format(config_yaml))
-    else:
-        code, config = load_zip_config(file_path)
-        print('Code:\n{}'.format(code))
-        print('Config:\n{}'.format(config))
+    config, code = build(line, None, return_dir=True)
+    config_yaml = yaml.dump(config, default_flow_style=False)
+    print('Config:\n{}'.format(config_yaml))
+    print('Code:\n{}'.format(code))
 
 
 def update_env_files(file_name):
@@ -499,11 +492,11 @@ def mount(line, cell):
 
 
 @command
-def archive(line, cell):
-    """define the function output as archive (zip) and add files.
+def add(line, cell):
+    """add files, will be stored in an archive (zip) or git
 
     Example:
-    In [1]: %nuclio archive -f model.json -f mylib.py
+    In [1]: %nuclio add -f model.json -f mylib.py
     """
     args, rest = parse_archive_line(line)
     file_list = args.file
