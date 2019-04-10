@@ -63,8 +63,9 @@ def put_data(url, data):
 
 
 def get_archive_config(name, zip_url):
-    zip_path, headers, workdir = url2repo(zip_url).archive_cfg()
-    return {
+    repo = url2repo(zip_url)
+    zip_path, headers, workdir = repo.archive_cfg()
+    spec = {
         'apiVersion': 'nuclio.io/v1',
         'kind': 'Function',
         'metadata': {
@@ -86,6 +87,12 @@ def get_archive_config(name, zip_url):
         },
     }
 
+    if repo.kind == 'git':
+        spec['spec']['build']['codeEntryType'] = 'github'
+        spec['spec']['build']['codeEntryAttributes']['branch'] = repo.branch
+
+    return spec
+
 
 def parse_archive_line(args):
     parser = ArgumentParser(prog='%nuclio', add_help=False)
@@ -101,7 +108,7 @@ def parse_archive_line(args):
 
 def is_archive(url):
     p = urlparse(url)
-    val = p.path.endswith('.zip')
+    val = p.path.endswith('.zip') or p.scheme.lower() == 'git'
     if val and '://' not in url:
         raise ValueError('load from archive require a remote path')
     return val
@@ -114,6 +121,8 @@ def url2repo(url=''):
     scheme = p.scheme.lower()
     if scheme == 's3':
         return S3Repo(p)
+    elif scheme == 'git':
+        return GitRepo(p)
     elif scheme == 'http' or scheme == 'https':
         return HttpRepo(p)
     elif scheme == 'v3io' or scheme == 'v3ios':
@@ -245,10 +254,10 @@ class HttpRepo(ExternalRepo):
         self.workdir = urlobj.fragment
 
     def upload(self, src_path):
-        raise Exception('unimplemented')
+        raise ValueError('unimplemented')
 
     def put(self, data):
-        raise Exception('unimplemented')
+        raise ValueError('unimplemented')
 
     def get(self):
         return http_get(self.url, None, self.auth)
@@ -294,3 +303,40 @@ class V3ioRepo(ExternalRepo):
     def archive_cfg(self):
         # return path, headers {}, workdir
         return self.url, self.headers, self.workdir
+
+
+class GitRepo(ExternalRepo):
+    def __init__(self, urlobj: ParseResult):
+        self.kind = 'git'
+        host = urlobj.hostname or 'github.com'
+        if urlobj.port:
+            host += ':{}'.format(urlobj.port)
+        self.path = 'https://{}{}'.format(host, urlobj.path)
+
+        self.headers = {'Authorization': ''}
+        token = urlobj.username or environ.get('GIT_ACCESS_TOKEN')
+        if token:
+            self.headers = {'Authorization': 'token '.format(token)}
+
+        # format: git://[token@]github.com/org/repo#master[:<workdir>]
+        self.branch = 'master'
+        self.workdir = None
+        if urlobj.fragment:
+            parts = urlobj.fragment.split(':')
+            if parts[0]:
+                self.branch = parts[0]
+            if len(parts) > 1:
+                self.workdir = parts[1]
+
+    def upload(self, src_path):
+        raise ValueError('unimplemented, use git push instead')
+
+    def get(self):
+        raise ValueError('unimplemented, use git pull instead')
+
+    def put(self, data):
+        raise ValueError('unimplemented, use git push instead')
+
+    def archive_cfg(self):
+        # return path, headers {}, workdir
+        return self.path, self.headers, self.workdir

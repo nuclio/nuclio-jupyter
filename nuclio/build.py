@@ -80,9 +80,12 @@ def build_file(filename='', name='', handler='', archive=False, project='',
 
     if archive or files:
         output, url_target = archive_path(output_dir, project, name, tag)
-        zip_path = output
         if url_target:
             zip_path = mktemp('.zip')
+        else:
+            zip_path = path.abspath(output)
+            os.makedirs(path.dirname(zip_path), exist_ok=True)
+
         log('Build/upload archive in: {}'.format(output))
         build_zip(zip_path, config, code, files, ext, filebase)
         if url_target:
@@ -123,11 +126,10 @@ def archive_path(archive, project, name, tag=''):
         os.makedirs(archive, exist_ok=True)
     if not archive.endswith('/'):
         archive += '/'
-
-    archive += '{}_{}'.format(project, name)
     if tag:
-        archive += '_{}'.format(tag)
-    archive += '.zip'
+        name = '{}_{}'.format(name, tag)
+
+    archive += '{}/{}.zip'.format(project, name)
     return archive, url_target
 
 
