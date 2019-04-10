@@ -189,6 +189,7 @@ process.
 
 <b>visit [this link](docs/nlp-example.ipynb) to see the complete notebook<b>, 
 or check out this [other example](docs/nuclio-example.ipynb)
+ 
 
 The generated function spec for the above notebook will look like:
 
