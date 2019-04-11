@@ -21,6 +21,8 @@ nuclio functions can be triggered via HTTP, popular messaging/streaming protocol
 nuclio can run in the cloud as a managed offering, or on any Kubernetes cluster (cloud, on-prem, or edge)<br>
 [read more about nuclio ...](https://github.com/nuclio/nuclio) 
 
+nuclio and this package are an integral part of [iguazio managed data science platform](https://www.iguazio.com/), you can see many end to end usage examples and notebooks in [iguazio tutorial](https://github.com/v3io/tutorials) repo.
+
 #### How does it work?
 nuclio take code + [function spec](https://github.com/nuclio/nuclio/blob/master/docs/reference/function-configuration/function-configuration-reference.md) + optional file artifacts and automatically convert them to auto-scaling services over Kubernetes.
 the artifacts can be provided as a YAML file (with embedded code), as Dockerfiles, or as archives (Git or Zip).
@@ -597,7 +599,7 @@ Then open your browser at http://localhost:8888
 
 ## Links
 
-TBD
+* [iguazio tutorial repo](https://github.com/v3io/tutorials) - hosts many usage examples
 
 ## Developing
 
