@@ -177,7 +177,7 @@ spec = nuclio.ConfigSpec(config={'spec.maxReplicas': 2}, env={'EXTRA_VAR': 'some
 addr = nuclio.deploy_file(name='nlp',project='ai',verbose=True, spec=spec, tag='v1.1')
 
 # invoke the generated function 
-resp = requests.get(addr)
+resp = requests.get('http://' + addr)
 print(resp.text)
 ``` 
 
@@ -263,7 +263,7 @@ convert the current notebook into a function archive and upload into remote obje
 ```
 %nuclio build -p myproj -t v1.1 -o s3://my-bucket/sub-dir -a
 ``` 
-deploy and older version from an archive and name it `oldfunc`
+deploy and older version from an archive and name it `newfunc`
 ```
 %nuclio deploy https://my-bucket.s3.amazonaws.com/sub-dir/myproj/funcname_v1.1.zip -n newfunc 
 ``` 
