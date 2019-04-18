@@ -256,7 +256,8 @@ def deploy_progress(api_address, name, verbose=False):
 def get_address(api_url):
     resp = requests.get('{}/api/external_ip_addresses'.format(api_url))
     if not resp.ok:
-        raise OSError('nuclio API call failed')
+        logger.warning('failed to obtain external IP address, returned local')
+        return "localhost"
 
     addresses = resp.json()['externalIPAddresses']['addresses']
     return addresses[0]
