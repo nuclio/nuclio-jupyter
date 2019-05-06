@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import logging
+import os
 from sys import stdout
 
 from nuclio_sdk import Context as _Context, Logger
@@ -41,6 +42,7 @@ class Context(_Context):
 
 
 def inject_context():
-    import builtins
-
-    builtins.context = Context()
+    # add context, only if not inside nuclio
+    if not os.environ.get('NUCLIO_FUNCTION_INSTANCE'):
+        import builtins
+        builtins.context = Context()
