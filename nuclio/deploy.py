@@ -207,7 +207,8 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
 
 
 def populate_parser(parser):
-    parser.add_argument('file', help='notebook/code file', default='')
+    parser.add_argument('file', help='notebook/code file',
+                        nargs='?', default='')
     parser.add_argument('--dashboard-url', '-d', help='dashboard URL')
     parser.add_argument('--name', '-n',
                         help='function name (notebook name by default)')
@@ -316,3 +317,28 @@ def find_or_create_project(api_url, project, create_new=False):
 
     logger.info('project name not found created new (%s)', project)
     return resp.json()['metadata']['name']
+
+
+def delete_func(name, dashboard_url=''):
+    api_address = dashboard_url or find_dashboard_url()
+    headers = {'Content-Type': 'application/json'}
+    body = {'metadata': {'name': name}}
+
+    api_url = '{}/api/functions'.format(api_address)
+    try:
+        resp = requests.delete(api_url, json=body, headers=headers)
+    except OSError as err:
+        logger.error('ERROR: %s', str(err))
+        raise DeployError('error: cannot del {} at {}'.format(name, api_url))
+
+    if not resp.ok:
+        logger.error('ERROR: %s', resp.text)
+        raise DeployError('failed to delete {}'.format(name))
+    print('Delete successful')
+
+
+def delete_parser(parser):
+    parser.add_argument('name', help='function name', default='')
+    parser.add_argument('--dashboard-url', '-d', help='dashboard URL')
+
+
