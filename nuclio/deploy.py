@@ -13,7 +13,6 @@
 # limitations under the License.
 """Deploy notebook to nuclio"""
 
-from argparse import FileType
 from os import environ
 from operator import itemgetter
 from tempfile import mktemp
@@ -340,5 +339,3 @@ def delete_func(name, dashboard_url=''):
 def delete_parser(parser):
     parser.add_argument('name', help='function name', default='')
     parser.add_argument('--dashboard-url', '-d', help='dashboard URL')
-
-
