@@ -16,7 +16,7 @@ import sys
 from argparse import ArgumentParser
 from os import path
 
-from nuclio.deploy import DeployError
+from nuclio.utils import DeployError
 from nuclio.deploy import (deploy_from_args,
                            populate_parser as populate_deploy_parser)
 
@@ -24,7 +24,7 @@ from nuclio.deploy import (deploy_from_args,
 def do_deploy(args):
     try:
         deploy_from_args(args)
-    except DeployError as err:
+    except (DeployError, ValueError) as err:
         raise SystemExit('error: {}'.format(err))
 
 
@@ -36,9 +36,12 @@ def main():
     dp.set_defaults(func=do_deploy)
 
     exargs = [path.expandvars(arg) for arg in sys.argv[1:]]
-    print(exargs)
     args = parser.parse_args(exargs)
-    args.func(args)
+    try:
+        args.func(args)
+    except AttributeError as err:
+        print('Unrecognized command or error: ', err)
+        parser.print_help()
 
 
 if __name__ == '__main__':

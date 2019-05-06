@@ -52,7 +52,7 @@ def project_name(config):
 def deploy_from_args(args, name=''):
     envdict = list2dict(args.env)
     spec = ConfigSpec(env=envdict)
-    return deploy_file(name, args.dashboard_url, name=args.name,
+    return deploy_file(name or args.file, args.dashboard_url, name=args.name,
                        project=args.project, verbose=args.verbose,
                        create_project=args.create_project, spec=spec,
                        archive=args.archive, tag=args.tag)
@@ -207,8 +207,7 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
 
 
 def populate_parser(parser):
-    parser.add_argument('notebook', help='notebook file', nargs='?',
-                        type=FileType('r'))
+    parser.add_argument('file', help='notebook/code file', default='')
     parser.add_argument('--dashboard-url', '-d', help='dashboard URL')
     parser.add_argument('--name', '-n',
                         help='function name (notebook name by default)')
