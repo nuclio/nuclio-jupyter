@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Deploy notebook to nuclio"""
-
+import json
 from os import environ
 from operator import itemgetter
 from tempfile import mktemp
@@ -22,7 +22,7 @@ from urllib.parse import urlparse
 import yaml
 import requests
 from .utils import DeployError, list2dict, str2nametag, logger, normalize_name
-from .config import (update_in, meta_keys, ConfigSpec, extend_config,
+from .config import (update_in, meta_keys, ConfigSpec, extend_config, Volume,
                      set_handler)
 from .archive import get_archive_config, build_zip, upload_file, is_archive
 from .build import code2config, build_file, archive_path
@@ -50,11 +50,25 @@ def project_name(config):
 
 def deploy_from_args(args, name=''):
     envdict = list2dict(args.env)
+    if args.env_json:
+        envdict = json.loads(args.env_json)
     spec = ConfigSpec(env=envdict)
-    return deploy_file(name or args.file, args.dashboard_url, name=args.name,
+    if args.spec_json:
+        spec.config = json.loads(args.spec_json)
+    if args.mount:
+        sp = ''.split(':')
+        if len(sp) == 2:
+            spec.mount = Volume(sp[1], sp[0])
+        if len(sp) == 3:
+            spec.mount = Volume(sp[1], sp[2], sp[0])
+
+    addr = deploy_file(name or args.file, args.dashboard_url, name=args.name,
                        project=args.project, verbose=args.verbose,
                        create_project=args.create_project, spec=spec,
                        archive=args.archive, tag=args.tag)
+    with open('/tmp/output', 'w') as fp:
+        fp.write(addr)
+    return addr
 
 
 def deploy_file(source='', dashboard_url='', name='', project='', handler='',
@@ -227,6 +241,12 @@ def populate_parser(parser):
     )
     parser.add_argument('--env', '-e', default=[], action='append',
                         help='override environment variable (key=value)')
+    parser.add_argument('--env-json', default='',
+                        help='override environment variable {key: value, ..}')
+    parser.add_argument('--spec-json', default='',
+                        help='override function spec {spec.xy.z: value, ..}')
+    parser.add_argument('--mount', default='',
+                        help='volume mount, [vol-type:]<vol-url>:<dst>')
 
 
 def deploy_progress(api_address, name, verbose=False):
