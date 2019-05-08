@@ -30,7 +30,7 @@ def do_deploy(args):
 
 def do_delete(args):
     try:
-        delete_func(args.name, args.dashboard_url)
+        delete_func(args.name, args.dashboard_url, args.namespace)
     except (DeployError, ValueError) as err:
         raise SystemExit('error: {}'.format(err))
 

@@ -318,10 +318,12 @@ def find_or_create_project(api_url, project, create_new=False):
     return resp.json()['metadata']['name']
 
 
-def delete_func(name, dashboard_url=''):
+def delete_func(name, dashboard_url='', namespace=''):
     api_address = dashboard_url or find_dashboard_url()
     headers = {'Content-Type': 'application/json'}
     body = {'metadata': {'name': name}}
+    if namespace:
+        body['metadata']['namespace'] = namespace
 
     api_url = '{}/api/functions'.format(api_address)
     try:
@@ -339,3 +341,4 @@ def delete_func(name, dashboard_url=''):
 def delete_parser(parser):
     parser.add_argument('name', help='function name', default='')
     parser.add_argument('--dashboard-url', '-d', help='dashboard URL')
+    parser.add_argument('--namespace', '-n', help='kubernetes namespace')
