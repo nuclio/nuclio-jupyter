@@ -133,10 +133,9 @@ class Volume:
                 user = environ.get('V3IO_USERNAME', '')
                 self.remote = 'users/' + user + self.remote[1:]
 
-        container, subpath = split_path(self.remote)
-        key = self.key or environ.get('V3IO_ACCESS_KEY', '')
+            container, subpath = split_path(self.remote)
+            key = self.key or environ.get('V3IO_ACCESS_KEY', '')
 
-        if self.type == 'v3io':
             vol = {'name': self.name, 'flexVolume': {
                 'driver': 'v3io/fuse',
                 'options': {
@@ -146,9 +145,11 @@ class Volume:
                 }
             }}
 
-            mnt = {'name': self.name, 'mountPath': self.local}
-            update_in(config, 'spec.volumes',
-                      {'volumeMount': mnt, 'volume': vol}, append=True)
+        elif self.type == 'pvc':
+
+            vol = {'name': self.name,
+                   'persistentVolumeClaim': {'claimName': self.remote},
+                   }
 
         else:
             raise Exception('unknown volume type {}'.format(self.type))
