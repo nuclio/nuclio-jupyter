@@ -126,9 +126,12 @@ class Volume:
 
     def render(self, config):
 
-        if self.remote.startswith('~/'):
-            user = environ.get('V3IO_USERNAME', '')
-            self.remote = 'users/' + user + self.remote[1:]
+        vol = {}
+        mnt = {}
+        if self.type == 'v3io':
+            if self.remote.startswith('~/'):
+                user = environ.get('V3IO_USERNAME', '')
+                self.remote = 'users/' + user + self.remote[1:]
 
         container, subpath = split_path(self.remote)
         key = self.key or environ.get('V3IO_ACCESS_KEY', '')
@@ -149,6 +152,10 @@ class Volume:
 
         else:
             raise Exception('unknown volume type {}'.format(self.type))
+
+        mnt = {'name': self.name, 'mountPath': self.local}
+        update_in(config, 'spec.volumes',
+                  {'volumeMount': mnt, 'volume': vol}, append=True)
 
 
 def split_path(mntpath=''):
