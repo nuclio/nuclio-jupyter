@@ -46,12 +46,21 @@ def build_file(filename='', name='', handler='', archive=False, project='',
     filebase, ext = path.splitext(path.basename(filename))
     is_source = False
     if ext == '.ipynb':
+        from_url = '://' in filename
+        if from_url:
+            tmpfile = mktemp('.ipynb')
+            url2repo(filename).download(tmpfile)
+            filename = tmpfile
+
         config, code = build_notebook(filename, dont_embed, tag)
         nb_files = config['metadata']['annotations'].get(meta_keys.extra_files)
         ext = '.py'
         if nb_files:
             files += nb_files.split(',')
             config['metadata']['annotations'].pop(meta_keys.extra_files, None)
+
+        if from_url:
+            os.remove(tmpfile)
 
     elif ext in ['.py', '.go', '.js', '.java', '.sh']:
         code = url2repo(filename).get()
