@@ -55,6 +55,8 @@ def deploy_from_args(args, name=''):
     spec = ConfigSpec(env=envdict)
     if args.spec_json:
         spec.config = json.loads(args.spec_json)
+    if args.cmd_json:
+        spec.cmd = json.loads(args.cmd_json)
     if args.mount:
         sp = ''.split(':')
         if len(sp) == 2:
@@ -245,6 +247,8 @@ def populate_parser(parser):
                         help='override environment variable {key: value, ..}')
     parser.add_argument('--spec-json', default='',
                         help='override function spec {spec.xy.z: value, ..}')
+    parser.add_argument('--cmd-json', default='',
+                        help='add build commands from list ["pip install x"]')
     parser.add_argument('--mount', default='',
                         help='volume mount, [vol-type:]<vol-url>:<dst>')
 
