@@ -18,7 +18,7 @@ from .deploy import deploy_code, deploy_file, delete_func  # noqa
 from .config import Volume, ConfigSpec  # noqa
 from .build import build_file  # noqa
 
-__version__ = '0.7.2'
+__version__ = '0.7.3'
 
 _inject_context()
 del _inject_context

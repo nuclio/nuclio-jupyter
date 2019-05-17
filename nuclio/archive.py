@@ -143,7 +143,10 @@ class ExternalRepo:
         pass
 
     def download(self, target_path):
-        pass
+        text = self.get()
+        with open(target_path, 'w') as fp:
+            fp.write(text)
+            fp.close()
 
     def upload(self, src_path):
         pass
