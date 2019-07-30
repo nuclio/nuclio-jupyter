@@ -17,8 +17,9 @@ from . import magic  # noqa
 from .deploy import deploy_code, deploy_file, delete_func  # noqa
 from .config import Volume, ConfigSpec  # noqa
 from .build import build_file  # noqa
+from .triggers import HttpTrigger, CronTrigger, KafkaTrigger
 
-__version__ = '0.7.3'
+__version__ = '0.7.4'
 
 _inject_context()
 del _inject_context
