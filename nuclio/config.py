@@ -265,7 +265,7 @@ class ConfigSpec:
             set_env_dict(config, self.env)
         if self.cmd:
             set_commands(config, self.cmd)
-        for mount in  self.mounts:
+        for mount in self.mounts:
             mount.render(config)
 
     def apply(self, skipcmd=False):

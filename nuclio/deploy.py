@@ -29,6 +29,7 @@ from .build import code2config, build_file, archive_path
 
 VERIFY_CERT = False
 
+
 def get_function(api_address, name):
     api_url = '{}/api/functions/{}'.format(api_address, name)
     return requests.get(api_url, verify=VERIFY_CERT)

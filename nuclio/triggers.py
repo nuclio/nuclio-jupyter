@@ -1,5 +1,6 @@
 from .config import update_in
 
+
 class NuclioTrigger:
     kind = ''
 
@@ -72,4 +73,3 @@ class KafkaTrigger(NuclioTrigger):
                                               'user': user,
                                               'password': password}
         return self
-
