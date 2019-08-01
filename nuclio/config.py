@@ -248,13 +248,16 @@ class ConfigSpec:
 
     """
 
-    def __init__(self, env={}, config={}, cmd=[], mount: Volume = None):
+    def __init__(self, env={}, config={}, cmd=[],
+                 mount: Volume = None, v3io=False):
         self.env = env
         self.extra_config = config
         self.cmd = cmd
         self.mounts = []
         if mount:
             self.mounts.append(mount)
+        if v3io:
+            self.with_v3io()
 
     def merge(self, config):
         if self.extra_config:
@@ -295,12 +298,14 @@ class ConfigSpec:
         if hasattr(spec, 'to_dict'):
             spec = spec.to_dict()
         self.extra_config['spec.triggers.{}'.format(name)] = spec
+        return self
 
     def with_v3io(self):
         for key in ['V3IO_FRAMESD', 'V3IO_USERNAME',
                     'V3IO_ACCESS_KEY', 'V3IO_API']:
             if key in environ:
                 self.env[key] = environ[key]
+        return self
 
 
 def extend_config(config, spec, tag, source=''):
