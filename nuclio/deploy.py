@@ -315,7 +315,7 @@ def find_or_create_project(api_url, project, create_new=False):
     if not resp.ok:
         raise OSError('nuclio API call failed')
     for k, v in resp.json().items():
-        if v['spec']['displayName'] == project:
+        if v['spec'].get('displayName') == project:
             return k
 
         if k == project:
@@ -326,7 +326,7 @@ def find_or_create_project(api_url, project, create_new=False):
 
     # create a new project
     headers = {'Content-Type': 'application/json'}
-    config = {"metadata": {}, "spec": {"displayName": project}}
+    config = {"metadata": {"name": project}, "spec": {"displayName": project}}
 
     try:
         resp = requests.post(apipath, json=config, headers=headers)
