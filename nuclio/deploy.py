@@ -27,10 +27,12 @@ from .config import (update_in, meta_keys, ConfigSpec, extend_config, Volume,
 from .archive import get_archive_config, build_zip, upload_file, is_archive
 from .build import code2config, build_file, archive_path
 
+VERIFY_CERT = False
+
 
 def get_function(api_address, name):
     api_url = '{}/api/functions/{}'.format(api_address, name)
-    return requests.get(api_url)
+    return requests.get(api_url, verify=VERIFY_CERT)
 
 
 def find_dashboard_url():
@@ -199,9 +201,11 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
     api_url = '{}/api/functions'.format(api_address)
     try:
         if is_new:
-            resp = requests.post(api_url, json=config, headers=headers)
+            resp = requests.post(api_url, json=config,
+                                 headers=headers, verify=VERIFY_CERT)
         else:
-            resp = requests.put(api_url+'/'+name, json=config, headers=headers)
+            resp = requests.put(api_url+'/'+name, json=config,
+                                headers=headers, verify=VERIFY_CERT)
 
     except OSError as err:
         log('ERROR: %s', str(err))
@@ -259,7 +263,7 @@ def deploy_progress(api_address, name, verbose=False):
     address = ''
 
     while True:
-        resp = requests.get(url)
+        resp = requests.get(url, verify=VERIFY_CERT)
         if not resp.ok:
             raise DeployError('error: cannot poll {} status'.format(name))
 
@@ -277,7 +281,8 @@ def deploy_progress(api_address, name, verbose=False):
 
 
 def get_address(api_url):
-    resp = requests.get('{}/api/external_ip_addresses'.format(api_url))
+    resp = requests.get('{}/api/external_ip_addresses'.format(api_url),
+                        verify=VERIFY_CERT)
     if not resp.ok:
         logger.warning('failed to obtain external IP address, returned local')
         return "localhost"
@@ -309,7 +314,7 @@ def process_resp(resp, last_time, verbose=False):
 
 def find_or_create_project(api_url, project, create_new=False):
     apipath = '{}/api/projects'.format(api_url)
-    resp = requests.get(apipath)
+    resp = requests.get(apipath, verify=VERIFY_CERT)
 
     project = project.strip()
     if not resp.ok:
@@ -329,7 +334,8 @@ def find_or_create_project(api_url, project, create_new=False):
     config = {"metadata": {}, "spec": {"displayName": project}}
 
     try:
-        resp = requests.post(apipath, json=config, headers=headers)
+        resp = requests.post(apipath, json=config,
+                             headers=headers, verify=VERIFY_CERT)
     except OSError as err:
         logger.info('ERROR: %s', str(err))
         raise DeployError(
@@ -351,7 +357,8 @@ def delete_func(name, dashboard_url='', namespace=''):
 
     api_url = '{}/api/functions'.format(api_address)
     try:
-        resp = requests.delete(api_url, json=body, headers=headers)
+        resp = requests.delete(api_url, json=body,
+                               headers=headers, verify=VERIFY_CERT)
     except OSError as err:
         logger.error('ERROR: %s', str(err))
         raise DeployError('error: cannot del {} at {}'.format(name, api_url))

@@ -23,6 +23,7 @@ from .utils import parse_env
 from .archive import url2repo
 
 default_volume_type = 'v3io'
+v3ioenv_magic = '%v3io'
 missing = object()
 
 
@@ -186,6 +187,13 @@ def set_env(config, env):
         if not line or line[0] == '#':
             continue
 
+        if line.strip() == v3ioenv_magic:
+            for key in ['V3IO_FRAMESD', 'V3IO_USERNAME',
+                        'V3IO_ACCESS_KEY', 'V3IO_API']:
+                if key in environ:
+                    update_env_var(config, key, environ[key])
+            continue
+
         key, value = parse_env(line)
         if not key:
             raise ValueError(
@@ -240,14 +248,28 @@ class ConfigSpec:
 
     """
 
-    def __init__(self, env={}, config={}, cmd=[], mount: Volume = None):
+    def __init__(self, env={}, config={}, cmd=[],
+                 mount: Volume = None, v3io=False):
         self.env = env
         self.extra_config = config
         self.cmd = cmd
-        self.mount = mount
+        self.mounts = []
+        if mount:
+            self.mounts.append(mount)
+        if v3io:
+            self.with_v3io()
 
     def merge(self, config):
-        fill_config(config, self.extra_config, self.env, self.cmd, self.mount)
+        if self.extra_config:
+            for k, v in self.extra_config.items():
+                current = get_in(config, k)
+                update_in(config, k, v, isinstance(current, list))
+        if self.env:
+            set_env_dict(config, self.env)
+        if self.cmd:
+            set_commands(config, self.cmd)
+        for mount in self.mounts:
+            mount.render(config)
 
     def apply(self, skipcmd=False):
         for k, v in self.env.items():
@@ -257,6 +279,33 @@ class ConfigSpec:
             ipy = get_ipython()
             for line in self.cmd:
                 ipy.system(path.expandvars(line))
+
+    def set_env(self, name, value):
+        self.env[name] = value
+        return self
+
+    def set_config(self, key, value):
+        self.extra_config[key] = value
+        return self
+
+    def add_volume(self, local, remote, kind='', name='fs',
+                   key='', readonly=False):
+        vol = Volume(local, remote, kind, name, key, readonly)
+        self.mounts.append(vol)
+        return self
+
+    def add_trigger(self, name, spec):
+        if hasattr(spec, 'to_dict'):
+            spec = spec.to_dict()
+        self.extra_config['spec.triggers.{}'.format(name)] = spec
+        return self
+
+    def with_v3io(self):
+        for key in ['V3IO_FRAMESD', 'V3IO_USERNAME',
+                    'V3IO_ACCESS_KEY', 'V3IO_API']:
+            if key in environ:
+                self.env[key] = environ[key]
+        return self
 
 
 def extend_config(config, spec, tag, source=''):

@@ -70,7 +70,7 @@ class Response:
 # TODO: Get CI env with dashboard
 class mock_requests:
     @staticmethod
-    def get(url):
+    def get(url, **kwargs):
         path = urlparse(url).path
         if path == api_prefix or path == api_prefix + '/':
             return Response(functions)
@@ -93,7 +93,7 @@ class mock_requests:
         return Response(func)
 
     @staticmethod
-    def post(url, json=None, headers=None):
+    def post(url, json=None, headers=None, **kwargs):
         func = json or {}
         name = func['metadata']['name']
         func['status'] = {

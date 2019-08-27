@@ -23,7 +23,7 @@ import yaml
 from IPython import get_ipython
 from IPython.core.magic import register_line_cell_magic
 
-from .config import ConfigSpec
+from .config import ConfigSpec, v3ioenv_magic
 from .deploy import populate_parser as populate_deploy_parser, deploy_from_args
 from .utils import (env_keys, iter_env_lines, parse_config_line, DeployError,
                     parse_env, parse_export_line, parse_mount_line,
@@ -100,6 +100,8 @@ def verbose(line, cell):
 
 
 def set_env(line):
+    if line.strip() == v3ioenv_magic:
+        return
     key, value = parse_env(line)
     if key is None:
         log_error('cannot find "=" in line')
