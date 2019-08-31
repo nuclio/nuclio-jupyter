@@ -47,6 +47,7 @@ is_return = re.compile(r'#\s*nuclio:\s*return').search
 # # nuclio: ignore
 has_ignore = re.compile(r'#\s*nuclio:\s*ignore').search
 has_start = re.compile(r'#\s*nuclio:\s*start').search
+has_end = re.compile(r'#\s*nuclio:\s*end-code').search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 line_magic = '%nuclio'
@@ -103,6 +104,9 @@ class NuclioExporter(Exporter):
             code = cell['source']
             if has_ignore(code):
                 continue
+
+            if has_end(code):
+                break
 
             if has_start(code):
                 # if we see indication of start, we ignore all previous cells
