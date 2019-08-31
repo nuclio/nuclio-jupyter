@@ -184,7 +184,7 @@ def test_start():
     cells = [
         'a = 1',
         'b = 2',
-        '# nuclio: start\nc=3',
+        '# nuclio: start-code\nc=3',
         'd = 4'
     ]
     nb = gen_nb(cells)
