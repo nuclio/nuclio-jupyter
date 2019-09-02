@@ -38,10 +38,13 @@ programmability use the [python API calls](#creating-and-deploying-functions-usi
 * [Installing](#installing) 
 * [Creating and debugging functions inside a notebook using `%nuclio` magic](#creating-and-debugging-functions-using-nuclio-magic)
 * [Exporting functions using Jupyter UI](#creating-and-debugging-functions-using-nuclio-magic)
+* [Creating and deploying functions using the python API](#creating-and-deploying-functions-using-the-python-api)
+  * [The ConfigSpec object, simple way to configure commands, env, triggers, and volumes](#the-configspec-object-simple-way-to-configure-commands-env-triggers-and-volumes)
+  * [Running non python functions](#running-non-python-functions)
 * [Exporting, versioning, and archiving functions](#exporting-versioning-and-archiving-functions)
 * [Deploy functions or versions directly from archive or git](#deploy-functions-or-versions-directly-from-archive-or-git)
-* [Creating and deploying functions using the python API](#creating-and-deploying-functions-using-the-python-api)
 * [Controlling function code and configuration](#controlling-function-code-and-configuration):
+  * [`# nuclio:` markers](#nuclio-code-section-markers--nuclio-ignorecode-startcode-end) - mark relevant code cells (ignore, start-code, end-code)
   * [`%nuclio cmd`](#cmd) - defining package dependencies 
   * [`%nuclio env`](#env) and [`env_file`](#env_file) - configuring local and remote env variables
   * [`%nuclio handler`](#handler) - function handler wrapper
@@ -102,7 +105,8 @@ the handler carry two objects, a `context` (run-time objects like logger) and `e
 (the body and other attributes delivered by the client or trigger).
 
 We start with, import `nucilo` package, this initialize the `%nuclio` magic commands and `context` object
-this section should not be copied to the function so we mark this cell with `# nuclio: ignore`.
+this section should not be copied to the function so we mark this cell with `# nuclio: ignore` (or we can use 
+`# nuclio: start-code` or `# nuclio: end-code` to mark the code section in the notebook).
 
 
 ```python
@@ -235,6 +239,100 @@ We currently don't support [Google Colaboratory][colab], [Kaggle Notebooks][kagg
 [dashboard]: https://nuclio.io/docs/latest/introduction/#dashboard
 [kaggle]: https://www.kaggle.com/kernels
 
+## Creating and deploying functions using the python API
+in some cases working from a notebook is an overkill, or we may want to generate code and configurations programmatically,
+the `nuclio` package provide two main function calls `deploy_code` and `deploy_file` which allow us direct access as shown below:
+
+```python
+import requests
+import nuclio
+
+# define my function code template
+code='''
+import glob
+def handler(context, event):
+    context.logger.info('{}')
+    return str(glob.glob('/data/*'))
+'''
+
+# substitute a string in the template 
+code = code.format('Hello World!')
+# define a file share (mount my shared fs home dir into the function /data dir)
+vol = nuclio.Volume('data','~/')
+
+# deploy my code with extra configuration (env vars, mount)
+spec = nuclio.ConfigSpec(env={'MYENV_VAR': 'something'}, mount=vol)
+addr = nuclio.deploy_code(code,name='myfunc',project='proj',verbose=True, spec=spec)
+
+# invoke the generated function 
+resp = requests.get('http://' + addr)
+print(resp.text)
+
+```
+
+the `deploy_file` API allow deploying functions from various file formats (`.ipynb`, `.py`, `.go`, `.js`, `.java`, `.yaml`, or `.zip` archives) <br>
+the `build_file` API is the equivalent of `%nuclio build` magic command (create deployable function or archive and can upload it)
+
+> The first attribute in those functions is the filename, if left blank it will use the current notebook as source
+
+### The ConfigSpec object, simple way to configure commands, env, triggers, and volumes
+
+the `ConfigSpec` provide a structures API for configuring functions, the class have the following methods:
+
+* `set_env(name, value)` - add environment variable 
+* `set_config(key, value)` - add spec attribute 
+* `add_volume(local, remote, kind, name, key, readonly)` - add a Kubernetes Volume (v3io or PVC)
+* `add_trigger(name, spec)` - add a trigger (see below) 
+* `with_v3io()` - add `v3io` environment variables
+
+methods can be nested, example:
+
+```python
+# nuclio: ignore
+spec = nuclio.ConfigSpec(cmd=build_commands)\
+    .set_config('build.baseImage', 'python:3.6-jessie')\
+    .add_volume(local='User', remote='~/')
+
+spec.with_v3io()
+spec.add_trigger('web', nuclio.triggers.HttpTrigger(workers=4, port=32005).ingress(name, host, paths))
+spec.add_trigger('cron', nuclio.triggers.CronTrigger(interval='20s', body='scheduled_retraining'))
+spec.add_trigger('kafka', nuclio.triggers.KafkaTrigger(url, topic, partitions).sasl(user, password))
+
+addr = nuclio.deploy_file(name='training', project='netops', verbose=False, spec=spec)
+```
+
+> Note: such a section must be outside the code cells, use [code section markers](#nuclio-code-section-markers--nuclio-ignorecode-startcode-end).
+
+### Running non python functions
+
+the library is not limited to python code, it support other languages such as `go`, 
+`node.js`, `java`, and `bash`. see the following example with bash code. note that 
+you can install any package/binary inside the function using the build commands (`cmd=`).<br>
+
+```python
+import requests
+import nuclio
+
+code = '''
+echo "good morning"
+echo $SOME_ENV
+'''
+
+spec = nuclio.ConfigSpec(env={'SOME_ENV':'env text'}, 
+                         cmd=['apk --update --no-cache add imagemagick'])
+                         
+addr = nuclio.deploy_code(code, lang='.sh', name='mysh', project='demo', spec=spec)
+
+# invoke the generated function 
+resp = requests.get('http://' + addr)
+print(resp.text)
+```
+
+output:
+
+    good morning
+    env text
+ 
 ## Exporting, versioning, and archiving functions 
 nuclio functions are a great way to provide well defined code + dependencies + environment definitions,
 functions can be versioned, archived, and restored by simply storing and re-applying their artifacts.
@@ -323,71 +421,16 @@ command (specify desired `output-dir`), followed by committing and pushing the u
 
 note that you can specify the desired branch in the url.
 
-## Creating and deploying functions using the python API
-in some cases working from a notebook is an overkill, or we may want to generate code and configurations programmatically,
-the `nuclio` package provide two main function calls `deploy_code` and `deploy_file` which allow us direct access as shown below:
-
-```python
-import requests
-import nuclio
-
-# define my function code template
-code='''
-import glob
-def handler(context, event):
-    context.logger.info('{}')
-    return str(glob.glob('/data/*'))
-'''
-
-# substitute a string in the template 
-code = code.format('Hello World!')
-# define a file share (mount my shared fs home dir into the function /data dir)
-vol = nuclio.Volume('data','~/')
-
-# deploy my code with extra configuration (env vars, mount)
-spec = nuclio.ConfigSpec(env={'MYENV_VAR': 'something'}, mount=vol)
-addr = nuclio.deploy_code(code,name='myfunc',project='proj',verbose=True, spec=spec)
-
-# invoke the generated function 
-resp = requests.get('http://' + addr)
-print(resp.text)
-
-```
-
-the `deploy_file` API allow deploying functions from various file formats (`.py`, `.go`, `.js`, `.java`, `.yaml`, or `.zip` archives) <br>
-the `build_file` API is the equivalent of `%nuclio build` magic command (create deployable function or archive and can upload it)
-
-**Running non python functions**
-
-the library is not limited to python code, it support other languages such as `go`, 
-`node.js`, `java`, and `bash`. see the following example with bash code. note that 
-you can install any package/binary inside the function using the build commands (`cmd=`).<br>
-
-```python
-import requests
-import nuclio
-
-code = '''
-echo "good morning"
-echo $SOME_ENV
-'''
-
-spec = nuclio.ConfigSpec(env={'SOME_ENV':'env text'}, 
-                         cmd=['apk --update --no-cache add imagemagick'])
-                         
-addr = nuclio.deploy_code(code, lang='.sh', name='mysh', project='demo', spec=spec)
-
-# invoke the generated function 
-resp = requests.get('http://' + addr)
-print(resp.text)
-```
-
-output:
-
-    good morning
-    env text
- 
 ## Controlling function code and configuration
+
+### nuclio code section markers (`# nuclio: ignore/code-start/code-end`)
+
+A user may want to include code sections in the notebook which should not 
+translate to function code, for that he can use the following code markers (comment lines):
+
+* `# nuclio : ignore` - ignore the current cell when building the function
+* `# nuclio : code-start` - ignore any lines prior to this line/cell
+* `# nuclio : code-end` - ignore any cell from this cell (included) to the end 
 
 ### cmd
 
@@ -420,6 +463,9 @@ Set environment variable. Will update "spec.env" in configuration.
     ...:
     %nuclio: setting 'USER' environment variable
     %nuclio: setting 'PASSWORD' environment variable
+
+> Note: there is a magic environment variable `%v3io` which adds the v3io 
+connection env vars to the function, e.g. `%nuclio env %v3io`
 
 If you'd like to only to add the instructions to function.yaml without
 running it locally, use the '--config-only' or '-c' flag
