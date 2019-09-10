@@ -1,5 +1,5 @@
 from .config import update_in
-
+from os import environ
 
 class NuclioTrigger:
     kind = ''
@@ -27,13 +27,25 @@ class HttpTrigger(NuclioTrigger):
             'kind': self.kind,
             'maxWorkers': workers,
             'attributes': {},
+            'annotations': {},
         }
         if port:
             self._struct['attributes']['port'] = port
 
-    def ingress(self, name, host, paths=[]):
+    def ingress(self, host, paths=None, canary=None, name='0'):
+        if paths and not isinstance(paths, list):
+            raise ValueError('paths must be a list of paths e.g. ["/x"]')
+        if not paths:
+            paths = ['/']
+        if 'IGZ_NAMESPACE_DOMAIN' in environ:
+            host = '{}.{}'.format(host, environ['IGZ_NAMESPACE_DOMAIN'])
         key = 'attributes.ingresses.{}'.format(name)
         update_in(self._struct, key, {'host': host, 'paths': paths})
+        if canary is not None:
+            if not isinstance(canary, int) or canary > 100 or canary < 0 :
+                raise ValueError('canary must ve an int between 0 to 100')
+            self._struct['annotations']['nginx.ingress.kubernetes.io/canary'] = 'true'
+            self._struct['annotations']['nginx.ingress.kubernetes.io/canary-weight'] = str(host)
         return self
 
 
