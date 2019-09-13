@@ -1,5 +1,6 @@
 from os import environ
 
+
 class NuclioTrigger:
     kind = ''
 
@@ -44,12 +45,15 @@ class HttpTrigger(NuclioTrigger):
             paths = ['/']
         if 'IGZ_NAMESPACE_DOMAIN' in environ:
             host = '{}.{}'.format(host, environ['IGZ_NAMESPACE_DOMAIN'])
-        self._struct['attributes']['ingresses'][name] = {'host': host, 'paths': paths}
+        self._struct['attributes']['ingresses'][name] = {'host': host,
+                                                         'paths': paths}
         if canary is not None:
-            if not isinstance(canary, int) or canary > 100 or canary < 0 :
+            if not isinstance(canary, int) or canary > 100 or canary < 0:
                 raise ValueError('canary must ve an int between 0 to 100')
-            self._struct['annotations']['nginx.ingress.kubernetes.io/canary'] = 'true'
-            self._struct['annotations']['nginx.ingress.kubernetes.io/canary-weight'] = str(host)
+            self._struct['annotations'][
+                'nginx.ingress.kubernetes.io/canary'] = 'true'
+            self._struct['annotations'][
+                'nginx.ingress.kubernetes.io/canary-weight'] = str(host)
         return self
 
 

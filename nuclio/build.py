@@ -190,11 +190,13 @@ from mlrun import get_or_create_ctx, RunTemplate, runtimes
 def handler(context, event):
     paths = event.path.strip('/').split('/')
     if not paths or paths[0] not in globals():
-        return context.Response(body='function name {} does not exist'.format(paths[0]),
-                                content_type='text/plain', status_code=400)
+        return context.Response(
+            body='function name {} does not exist'.format(paths[0]),
+            content_type='text/plain', status_code=400)
     fhandler = globals()[paths[0]]
     ctx = get_or_create_ctx(paths[0], event=event)
-    args = runtimes.local.get_func_arg(fhandler, RunTemplate.from_dict(ctx.to_dict()), ctx)
+    args = runtimes.local.get_func_arg(
+        fhandler, RunTemplate.from_dict(ctx.to_dict()), ctx)
     try:
         val = fhandler(*args)
         if val:
