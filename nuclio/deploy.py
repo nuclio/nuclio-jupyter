@@ -69,7 +69,7 @@ def deploy_from_args(args, name=''):
     addr = deploy_file(name or args.file, args.dashboard_url, name=args.name,
                        project=args.project, verbose=args.verbose,
                        create_project=args.create_project, spec=spec,
-                       archive=args.archive, tag=args.tag)
+                       archive=args.archive, tag=args.tag, kind=args.kind)
     with open('/tmp/output', 'w') as fp:
         fp.write(addr)
     return addr
@@ -77,7 +77,7 @@ def deploy_from_args(args, name=''):
 
 def deploy_file(source='', dashboard_url='', name='', project='', handler='',
                 tag='', verbose=False, create_project=True, archive=False,
-                spec: ConfigSpec = None, files=[], output_dir=''):
+                spec: ConfigSpec = None, files=[], output_dir='', kind=None):
 
     if source.startswith('$') or is_archive(source):
         return deploy_zip(source, name, project, tag,
@@ -93,7 +93,7 @@ def deploy_file(source='', dashboard_url='', name='', project='', handler='',
     name, config, code = build_file(source, name, handler=handler,
                                     archive=archive, tag=tag, spec=spec,
                                     files=files, project=project,
-                                    output_dir=output_dir)
+                                    output_dir=output_dir, kind=kind)
 
     addr = deploy_config(config, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_project)
@@ -128,10 +128,10 @@ def deploy_zip(source='', name='', project='', tag='', dashboard_url='',
 
 def deploy_code(code, dashboard_url='', name='', project='', handler='',
                 lang='.py', tag='', verbose=False, create_project=True,
-                archive='', spec: ConfigSpec = None, files=[]):
+                archive='', spec: ConfigSpec = None, files=[], kind=None):
 
     name = normalize_name(name)
-    newconfig = code2config(code, lang)
+    newconfig, code = code2config(code, lang, kind=kind)
     set_handler(newconfig, '', handler, lang)
     if spec:
         spec.merge(newconfig)
@@ -255,6 +255,7 @@ def populate_parser(parser):
                         help='add build commands from list ["pip install x"]')
     parser.add_argument('--mount', default='',
                         help='volume mount, [vol-type:]<vol-url>:<dst>')
+    parser.add_argument('--kind', default=None)
 
 
 def deploy_progress(api_address, name, verbose=False):
