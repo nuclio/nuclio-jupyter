@@ -18,7 +18,6 @@ from tempfile import mktemp
 from sys import executable, stderr
 from subprocess import run, PIPE
 from base64 import b64encode, b64decode
-from serving_footer import serving_footer
 
 import yaml
 from IPython import get_ipython
@@ -29,6 +28,7 @@ from .archive import (build_zip, get_archive_config, url2repo, upload_file,
                       put_data)
 from .config import (update_in, new_config, ConfigSpec, load_config,
                      meta_keys, extend_config, set_handler)
+from .serving import serving_footer
 
 
 def build_file(filename='', name='', handler='', archive=False, project='',
