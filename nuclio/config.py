@@ -302,7 +302,7 @@ class ConfigSpec:
         return self
 
     def with_http(self, workers=8, port=0,
-                 host=None, paths=None, canary=None):
+                  host=None, paths=None, canary=None):
         self.add_trigger('http',
                          HttpTrigger(workers, port=port,
                                      host=host, paths=paths, canary=canary))

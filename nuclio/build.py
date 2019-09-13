@@ -207,6 +207,7 @@ def handler(context, event):
     return ctx.to_json()
 '''
 
+
 def add_kind_footer(kind, config, code, always=False):
     footer = None
     if kind == 'mlrun':
