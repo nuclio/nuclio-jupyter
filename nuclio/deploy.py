@@ -89,7 +89,7 @@ def deploy_model(models: dict, source='', model_class='', protocol='',
     for k, v in models.items():
         spec.set_env('SERVING_MODEL_{}'.format(k), v)
 
-    spec.set_env('TRANSPORT_PROTOCOL', model_class or 'seldon')
+    spec.set_env('TRANSPORT_PROTOCOL', protocol or 'seldon')
     spec.set_env('ENABLE_EXPLAINER', str(explainer))
     spec.set_env('MODEL_CLASS', model_class)
     spec.with_http(workers, host=endpoint, canary=canary)
