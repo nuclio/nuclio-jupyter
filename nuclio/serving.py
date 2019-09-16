@@ -1,4 +1,4 @@
-serving_footer = '''
+serving_footer = r'''
 
 import json
 import os
@@ -79,13 +79,13 @@ class SeldonRequestHandler(RequestHandler):
 
     def validate(self):
         if not "data" in self.request:
-            return self.context.Response(body="Expected key \\"data\\" in request body",
+            return self.context.Response(body="Expected key \"data\" in request body",
                                          headers={},
                                          content_type='text/plain',
                                          status_code=500)
         ty = _get_request_ty(self.request)
         if not (ty == SeldonPayload.TENSOR or ty == SeldonPayload.NDARRAY):
-            return self.context.Response(body="\\"data\\" key should contain either \\"tensor\\",\\"ndarray\\"",
+            return self.context.Response(body="\"data\" key should contain either \"tensor\",\"ndarray\"",
                                          headers={},
                                          content_type='text/plain',
                                          status_code=500)
@@ -108,7 +108,7 @@ class TensorflowRequestHandler(RequestHandler):
 
     def validate(self):
         if "instances" not in self.request:
-            return self.context.Response(body="Expected key \\"instances\\" in request body",
+            return self.context.Response(body="Expected key \"instances\" in request body",
                                          headers={},
                                          content_type='text/plain',
                                          status_code=500)
