@@ -289,6 +289,10 @@ class ConfigSpec:
         self.extra_config[key] = value
         return self
 
+    def add_commands(self, *cmd):
+        self.cmd += cmd
+        return self
+
     def add_volume(self, local, remote, kind='', name='fs',
                    key='', readonly=False):
         vol = Volume(local, remote, kind, name, key, readonly)

@@ -75,6 +75,29 @@ def deploy_from_args(args, name=''):
     return addr
 
 
+def deploy_model(models: dict, source='', model_class='', protocol='',
+                 endpoint='', dashboard_url='', name='', project='', tag='',
+                 explainer=False, spec: ConfigSpec = None, image='',
+                 workers=8, canary=None, verbose=False):
+
+    if not models or not isinstance(models, dict):
+        raise DeployError('please specify models dict {model-name: path}')
+
+    if not spec:
+        spec = ConfigSpec()
+
+    for k, v in models.items():
+        spec.set_env('SERVING_MODEL_{}'.format(k), v)
+
+    spec.set_env('TRANSPORT_PROTOCOL', model_class or 'seldon')
+    spec.set_env('ENABLE_EXPLAINER', str(explainer))
+    spec.set_env('MODEL_CLASS', model_class)
+    spec.with_http(workers, host=endpoint, canary=canary)
+
+    return deploy_file(source, dashboard_url, name, project, tag=tag,
+                       verbose=verbose, spec=spec, kind='serving')
+
+
 def deploy_file(source='', dashboard_url='', name='', project='', handler='',
                 tag='', verbose=False, create_project=True, archive=False,
                 spec: ConfigSpec = None, files=[], output_dir='', kind=None):
