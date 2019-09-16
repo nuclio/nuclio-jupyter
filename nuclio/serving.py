@@ -1,4 +1,4 @@
-serving_footer = '''
+serving_footer = r'''
 
 import json
 import os
