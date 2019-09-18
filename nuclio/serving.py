@@ -6,14 +6,16 @@ import numpy as np
 from typing import List
 from http import HTTPStatus
 from typing import Dict
-from kfserving.protocols.request_handler import RequestHandler  # pylint: disable=no-name-in-module
+from kfserving.protocols.request_handler import \
+    RequestHandler  # pylint: disable=no-name-in-module
 from enum import Enum
 
 
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):  # pylint: disable=arguments-differ,method-hidden
         if isinstance(obj, (
-                np.int_, np.intc, np.intp, np.int8, np.int16, np.int32, np.int64, np.uint8,
+                np.int_, np.intc, np.intp, np.int8, np.int16, np.int32,
+                np.int64, np.uint8,
                 np.uint16, np.uint32, np.uint64)):
             return int(obj)
         elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
@@ -32,7 +34,8 @@ class SeldonPayload(Enum):
 def _extract_list(body: Dict) -> List:
     data_def = body["data"]
     if "tensor" in data_def:
-        arr = np.array(data_def.get("tensor").get("values")).reshape(data_def.get("tensor").get("shape"))
+        arr = np.array(data_def.get("tensor").get("values")).reshape(
+            data_def.get("tensor").get("shape"))
         return arr.tolist()
     elif "ndarray" in data_def:
         return data_def.get("ndarray")
@@ -56,7 +59,9 @@ def _create_seldon_data_def(array: np.array, ty: SeldonPayload):
     return datadef
 
 
-def _get_request_ty(request: Dict) -> SeldonPayload:  # pylint: disable=inconsistent-return-statements
+def _get_request_ty(
+        request: Dict) -> \
+        SeldonPayload:  # pylint: disable=inconsistent-return-statements
     data_def = request["data"]
     if "tensor" in data_def:
         return SeldonPayload.TENSOR
@@ -73,22 +78,26 @@ def create_request(arr: np.ndarray, ty: SeldonPayload) -> Dict:
 
 class SeldonRequestHandler(RequestHandler):
 
-    def __init__(self, context, request: Dict):  # pylint: disable=useless-super-delegation
+    def __init__(self, context,
+                 request: Dict):  # pylint: disable=useless-super-delegation
         super().__init__(request)
         self.context = context
 
     def validate(self):
         if not "data" in self.request:
-            return self.context.Response(body="Expected key \"data\" in request body",
-                                         headers={},
-                                         content_type='text/plain',
-                                         status_code=500)
+            return self.context.Response(
+                body="Expected key \"data\" in request body",
+                headers={},
+                content_type='text/plain',
+                status_code=500)
         ty = _get_request_ty(self.request)
         if not (ty == SeldonPayload.TENSOR or ty == SeldonPayload.NDARRAY):
-            return self.context.Response(body="\"data\" key should contain either \"tensor\",\"ndarray\"",
-                                         headers={},
-                                         content_type='text/plain',
-                                         status_code=500)
+            return self.context.Response(
+                body="\"data\" key should contain either \"tensor\","
+                     "\"ndarray\"",
+                headers={},
+                content_type='text/plain',
+                status_code=500)
 
     def extract_request(self) -> List:
         return _extract_list(self.request)
@@ -102,16 +111,18 @@ class SeldonRequestHandler(RequestHandler):
 
 class TensorflowRequestHandler(RequestHandler):
 
-    def __init__(self, context, request: Dict):  # pylint: disable=useless-super-delegation
+    def __init__(self, context,
+                 request: Dict):  # pylint: disable=useless-super-delegation
         super().__init__(request)
         self.context = context
 
     def validate(self):
         if "instances" not in self.request:
-            return self.context.Response(body="Expected key \"instances\" in request body",
-                                         headers={},
-                                         content_type='text/plain',
-                                         status_code=500)
+            return self.context.Response(
+                body="Expected key \"instances\" in request body",
+                headers={},
+                content_type='text/plain',
+                status_code=500)
 
     def extract_request(self) -> List:
         return self.request["instances"]
@@ -166,11 +177,13 @@ def init_context(context):
     global models
     global model_prefix
 
-    model_paths = {k[len(model_prefix):]: v for k, v in os.environ.items() if k.startswith(model_prefix)}
+    model_paths = {k[len(model_prefix):]: v for k, v in os.environ.items() if
+                   k.startswith(model_prefix)}
 
     model_class = os.environ.get('MODEL_CLASS')
     fhandler = globals()[model_class]
-    models = {name: fhandler(name=name, model_dir=path) for name, path in model_paths.items()}
+    models = {name: fhandler(name=name, model_dir=path) for name, path in
+              model_paths.items()}
     context.logger.info(f'Loaded {list(models.keys())}')
 
 
@@ -187,7 +200,9 @@ def handler(context, event):
     except:
         raise Exception('No model was specified')
 
-    context.logger.info(f'Serving uri: {event.path} for route {function_path} with {model_name}')
+    context.logger.info(
+        f'Serving uri: {event.path} for route {function_path} '
+        f'with {model_name}')
     if not function_path in paths:
         return context.Response(body=f'Path {function_path} does not exist',
                                 headers={},
