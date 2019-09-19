@@ -23,7 +23,7 @@ import yaml
 import requests
 from .utils import DeployError, list2dict, str2nametag, logger, normalize_name
 from .config import (update_in, meta_keys, ConfigSpec, extend_config, Volume,
-                     set_handler)
+                     set_handler, new_config)
 from .archive import get_archive_config, build_zip, upload_file, is_archive
 from .build import code2config, build_file, archive_path
 
@@ -78,7 +78,7 @@ def deploy_from_args(args, name=''):
 def deploy_model(models: dict, source='', model_class='', protocol='',
                  endpoint='', dashboard_url='', name='', project='', tag='',
                  explainer=False, spec: ConfigSpec = None, image='',
-                 workers=8, canary=None, verbose=False):
+                 workers=8, canary=None, handler='', verbose=False):
 
     if not models or not isinstance(models, dict):
         raise DeployError('please specify models dict {model-name: path}')
@@ -94,8 +94,21 @@ def deploy_model(models: dict, source='', model_class='', protocol='',
     spec.set_env('MODEL_CLASS', model_class)
     spec.with_http(workers, host=endpoint, canary=canary)
 
-    return deploy_file(source, dashboard_url, name, project, tag=tag,
-                       verbose=verbose, spec=spec, kind='serving')
+    if not image:
+        return deploy_file(source, dashboard_url, name, project, tag=tag,
+                           verbose=verbose, spec=spec, kind='serving',
+                           handler=handler)
+    config = new_config()
+    update_in(config, 'spec.handler', handler or 'serving_template:handler')
+    update_in(config, 'spec.image', image)
+    update_in(config, 'spec.build.baseImage', image + '_base')
+    update_in(config, 'spec.build.codeEntryType', 'image')
+
+    config = extend_config(config, spec, tag, 'code')
+    update_in(config, 'metadata.name', name)
+
+    return deploy_config(config, dashboard_url, name=name, project=project,
+                         tag=tag, verbose=verbose, create_new=True)
 
 
 def deploy_file(source='', dashboard_url='', name='', project='', handler='',
