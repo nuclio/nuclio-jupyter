@@ -23,7 +23,7 @@ import yaml
 import requests
 from .utils import DeployError, list2dict, str2nametag, logger, normalize_name
 from .config import (update_in, meta_keys, ConfigSpec, extend_config, Volume,
-                     set_handler)
+                     set_handler, new_config)
 from .archive import get_archive_config, build_zip, upload_file, is_archive
 from .build import code2config, build_file, archive_path
 
@@ -69,15 +69,51 @@ def deploy_from_args(args, name=''):
     addr = deploy_file(name or args.file, args.dashboard_url, name=args.name,
                        project=args.project, verbose=args.verbose,
                        create_project=args.create_project, spec=spec,
-                       archive=args.archive, tag=args.tag)
+                       archive=args.archive, tag=args.tag, kind=args.kind)
     with open('/tmp/output', 'w') as fp:
         fp.write(addr)
     return addr
 
 
+def deploy_model(models: dict, source='', model_class='', protocol='',
+                 endpoint='', dashboard_url='', name='', project='', tag='',
+                 explainer=False, spec: ConfigSpec = None, image='',
+                 workers=8, canary=None, handler='', verbose=False):
+
+    if not models or not isinstance(models, dict):
+        raise DeployError('please specify models dict {model-name: path}')
+
+    if not spec:
+        spec = ConfigSpec()
+
+    for k, v in models.items():
+        spec.set_env('SERVING_MODEL_{}'.format(k), v)
+
+    spec.set_env('TRANSPORT_PROTOCOL', protocol or 'seldon')
+    spec.set_env('ENABLE_EXPLAINER', str(explainer))
+    spec.set_env('MODEL_CLASS', model_class)
+    spec.with_http(workers, host=endpoint, canary=canary)
+
+    if not image:
+        return deploy_file(source, dashboard_url, name, project, tag=tag,
+                           verbose=verbose, spec=spec, kind='serving',
+                           handler=handler)
+    config = new_config()
+    update_in(config, 'spec.handler', handler or 'serving_template:handler')
+    update_in(config, 'spec.image', image)
+    update_in(config, 'spec.build.baseImage', image + '_base')
+    update_in(config, 'spec.build.codeEntryType', 'image')
+
+    config = extend_config(config, spec, tag, 'code')
+    update_in(config, 'metadata.name', name)
+
+    return deploy_config(config, dashboard_url, name=name, project=project,
+                         tag=tag, verbose=verbose, create_new=True)
+
+
 def deploy_file(source='', dashboard_url='', name='', project='', handler='',
                 tag='', verbose=False, create_project=True, archive=False,
-                spec: ConfigSpec = None, files=[], output_dir=''):
+                spec: ConfigSpec = None, files=[], output_dir='', kind=None):
 
     if source.startswith('$') or is_archive(source):
         return deploy_zip(source, name, project, tag,
@@ -93,7 +129,7 @@ def deploy_file(source='', dashboard_url='', name='', project='', handler='',
     name, config, code = build_file(source, name, handler=handler,
                                     archive=archive, tag=tag, spec=spec,
                                     files=files, project=project,
-                                    output_dir=output_dir)
+                                    output_dir=output_dir, kind=kind)
 
     addr = deploy_config(config, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_project)
@@ -128,10 +164,10 @@ def deploy_zip(source='', name='', project='', tag='', dashboard_url='',
 
 def deploy_code(code, dashboard_url='', name='', project='', handler='',
                 lang='.py', tag='', verbose=False, create_project=True,
-                archive='', spec: ConfigSpec = None, files=[]):
+                archive='', spec: ConfigSpec = None, files=[], kind=None):
 
     name = normalize_name(name)
-    newconfig = code2config(code, lang)
+    newconfig, code = code2config(code, lang, kind=kind)
     set_handler(newconfig, '', handler, lang)
     if spec:
         spec.merge(newconfig)
@@ -255,6 +291,7 @@ def populate_parser(parser):
                         help='add build commands from list ["pip install x"]')
     parser.add_argument('--mount', default='',
                         help='volume mount, [vol-type:]<vol-url>:<dst>')
+    parser.add_argument('--kind', default=None)
 
 
 def deploy_progress(api_address, name, verbose=False):

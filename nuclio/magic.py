@@ -407,7 +407,8 @@ def build(line, cell, return_dir=False):
     name, config, code = build_file(notebook, args.name, args.handler,
                                     spec=spec, output_dir=output, tag=args.tag,
                                     archive=args.archive, project=args.project,
-                                    verbose=args.verbose)
+                                    verbose=args.verbose,
+                                    kind=args.kind)
 
     log('notebook {} exported'.format(name))
     return config, code

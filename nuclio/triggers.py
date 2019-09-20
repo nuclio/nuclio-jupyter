@@ -1,4 +1,4 @@
-from .config import update_in
+from os import environ
 
 
 class NuclioTrigger:
@@ -22,18 +22,38 @@ class NuclioTrigger:
 class HttpTrigger(NuclioTrigger):
     kind = 'http'
 
-    def __init__(self, workers=4, port=0):
+    def __init__(self, workers=8, port=0,
+                 host=None, paths=None, canary=None):
         self._struct = {
             'kind': self.kind,
             'maxWorkers': workers,
-            'attributes': {},
+            'attributes': {'ingresses': {}},
+            'annotations': {},
         }
         if port:
             self._struct['attributes']['port'] = port
+        if host:
+            self._ingress(host, paths, canary)
 
-    def ingress(self, name, host, paths=[]):
-        key = 'attributes.ingresses.{}'.format(name)
-        update_in(self._struct, key, {'host': host, 'paths': paths})
+    def ingress(self, host, paths=None, canary=None, name='0'):
+        return self._ingress(host, paths, canary, name)
+
+    def _ingress(self, host, paths=None, canary=None, name='0'):
+        if paths and not isinstance(paths, list):
+            raise ValueError('paths must be a list of paths e.g. ["/x"]')
+        if not paths:
+            paths = ['/']
+        if 'IGZ_NAMESPACE_DOMAIN' in environ:
+            host = '{}.{}'.format(host, environ['IGZ_NAMESPACE_DOMAIN'])
+        self._struct['attributes']['ingresses'][name] = {'host': host,
+                                                         'paths': paths}
+        if canary is not None:
+            if not isinstance(canary, int) or canary > 100 or canary < 0:
+                raise ValueError('canary must ve an int between 0 to 100')
+            self._struct['annotations'][
+                'nginx.ingress.kubernetes.io/canary'] = 'true'
+            self._struct['annotations'][
+                'nginx.ingress.kubernetes.io/canary-weight'] = str(host)
         return self
 
 

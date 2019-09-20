@@ -21,6 +21,7 @@ from IPython import get_ipython
 
 from .utils import parse_env
 from .archive import url2repo
+from .triggers import HttpTrigger
 
 default_volume_type = 'v3io'
 v3ioenv_magic = '%v3io'
@@ -288,6 +289,10 @@ class ConfigSpec:
         self.extra_config[key] = value
         return self
 
+    def add_commands(self, *cmd):
+        self.cmd += cmd
+        return self
+
     def add_volume(self, local, remote, kind='', name='fs',
                    key='', readonly=False):
         vol = Volume(local, remote, kind, name, key, readonly)
@@ -298,6 +303,13 @@ class ConfigSpec:
         if hasattr(spec, 'to_dict'):
             spec = spec.to_dict()
         self.extra_config['spec.triggers.{}'.format(name)] = spec
+        return self
+
+    def with_http(self, workers=8, port=0,
+                  host=None, paths=None, canary=None):
+        self.add_trigger('http',
+                         HttpTrigger(workers, port=port,
+                                     host=host, paths=paths, canary=canary))
         return self
 
     def with_v3io(self):

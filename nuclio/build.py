@@ -28,11 +28,12 @@ from .archive import (build_zip, get_archive_config, url2repo, upload_file,
                       put_data)
 from .config import (update_in, new_config, ConfigSpec, load_config,
                      meta_keys, extend_config, set_handler)
+from .serving import serving_footer
 
 
 def build_file(filename='', name='', handler='', archive=False, project='',
                tag="", spec: ConfigSpec = None, files=[], output_dir='',
-               verbose=False):
+               verbose=False, kind=None):
 
     dont_embed = (len(files) > 0) or output_dir != '' or archive
 
@@ -64,7 +65,7 @@ def build_file(filename='', name='', handler='', archive=False, project='',
 
     elif ext in ['.py', '.go', '.js', '.java', '.sh']:
         code = url2repo(filename).get()
-        config = code2config(code, ext)
+        config, _ = code2config(code, ext)
         is_source = True
 
     elif ext == '.yaml':
@@ -77,6 +78,9 @@ def build_file(filename='', name='', handler='', archive=False, project='',
     if not code:
         code_buf = config['spec']['build'].get('functionSourceCode')
         code = b64decode(code_buf).decode('utf-8')
+
+    if kind:
+        code = add_kind_footer(kind, config, code)
 
     name = normalize_name(name or filebase)
     update_in(config, 'metadata.name', name)
@@ -180,7 +184,49 @@ def build_notebook(nb_file, no_embed=False, tag=""):
     return config, code
 
 
-def code2config(code, ext='.py'):
+mlrun_footer = '''
+
+from mlrun import get_or_create_ctx, RunTemplate, runtimes
+def handler(context, event):
+    paths = event.path.strip('/').split('/')
+    if not paths or paths[0] not in globals():
+        return context.Response(
+            body='function name {} does not exist'.format(paths[0]),
+            content_type='text/plain', status_code=400)
+    fhandler = globals()[paths[0]]
+    ctx = get_or_create_ctx(paths[0], event=event)
+    args = runtimes.local.get_func_arg(
+        fhandler, RunTemplate.from_dict(ctx.to_dict()), ctx)
+    try:
+        val = fhandler(*args)
+        if val:
+            ctx.log_result('return', val)
+    except Exception as e:
+        err = str(e)
+        ctx.set_state(error=err)
+    return ctx.to_json()
+'''
+
+
+def add_kind_footer(kind, config, code, always=False):
+    footer = None
+    if kind == 'mlrun':
+        footer = mlrun_footer
+    elif kind.startswith('serving'):
+        footer = serving_footer
+    else:
+        raise ValueError('supported kinds are mlrun, serving')
+
+    if footer:
+        code = code + footer
+        if config['spec']['build'].get('functionSourceCode') or always:
+            data = b64encode(code.encode('utf-8')).decode('utf-8')
+            update_in(config, 'spec.build.functionSourceCode', data)
+
+    return code
+
+
+def code2config(code, ext='.py', kind=None):
     config = new_config()
     if ext == '.go':
         config['spec']['runtime'] = 'golang'
@@ -193,9 +239,12 @@ def code2config(code, ext='.py'):
     elif ext != '.py':
         raise ValueError('unsupported extension {}'.format(ext))
 
-    data = b64encode(code.encode('utf-8')).decode('utf-8')
-    update_in(config, 'spec.build.functionSourceCode', data)
-    return config
+    if kind:
+        code = add_kind_footer(kind, config, code, always=True)
+    else:
+        data = b64encode(code.encode('utf-8')).decode('utf-8')
+        update_in(config, 'spec.build.functionSourceCode', data)
+    return config, code
 
 
 def get_lang_ext(config):
