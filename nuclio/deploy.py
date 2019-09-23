@@ -37,6 +37,7 @@ def get_function(api_address, name):
 
 def find_dashboard_url():
     value = environ.get('DEFAULT_TENANT_NUCLIO_DASHBOARD_PORT')
+    value = environ.get('NUCLIO_DASHBOARD_PORT', value)
     if not value:
         addr = 'localhost:8070'
     else:
