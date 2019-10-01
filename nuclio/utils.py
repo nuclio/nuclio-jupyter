@@ -29,9 +29,11 @@ def create_logger():
     handler = logging.StreamHandler(stdout)
     handler.setFormatter(
         logging.Formatter('[%(name)s] %(asctime)s %(message)s'))
-    logger = logging.getLogger('nuclio.deploy')
-    logger.addHandler(handler)
+    logger = logging.getLogger('nuclio')
+    if not len(logger.handlers):
+        logger.addHandler(handler)
     logger.setLevel(logging.INFO)
+    logger.propagate = False
     return logger
 
 
