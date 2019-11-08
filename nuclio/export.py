@@ -129,7 +129,8 @@ class NuclioExporter(Exporter):
                 if not run_code:
                     continue
                 for i in range(len(run_code['cells'])):
-                    run_code['cells'][i]['source'] = '\n'.join(run_code['cells'][i]['source'])
+                    run_code['cells'][i]['source'] = '\n'.join(
+                        run_code['cells'][i]['source'])
                     lines = run_code['cells'][i]['source'].splitlines()
                     i += 1
                     self.handle_code_cell(lines, io, config)
