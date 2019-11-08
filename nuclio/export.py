@@ -15,7 +15,7 @@
 import json
 import logging
 import re
-from base64 import b64encode, b64decode
+from base64 import b64encode
 from collections import namedtuple
 from datetime import datetime
 from io import StringIO
@@ -327,19 +327,6 @@ def env_file(magic, config):
             continue
         env_files.add(file_name)
     return ''
-
-@magic_handler
-def run(magic, config):
-    # This functions assumes that the parameter to %run
-    # is a Jupyter Notebook
-    file_name = magic.args.strip()
-    code = ''
-    if not path.isfile(file_name):
-        log.warning('skipping %s - not found', file_name)
-
-    code = open(file_name,'r').read()
-
-    return code
 
 def process_env_files(env_files, config):
     # %nuclio env_file magic will populate this
