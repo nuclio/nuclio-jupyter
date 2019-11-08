@@ -32,7 +32,7 @@ from .utils import (env_keys, iter_env_lines, parse_config_line,
 from .archive import parse_archive_line
 from .config import (new_config, update_in, get_in, set_env, set_commands,
                      Volume, meta_keys)
-from .import magic as magic_module
+from . import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
 
@@ -127,7 +127,7 @@ class NuclioExporter(Exporter):
             if run_magic in code:
                 run_code = self.handle_run_magic(code)
                 if not run_code:
-                   continue
+                    continue
                 for i in range(len(run_code['cells'])):
                     run_code['cells'][i]['source'] = '\n'.join(run_code['cells'][i]['source'])
                     lines = run_code['cells'][i]['source'].splitlines()
@@ -180,23 +180,22 @@ class NuclioExporter(Exporter):
                 return i
         return -1
 
-
     def handle_run_magic(self, code):
-       # This functions assumes that the parameter to %run
-       # is a Jupyter Notebook
-       # Only one line %run per cell is supported
-       if '\n' in code:
-          log.error('Only one %run magic line per cell is supported')
-          raise MagicError('Only one %run magic line per cell is supported')
-          return ''
+        # This functions assumes that the parameter to %run
+        # is a Jupyter Notebook
+        # Only one line %run per cell is supported
+        if '\n' in code:
+            log.error('Only one %run magic line per cell is supported')
+            raise MagicError('Only one %run magic line per cell is supported')
+            return ''
 
-       magic, file_name = code.split()
-       code = ''
-       if not path.isfile(file_name):
-          log.warning('skipping %s - not found', file_name)
+        magic, file_name = code.split()
+        code = ''
+        if not path.isfile(file_name):
+            log.warning('skipping %s - not found', file_name)
 
-       code = json.loads(open(file_name,'r').read())
-       return code
+        code = json.loads(open(file_name, 'r').read())
+        return code
 
     def handle_cell_magic(self, lines, io, config):
         i = self.find_cell_magic(lines)
@@ -328,6 +327,7 @@ def env_file(magic, config):
         env_files.add(file_name)
     return ''
 
+
 def process_env_files(env_files, config):
     # %nuclio env_file magic will populate this
     from_env = json.loads(environ.get(env_keys.env_files, '[]'))
@@ -380,7 +380,7 @@ def handler_code(name, code):
             continue
 
         if 'return' not in line:
-            lines[len(lines)-i-1] = add_return(line)
+            lines[len(lines) - i - 1] = add_return(line)
         break
 
     return '\n'.join(lines)
