@@ -15,7 +15,7 @@
 import json
 import logging
 import re
-from base64 import b64encode
+from base64 import b64encode, b64decode
 from collections import namedtuple
 from datetime import datetime
 from io import StringIO
@@ -46,12 +46,14 @@ is_comment = re.compile(r'\s*#.*').match
 is_return = re.compile(r'#\s*nuclio:\s*return').search
 # # nuclio: ignore
 has_ignore = re.compile(r'#\s*nuclio:\s*ignore').search
+# Notebook runs another notebook
 has_start = re.compile(r'#\s*nuclio:\s*start-code').search
 has_end = re.compile(r'#\s*nuclio:\s*end-code').search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 line_magic = '%nuclio'
 cell_magic = '%' + line_magic
+run_magic = "%run"
 
 handlers = []
 
@@ -122,6 +124,16 @@ class NuclioExporter(Exporter):
                 self.handle_cell_magic(lines, io, config)
                 continue
 
+            if run_magic in code:
+                run_code = self.handle_run_magic(code)
+                if not run_code:
+                   continue
+                for i in range(len(run_code['cells'])):
+                    run_code['cells'][i]['source'] = '\n'.join(run_code['cells'][i]['source'])
+                    lines = run_code['cells'][i]['source'].splitlines()
+                    i += 1
+                    self.handle_code_cell(lines, io, config)
+
             self.handle_code_cell(lines, io, config)
 
         process_env_files(env_files, config)
@@ -166,6 +178,24 @@ class NuclioExporter(Exporter):
             if cell_magic in line:
                 return i
         return -1
+
+
+    def handle_run_magic(self, code):
+       # This functions assumes that the parameter to %run
+       # is a Jupyter Notebook
+       # Only one line %run per cell is supported
+       if '\n' in code:
+          log.error('Only one %run magic line per cell is supported')
+          raise MagicError('Only one %run magic line per cell is supported')
+          return ''
+
+       magic, file_name = code.split()
+       code = ''
+       if not path.isfile(file_name):
+          log.warning('skipping %s - not found', file_name)
+
+       code = json.loads(open(file_name,'r').read())
+       return code
 
     def handle_cell_magic(self, lines, io, config):
         i = self.find_cell_magic(lines)
@@ -297,6 +327,18 @@ def env_file(magic, config):
         env_files.add(file_name)
     return ''
 
+@magic_handler
+def run(magic, config):
+    # This functions assumes that the parameter to %run
+    # is a Jupyter Notebook
+    file_name = magic.args.strip()
+    code = ''
+    if not path.isfile(file_name):
+        log.warning('skipping %s - not found', file_name)
+
+    code = open(file_name,'r').read()
+
+    return code
 
 def process_env_files(env_files, config):
     # %nuclio env_file magic will populate this
