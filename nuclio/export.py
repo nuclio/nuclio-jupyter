@@ -133,6 +133,7 @@ class NuclioExporter(Exporter):
                     lines = run_code['cells'][i]['source'].splitlines()
                     i += 1
                     self.handle_code_cell(lines, io, config)
+                continue
 
             self.handle_code_cell(lines, io, config)
 
