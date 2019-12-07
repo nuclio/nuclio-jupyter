@@ -35,10 +35,10 @@ class HttpTrigger(NuclioTrigger):
         if host:
             self._ingress(host, paths, canary)
 
-    def ingress(self, host, paths=None, canary=None, name='0'):
-        return self._ingress(host, paths, canary, name)
+    def ingress(self, host, paths=None, canary=None, name='0', secret=None):
+        return self._ingress(host, paths, canary, name, secret)
 
-    def _ingress(self, host, paths=None, canary=None, name='0'):
+    def _ingress(self, host, paths=None, canary=None, name='0', secret=None):
         if paths and not isinstance(paths, list):
             raise ValueError('paths must be a list of paths e.g. ["/x"]')
         if not paths:
@@ -47,6 +47,11 @@ class HttpTrigger(NuclioTrigger):
             host = '{}.{}'.format(host, environ['IGZ_NAMESPACE_DOMAIN'])
         self._struct['attributes']['ingresses'][name] = {'host': host,
                                                          'paths': paths}
+        if secret is not None:
+            if not isinstance(secret, str):
+                raise ValueError('secret must be a Kubernetes secret name')
+            self._struct['attributes']['ingresses'][name]['secretName'] = secret
+            
         if canary is not None:
             if not isinstance(canary, int) or canary > 100 or canary < 0:
                 raise ValueError('canary must ve an int between 0 to 100')
@@ -54,6 +59,7 @@ class HttpTrigger(NuclioTrigger):
                 'nginx.ingress.kubernetes.io/canary'] = 'true'
             self._struct['annotations'][
                 'nginx.ingress.kubernetes.io/canary-weight'] = str(host)
+            
         return self
 
 
