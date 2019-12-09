@@ -50,7 +50,8 @@ class HttpTrigger(NuclioTrigger):
         if secret is not None:
             if not isinstance(secret, str):
                 raise ValueError('secret must be a Kubernetes secret name')
-            self._struct['attributes']['ingresses'][name]['secretName'] = secret
+            self._struct['attributes'][
+                'ingresses'][name]['secretName'] = secret
             
         if canary is not None:
             if not isinstance(canary, int) or canary > 100 or canary < 0:
