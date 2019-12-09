@@ -52,7 +52,7 @@ class HttpTrigger(NuclioTrigger):
                 raise ValueError('secret must be a Kubernetes secret name')
             self._struct['attributes'][
                 'ingresses'][name]['secretName'] = secret
-            
+
         if canary is not None:
             if not isinstance(canary, int) or canary > 100 or canary < 0:
                 raise ValueError('canary must ve an int between 0 to 100')
@@ -60,7 +60,7 @@ class HttpTrigger(NuclioTrigger):
                 'nginx.ingress.kubernetes.io/canary'] = 'true'
             self._struct['annotations'][
                 'nginx.ingress.kubernetes.io/canary-weight'] = str(host)
-            
+
         return self
 
 
