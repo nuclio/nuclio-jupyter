@@ -345,7 +345,7 @@ def process_resp(resp, last_time, verbose=False):
             continue
         last_time = timestamp
         logger.info('(%s) %s', log['level'], log['message'])
-        if state != 'error' and verbose:
+        if verbose:
             logger.info(str(log))
 
     return state, last_time
