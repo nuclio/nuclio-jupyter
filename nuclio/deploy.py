@@ -336,7 +336,7 @@ def process_resp(resp, last_time, verbose=False):
 
     message = status.get('message', '')
     if state == 'error' and message != '':
-        logger.info(message)
+        logger.info('(error) Failed to deploy. Details:\n%s', message)
         return state, last_time
 
     for log in sorted(logs, key=itemgetter('time')):
