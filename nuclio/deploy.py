@@ -333,18 +333,19 @@ def process_resp(resp, last_time, verbose=False):
     status = resp['status']
     state = status['state']
     logs = status.get('logs', [])
+
+    message = status.get('message', '')
+    if state == 'error' and message != '':
+        logger.info(message)
+        return state, last_time
+
     for log in sorted(logs, key=itemgetter('time')):
         timestamp = log['time']
         if timestamp <= last_time:
             continue
         last_time = timestamp
         logger.info('(%s) %s', log['level'], log['message'])
-        if state == 'error' and 'errVerbose' in log.keys():
-            msg = log['errVerbose']
-            msg = msg.replace('\\n', '\n')
-            msg = msg.replace('}{', '\n')
-            logger.info(msg)
-        elif verbose:
+        if state != 'error' and verbose:
             logger.info(str(log))
 
     return state, last_time
