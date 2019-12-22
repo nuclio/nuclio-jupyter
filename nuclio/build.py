@@ -187,7 +187,7 @@ mlrun_footer = '''
 from mlrun.runtimes import nuclio_init_hook
 def init_context(context):
     nuclio_init_hook(context, globals(), '{}')
-    
+
 def handler(context, event):
     return context.mlrun_handler(context, event)
 '''
