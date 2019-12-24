@@ -28,7 +28,6 @@ from .archive import (build_zip, get_archive_config, url2repo, upload_file,
                       put_data)
 from .config import (update_in, new_config, ConfigSpec, load_config,
                      meta_keys, extend_config, set_handler)
-from .serving import serving_footer
 
 
 def build_file(filename='', name='', handler='', archive=False, project='',
@@ -185,37 +184,17 @@ def build_notebook(nb_file, no_embed=False, tag=""):
 
 
 mlrun_footer = '''
+from mlrun.runtimes import nuclio_init_hook
+def init_context(context):
+    nuclio_init_hook(context, globals(), '{}')
 
-from mlrun import get_or_create_ctx, RunTemplate, runtimes
 def handler(context, event):
-    paths = event.path.strip('/').split('/')
-    if not paths or paths[0] not in globals():
-        return context.Response(
-            body='function name {} does not exist'.format(paths[0]),
-            content_type='text/plain', status_code=400)
-    fhandler = globals()[paths[0]]
-    ctx = get_or_create_ctx(paths[0], event=event)
-    args = runtimes.local.get_func_arg(
-        fhandler, RunTemplate.from_dict(ctx.to_dict()), ctx)
-    try:
-        val = fhandler(*args)
-        if val:
-            ctx.log_result('return', val)
-    except Exception as e:
-        err = str(e)
-        ctx.set_state(error=err)
-    return ctx.to_json()
+    return context.mlrun_handler(context, event)
 '''
 
 
 def add_kind_footer(kind, config, code, always=False):
-    footer = None
-    if kind == 'mlrun':
-        footer = mlrun_footer
-    elif kind.startswith('serving'):
-        footer = serving_footer
-    else:
-        raise ValueError('supported kinds are mlrun, serving')
+    footer = mlrun_footer.format(kind)
 
     if footer:
         code = code + footer
