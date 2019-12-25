@@ -22,8 +22,8 @@ class NuclioTrigger:
 class HttpTrigger(NuclioTrigger):
     kind = 'http'
 
-    def __init__(self, workers=8, port=0,
-                 host=None, paths=None, canary=None):
+    def __init__(self, workers=8, port=0, host=None,
+                 paths=None, canary=None, secret=None):
         self._struct = {
             'kind': self.kind,
             'maxWorkers': workers,
@@ -33,7 +33,7 @@ class HttpTrigger(NuclioTrigger):
         if port:
             self._struct['attributes']['port'] = port
         if host:
-            self._ingress(host, paths, canary)
+            self._ingress(host, paths, canary, secret=secret)
 
     def ingress(self, host, paths=None, canary=None, name='0', secret=None):
         return self._ingress(host, paths, canary, name, secret)
