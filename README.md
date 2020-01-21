@@ -37,7 +37,7 @@ programmability use the [python API calls](#creating-and-deploying-functions-usi
 ## Usage
 * [Installing](#installing) 
 * [Creating and debugging functions inside a notebook using `%nuclio` magic](#creating-and-debugging-functions-using-nuclio-magic)
-* [Exporting functions using Jupyter UI](#creating-and-debugging-functions-using-nuclio-magic)
+* [Exporting functions using Jupyter UI](#exporting-functions-using-jupyter-ui)
 * [Creating and deploying functions using the python API](#creating-and-deploying-functions-using-the-python-api)
   * [The ConfigSpec object, simple way to configure commands, env, triggers, and volumes](#the-configspec-object-simple-way-to-configure-commands-env-triggers-and-volumes)
   * [Running non python functions](#running-non-python-functions)
