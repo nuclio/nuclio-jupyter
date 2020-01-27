@@ -12,7 +12,7 @@ nuclio-sdk = ">=0.0.3"
 pyyaml = ">=3.13"
 requests = ">=2.20.1"
 # nbconvert is not compatible with tornado 6 (which is in alpha)
-tornado = ">=5,<6"
+tornado = ">=5"
 boto3 = ">=1.9"
 
 [dev-packages]
