@@ -148,11 +148,13 @@ class Volume:
             }}
 
         elif self.type == 'pvc':
-
-            vol = {'name': self.name,
-                   'persistentVolumeClaim': {'claimName': self.remote},
-                   }
-
+            vol = {
+                'name': self.name, 'persistentVolumeClaim': {'claimName': self.remote},
+            }
+        elif self.type == 'secret':
+            vol = {
+                'name': self.name, 'secret': {'secretName': self.remote}
+            }
         else:
             raise Exception('unknown volume type {}'.format(self.type))
 
