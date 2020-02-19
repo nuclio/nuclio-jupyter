@@ -32,10 +32,11 @@ class HumanReadableFormatter(logging.Formatter):
         else:
             more = ''
 
-        return 'Python> {0} [{1}] {2}{3}'.format(self.formatTime(record, self.datefmt),
-                                                 record.levelname.lower(),
-                                                 record.getMessage(),
-                                                 more)
+        return 'Python> {0} [{1}] {2}{3}'.format(
+            self.formatTime(record, self.datefmt),
+            record.levelname.lower(),
+            record.getMessage(),
+            more)
 
 
 class Context(object):
@@ -192,7 +193,8 @@ class Event(object):
                      method=parsed_data['method'],
                      path=parsed_data['path'],
                      size=parsed_data['size'],
-                     timestamp=datetime.datetime.utcfromtimestamp(parsed_data['timestamp']),
+                     timestamp=datetime.datetime.utcfromtimestamp(
+                         parsed_data['timestamp']),
                      url=parsed_data['url'],
                      _type=parsed_data['type'],
                      type_version=parsed_data['type_version'],
@@ -207,13 +209,13 @@ class Event(object):
         else:
             try:
                 decoded_body = base64.b64decode(body)
-            except:
+            except Exception:
                 return body
 
             if content_type == 'application/json':
                 try:
                     return json.loads(decoded_body)
-                except:
+                except Exception:
                     pass
 
             return decoded_body
