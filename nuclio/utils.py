@@ -165,8 +165,9 @@ def str2nametag(input):
 def notebook_file_name(ikernel):
     """Return the full path of the jupyter notebook."""
 
-    # the following code won't work when the notebook is being executed through running `jupyter nbconvert --execute`
-    # this env var enables to overcome it
+    # the following code won't work when the notebook is being executed
+    # through running `jupyter nbconvert --execute` this env var enables to
+    # overcome it
     file_name = environ.get('JUPYTER_NOTEBOOK_FILE_NAME')
     if file_name is not None:
         return file_name
