@@ -14,7 +14,7 @@
 import logging
 import json
 import re
-from os import path
+from os import path, environ
 import shlex
 from argparse import ArgumentParser
 from sys import stdout
@@ -164,6 +164,14 @@ def str2nametag(input):
 # https://github.com/jupyter/notebook/issues/1000#issuecomment-359875246
 def notebook_file_name(ikernel):
     """Return the full path of the jupyter notebook."""
+
+    # the following code won't work when the notebook is being executed
+    # through running `jupyter nbconvert --execute` this env var enables to
+    # overcome it
+    file_name = environ.get('JUPYTER_NOTEBOOK_FILE_NAME')
+    if file_name is not None:
+        return file_name
+
     # Check that we're running under notebook
     if not (ikernel and ikernel.config['IPKernelApp']):
         return
