@@ -333,7 +333,7 @@ def extend_config(config, spec, tag, source=''):
         now = datetime.utcnow().strftime("%d-%m-%Y")
         if environ.get('V3IO_USERNAME'):
             now += ' by ' + environ.get('V3IO_USERNAME')
-        genstr = 'function generated at {} from {}'.format(now, source)
+        genstr = 'function generated from {}'.format(now, source)
         config['metadata']['annotations'][meta_keys.generated_by] = genstr
 
     return config
