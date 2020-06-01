@@ -105,9 +105,9 @@ class KafkaTrigger(NuclioTrigger):
 class V3IOStreamTrigger(NuclioTrigger):
     kind = 'v3ioStream'
 
-    def __init__(self, url: str, seekTo: str='earliest', 
-                 partitions: list=[0], pollingIntervalMS: int=250, 
-                 readBatchSize: int=64, maxWorkers: int=1):
+    def __init__(self, url: str, seekTo: str = 'earliest',
+                 partitions: list = [0], pollingIntervalMS: int = 250,
+                 readBatchSize: int = 64, maxWorkers: int = 1):
         self._struct = {'kind': self.kind,
                         'url': url,
                         'attributes': {}}
