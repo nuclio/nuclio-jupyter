@@ -100,3 +100,24 @@ class KafkaTrigger(NuclioTrigger):
                                               'user': user,
                                               'password': password}
         return self
+
+
+class V3IOStreamTrigger(NuclioTrigger):
+    kind = 'v3ioStream'
+
+    def __init__(self, url: str, seekTo: str = 'earliest',
+                 partitions: list = [0], pollingIntervalMS: int = 250,
+                 readBatchSize: int = 64, maxWorkers: int = 1):
+        self._struct = {'kind': self.kind,
+                        'url': url,
+                        'attributes': {}}
+        if maxWorkers:
+            self._struct['maxWorkers'] = maxWorkers
+        if seekTo:
+            self._struct['attributes']['seekTo'] = seekTo
+        if partitions:
+            self._struct['attributes']['partitions'] = partitions
+        if readBatchSize:
+            self._struct['attributes']['readBatchSize'] = readBatchSize
+        if pollingIntervalMS:
+            self._struct['attributes']['pollingIntervalMs'] = pollingIntervalMS

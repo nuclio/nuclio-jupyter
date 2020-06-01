@@ -17,7 +17,6 @@ import logging
 import re
 from base64 import b64encode
 from collections import namedtuple
-from datetime import datetime
 from io import StringIO
 from os import environ, path
 from textwrap import indent
