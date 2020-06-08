@@ -17,7 +17,6 @@ from os import environ
 from operator import itemgetter
 from tempfile import mktemp
 from time import sleep, time
-from urllib.parse import urlparse
 
 import yaml
 import requests
