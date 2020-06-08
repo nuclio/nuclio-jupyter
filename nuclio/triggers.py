@@ -107,7 +107,8 @@ class V3IOStreamTrigger(NuclioTrigger):
 
     def __init__(self, url: str, seekTo: str = 'earliest',
                  partitions: list = [0], pollingIntervalMS: int = 250,
-                 readBatchSize: int = 64, maxWorkers: int = 1):
+                 readBatchSize: int = 64, maxWorkers: int = 1,
+                 access_key: str = None):
         self._struct = {'kind': self.kind,
                         'url': url,
                         'attributes': {}}
@@ -121,3 +122,5 @@ class V3IOStreamTrigger(NuclioTrigger):
             self._struct['attributes']['readBatchSize'] = readBatchSize
         if pollingIntervalMS:
             self._struct['attributes']['pollingIntervalMs'] = pollingIntervalMS
+        access_key = access_key if access_key else environ['V3IO_ACCESS_KEY']
+        self._struct['password'] = access_key
