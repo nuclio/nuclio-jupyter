@@ -219,9 +219,9 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
 
 
 def deploy_config(config, dashboard_url='', name='', project='', tag='',
-                  verbose=False, create_new=False):
-    # logger level is INFO, debug won't emit
-    log = logger.info if verbose else logger.debug
+                  verbose=True, create_new=False):
+
+    log = logger.debug if verbose else logger.info
 
     if not project:
         raise DeployError('project name must be specified (using -p option)')
