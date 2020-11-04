@@ -326,7 +326,8 @@ def deploy_progress(api_address, name, verbose=False):
         if not resp.ok:
             raise DeployError('error: cannot poll {} status'.format(name))
 
-        state, last_time = process_resp(resp.json(), last_time, verbose)
+        state, last_time, _ = process_resp(resp.json(), last_time,
+                                           verbose, log_message=True)
         if state in {'ready', 'error'}:
 
             if state == 'ready':
@@ -348,7 +349,8 @@ def get_deploy_status(api_address, name, last_time=None, verbose=False):
     if not resp.ok:
         raise DeployError('error: cannot poll {} status'.format(name))
 
-    state, last_time = process_resp(resp.json(), last_time, verbose)
+    state, last_time, outputs = process_resp(resp.json(), last_time,
+                                             verbose, log_message=False)
     if state in {'ready', 'error'}:
 
         if state == 'ready':
@@ -356,7 +358,7 @@ def get_deploy_status(api_address, name, last_time=None, verbose=False):
             address = '{}:{}'.format(ip, resp.json()['status']
                                      .get('httpPort', 0))
 
-    return state, address, last_time
+    return state, address, last_time, outputs
 
 
 def get_address(api_url):
@@ -370,26 +372,34 @@ def get_address(api_url):
     return addresses[0]
 
 
-def process_resp(resp, last_time, verbose=False):
+def process_resp(resp, last_time, verbose=False, log_message=False):
     status = resp['status']
     state = status['state']
     logs = status.get('logs', [])
 
     message = status.get('message', '')
     if state == 'error' and message != '':
-        logger.info('(error) Failed to deploy. Details:\n%s', message)
-        return state, last_time
+        message = f'(error) Failed to deploy. Details:\n{message}'
+        if log_message:
+            logger.info(message)
+        return state, last_time, [message]
 
+    outputs = []
     for log in sorted(logs, key=itemgetter('time')):
         timestamp = log['time']
         if timestamp <= last_time:
             continue
         last_time = timestamp
-        logger.info('(%s) %s', log['level'], log['message'])
+        if log_message:
+            logger.info('(%s) %s', log['level'], log['message'])
+        message = f'{timestamp}  ({log["level"]}) {log["message"]}'
         if verbose:
-            logger.info(str(log))
+            if log_message:
+                logger.info(str(log))
+            message += '\n' + str(log)
+        outputs.append(message)
 
-    return state, last_time
+    return state, last_time, outputs
 
 
 def find_or_create_project(api_url, project, create_new=False):
