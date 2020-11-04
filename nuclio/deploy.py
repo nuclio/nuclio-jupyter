@@ -393,7 +393,8 @@ def process_resp(resp, last_time, verbose=False, log_message=False):
         last_time = timestamp
         if log_message:
             logger.info('(%s) %s', log['level'], log['message'])
-        time_string = datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M:%S')
+        time_string = datetime.fromtimestamp(
+            timestamp/1000).strftime('%Y-%m-%d %H:%M:%S')
         message = f'{time_string}  ({log["level"]}) {log["message"]}'
         if verbose:
             if log_message:
@@ -451,7 +452,8 @@ def list_functions(dashboard_url='', namespace=''):
 
     except OSError as err:
         logger.error('ERROR: %s', str(err))
-        raise DeployError('error: cannot list functions {} at {}'.format(name, api_address))
+        raise DeployError(
+            'error: cannot list functions at {}'.format(api_address))
 
     if not resp.ok:
         logger.warning(f'failed to list functions, {resp.text}')
