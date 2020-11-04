@@ -17,6 +17,7 @@ from os import environ
 from operator import itemgetter
 from tempfile import mktemp
 from time import sleep, time
+from datetime import datetime
 
 import yaml
 import requests
@@ -392,7 +393,8 @@ def process_resp(resp, last_time, verbose=False, log_message=False):
         last_time = timestamp
         if log_message:
             logger.info('(%s) %s', log['level'], log['message'])
-        message = f'{timestamp}  ({log["level"]}) {log["message"]}'
+        time_string = datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M:%S')
+        message = f'{time_string}  ({log["level"]}) {log["message"]}'
         if verbose:
             if log_message:
                 logger.info(str(log))
