@@ -430,11 +430,12 @@ def find_or_create_project(api_url, project, create_new=False):
 
 def list_functions(dashboard_url='', namespace=''):
     api_address = find_dashboard_url(dashboard_url)
+    api_url = '{}/functions'.format(api_address)
     headers = {}
     if namespace:
         headers = {'x-nuclio-function-namespace': namespace}
     try:
-        resp = requests.get(api_address, headers=headers, verify=VERIFY_CERT)
+        resp = requests.get(api_url, headers=headers, verify=VERIFY_CERT)
 
     except OSError as err:
         logger.error('ERROR: %s', str(err))
