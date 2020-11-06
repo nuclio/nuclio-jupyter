@@ -281,7 +281,7 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
         logger.info('done %s %s, function address: %s', verb, name, address)
         return address
 
-    return get_deploy_status(api_address, name, verbose=verbose)
+    return None
 
 
 def populate_parser(parser):
