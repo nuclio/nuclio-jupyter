@@ -388,6 +388,7 @@ def process_resp(resp, last_time, verbose=False, log_message=False):
     outputs = []
     for log in sorted(logs, key=itemgetter('time')):
         timestamp = log['time']
+        print(f'XXX> ts={timestamp} last={last_time}, {log["message"]}')
         if timestamp <= last_time:
             continue
         last_time = timestamp
