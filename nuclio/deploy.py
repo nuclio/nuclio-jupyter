@@ -380,7 +380,7 @@ def process_resp(resp, last_time, verbose=False, log_message=False):
 
     message = status.get('message', '')
     if state == 'error' and message != '':
-        message = f'(error) Failed to deploy. Details:\n{message}'
+        message = f'Failed to deploy. Details:\n{message}'
         if log_message:
             logger.info(message)
         return state, last_time, [message]
