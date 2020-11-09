@@ -105,13 +105,20 @@ class KafkaTrigger(NuclioTrigger):
 class V3IOStreamTrigger(NuclioTrigger):
     kind = 'v3ioStream'
 
-    def __init__(self, url: str, seekTo: str = 'earliest',
-                 partitions: list = [0], pollingIntervalMS: int = 250,
+    def __init__(self, name: str, container: str, path: str, seekTo: str = 'latest',
+                 partitions: list = [0], pollingIntervalMS: int = 500,
                  readBatchSize: int = 64, maxWorkers: int = 1,
-                 access_key: str = None):
+                 access_key: str = None, webapi: str = 'http://v3io-webapi:8081',
+                 consumerGroup: str = 'default'):
         self._struct = {'kind': self.kind,
-                        'url': url,
-                        'attributes': {}}
+                        'url': webapi,
+                        'name': name,
+                        'attributes': {
+                            'containerName': container,
+                            'streamPath': path,
+                            'consumerGroup': consumerGroup
+                        }}
+        
         if maxWorkers:
             self._struct['maxWorkers'] = maxWorkers
         if seekTo:
@@ -124,3 +131,4 @@ class V3IOStreamTrigger(NuclioTrigger):
             self._struct['attributes']['pollingIntervalMs'] = pollingIntervalMS
         access_key = access_key if access_key else environ['V3IO_ACCESS_KEY']
         self._struct['password'] = access_key
+
