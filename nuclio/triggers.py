@@ -109,7 +109,7 @@ class V3IOStreamTrigger(NuclioTrigger):
                  partitions: list = [0], pollingIntervalMS: int = 500,
                  readBatchSize: int = 64, maxWorkers: int = 1,
                  access_key: str = None, webapi: str = 'http://v3io-webapi:8081',
-                 consumerGroup: str = 'default', sequenceNumberCommitInterval: int = 1,
+                 consumerGroup: str = 'default', sequenceNumberCommitInterval: str = '1s',
                  workerAllocationMode: str = 'pool', sessionTimeout: str = '10s',
                  heartbeatInterval: str = '3s'):
         self._struct = {'kind': self.kind,
