@@ -109,22 +109,26 @@ class V3IOStreamTrigger(NuclioTrigger):
                  partitions: list = [0], pollingIntervalMS: int = 500,
                  readBatchSize: int = 64, maxWorkers: int = 1,
                  access_key: str = None, webapi: str = 'http://v3io-webapi:8081',
-                 consumerGroup: str = 'default'):
+                 consumerGroup: str = 'default', sequenceNumberCommitInterval: int = 1,
+                 workerAllocationMode: str = 'pool', sessionTimeout: str = '10s',
+                 heartbeatInterval: str = '3s'):
         self._struct = {'kind': self.kind,
                         'url': webapi,
                         'name': name,
                         'attributes': {
                             'containerName': container,
                             'streamPath': path,
-                            'consumerGroup': consumerGroup
+                            'consumerGroup': consumerGroup,
+                            'sequenceNumberCommitInterval': sequenceNumberCommitInterval,
+                            'workerAllocationMode': workerAllocationMode,
+                            'sessionTimeout': sessionTimeout,
+                            'heartbeatInterval': heartbeatInterval
                         }}
         
         if maxWorkers:
             self._struct['maxWorkers'] = maxWorkers
         if seekTo:
             self._struct['attributes']['seekTo'] = seekTo
-        if partitions:
-            self._struct['attributes']['partitions'] = partitions
         if readBatchSize:
             self._struct['attributes']['readBatchSize'] = readBatchSize
         if pollingIntervalMS:
