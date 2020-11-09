@@ -4,14 +4,14 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-ipython = ">=7.2"
-jupyterlab = ">=0.35.4"
+ipython = ">=5.5"
+#jupyterlab = ">=0.35.4"
 nbconvert = ">=5.4"
-notebook = ">=5.7.2"
+notebook = ">=5.2.0"
 pyyaml = ">=3.13"
 requests = ">=2.20.1"
 # nbconvert is not compatible with tornado 6 (which is in alpha)
-tornado = ">=5"
+#tornado = ">=5"
 boto3 = ">=1.9"
 
 [dev-packages]

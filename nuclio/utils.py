@@ -20,7 +20,6 @@ from argparse import ArgumentParser
 from sys import stdout
 
 import ipykernel
-from notebook.notebookapp import list_running_servers
 from urllib.parse import urlencode, urljoin
 from urllib.request import urlopen
 
@@ -168,6 +167,8 @@ def notebook_file_name(ikernel):
     # the following code won't work when the notebook is being executed
     # through running `jupyter nbconvert --execute` this env var enables to
     # overcome it
+    from notebook.notebookapp import list_running_servers
+
     file_name = environ.get('JUPYTER_NOTEBOOK_FILE_NAME')
     if file_name is not None:
         return file_name

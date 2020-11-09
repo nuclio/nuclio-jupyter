@@ -17,7 +17,7 @@ from os import environ
 from operator import itemgetter
 from tempfile import mktemp
 from time import sleep, time
-from urllib.parse import urlparse
+from datetime import datetime
 
 import yaml
 import requests
@@ -31,19 +31,37 @@ VERIFY_CERT = False
 
 
 def get_function(api_address, name):
-    api_url = '{}/api/functions/{}'.format(api_address, name)
+    api_url = '{}/functions/{}'.format(api_address, name)
     return requests.get(api_url, verify=VERIFY_CERT)
 
 
-def find_dashboard_url():
-    value = environ.get('DEFAULT_TENANT_NUCLIO_DASHBOARD_PORT')
-    value = environ.get('NUCLIO_DASHBOARD_PORT', value)
-    if not value:
-        addr = 'localhost:8070'
-    else:
-        addr = urlparse(value).netloc
+service_names = {
+    'DEFAULT_TENANT_NUCLIO_DASHBOARD': 'default-tenant-nuclio-dashboard',
+    'NUCLIO_DASHBOARD': 'nuclio-dashboard'
+}
 
-    return 'http://' + addr
+
+def find_dashboard_url(dashboard_url=''):
+
+    def with_prefix(url):
+        api_prefix = '/api'
+        if environ.get('NUCLIO_DROP_API'):
+            api_prefix = ''
+        return url + api_prefix
+
+    if dashboard_url:
+        return with_prefix(dashboard_url)
+
+    if 'NUCLIO_DASHBOARD_URL' in environ:
+        return with_prefix(environ.get('NUCLIO_DASHBOARD_URL'))
+
+    for service, endpoint in service_names.items():
+        env_name = service + '_SERVICE_PORT'
+        if env_name in environ:
+            port = environ.get(env_name) or '8070'
+            return with_prefix('http://{}:{}'.format(endpoint, port))
+
+    return with_prefix('http://localhost:8070')
 
 
 def project_name(config):
@@ -202,14 +220,14 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
 
 
 def deploy_config(config, dashboard_url='', name='', project='', tag='',
-                  verbose=False, create_new=False):
+                  verbose=False, create_new=False, watch=True):
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
 
     if not project:
         raise DeployError('project name must be specified (using -p option)')
 
-    api_address = dashboard_url or find_dashboard_url()
+    api_address = find_dashboard_url(dashboard_url)
     project = find_or_create_project(api_address, project, create_new)
 
     try:
@@ -235,7 +253,7 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
         'x-nuclio-project-name': project,
     }
 
-    api_url = '{}/api/functions'.format(api_address)
+    api_url = '{}/functions'.format(api_address)
     try:
         if is_new:
             resp = requests.post(api_url, json=config,
@@ -253,13 +271,17 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
         raise DeployError('failed {} {}'.format(verb, name))
 
     log('deploying ...')
-    state, address = deploy_progress(api_address, name, verbose)
-    if state != 'ready':
-        log('ERROR: {}'.format(resp.text))
-        raise DeployError('cannot deploy ' + resp.text)
 
-    logger.info('done %s %s, function address: %s', verb, name, address)
-    return address
+    if watch:
+        state, address = deploy_progress(api_address, name, verbose)
+        if state != 'ready':
+            log('ERROR: {}'.format(resp.text))
+            raise DeployError('cannot deploy ' + resp.text)
+
+        logger.info('done %s %s, function address: %s', verb, name, address)
+        return address
+
+    return None
 
 
 def populate_parser(parser):
@@ -296,7 +318,7 @@ def populate_parser(parser):
 
 
 def deploy_progress(api_address, name, verbose=False):
-    url = '{}/api/functions/{}'.format(api_address, name)
+    url = '{}/functions/{}'.format(api_address, name)
     last_time = time() * 1000.0
     address = ''
 
@@ -305,7 +327,8 @@ def deploy_progress(api_address, name, verbose=False):
         if not resp.ok:
             raise DeployError('error: cannot poll {} status'.format(name))
 
-        state, last_time = process_resp(resp.json(), last_time, verbose)
+        state, last_time, _ = process_resp(resp.json(), last_time,
+                                           verbose, log_message=True)
         if state in {'ready', 'error'}:
 
             if state == 'ready':
@@ -318,8 +341,29 @@ def deploy_progress(api_address, name, verbose=False):
         sleep(1)
 
 
+def get_deploy_status(api_address, name, last_time=None, verbose=False):
+    url = '{}/functions/{}'.format(api_address, name)
+    last_time = last_time or (time() * 1000.0)
+    address = ''
+
+    resp = requests.get(url, verify=VERIFY_CERT)
+    if not resp.ok:
+        raise DeployError('error: cannot poll {} status'.format(name))
+
+    state, last_time, outputs = process_resp(resp.json(), last_time,
+                                             verbose, log_message=False)
+    if state in {'ready', 'error'}:
+
+        if state == 'ready':
+            ip = get_address(api_address)
+            address = '{}:{}'.format(ip, resp.json()['status']
+                                     .get('httpPort', 0))
+
+    return state, address, last_time, outputs
+
+
 def get_address(api_url):
-    resp = requests.get('{}/api/external_ip_addresses'.format(api_url),
+    resp = requests.get('{}/external_ip_addresses'.format(api_url),
                         verify=VERIFY_CERT)
     if not resp.ok:
         logger.warning('failed to obtain external IP address, returned local')
@@ -329,30 +373,40 @@ def get_address(api_url):
     return addresses[0]
 
 
-def process_resp(resp, last_time, verbose=False):
+def process_resp(resp, last_time, verbose=False, log_message=False):
     status = resp['status']
     state = status['state']
     logs = status.get('logs', [])
 
     message = status.get('message', '')
     if state == 'error' and message != '':
-        logger.info('(error) Failed to deploy. Details:\n%s', message)
-        return state, last_time
+        message = f'Failed to deploy. Details:\n{message}'
+        if log_message:
+            logger.info(message)
+        return state, last_time, [message]
 
+    outputs = []
     for log in sorted(logs, key=itemgetter('time')):
         timestamp = log['time']
         if timestamp <= last_time:
             continue
         last_time = timestamp
-        logger.info('(%s) %s', log['level'], log['message'])
+        if log_message:
+            logger.info('(%s) %s', log['level'], log['message'])
+        time_string = datetime.fromtimestamp(
+            timestamp/1000).strftime('%Y-%m-%d %H:%M:%S')
+        message = f'{time_string}  ({log["level"]}) {log["message"]}'
         if verbose:
-            logger.info(str(log))
+            if log_message:
+                logger.info(str(log))
+            message += '\n' + str(log)
+        outputs.append(message)
 
-    return state, last_time
+    return state, last_time, outputs
 
 
 def find_or_create_project(api_url, project, create_new=False):
-    apipath = '{}/api/projects'.format(api_url)
+    apipath = '{}/projects'.format(api_url)
     resp = requests.get(apipath, verify=VERIFY_CERT)
 
     project = project.strip()
@@ -387,14 +441,34 @@ def find_or_create_project(api_url, project, create_new=False):
     return resp.json()['metadata']['name']
 
 
+def list_functions(dashboard_url='', namespace=''):
+    api_address = find_dashboard_url(dashboard_url)
+    api_url = '{}/functions'.format(api_address)
+    headers = {}
+    if namespace:
+        headers = {'x-nuclio-function-namespace': namespace}
+    try:
+        resp = requests.get(api_url, headers=headers, verify=VERIFY_CERT)
+
+    except OSError as err:
+        logger.error('ERROR: %s', str(err))
+        raise DeployError(
+            'error: cannot list functions at {}'.format(api_address))
+
+    if not resp.ok:
+        logger.warning(f'failed to list functions, {resp.text}')
+        return None
+    return resp.json()
+
+
 def delete_func(name, dashboard_url='', namespace=''):
-    api_address = dashboard_url or find_dashboard_url()
+    api_address = find_dashboard_url(dashboard_url)
     headers = {'Content-Type': 'application/json'}
     body = {'metadata': {'name': name}}
     if namespace:
         body['metadata']['namespace'] = namespace
 
-    api_url = '{}/api/functions'.format(api_address)
+    api_url = '{}/functions'.format(api_address)
     try:
         resp = requests.delete(api_url, json=body,
                                headers=headers, verify=VERIFY_CERT)
