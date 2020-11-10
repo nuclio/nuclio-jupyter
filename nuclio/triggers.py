@@ -105,25 +105,33 @@ class KafkaTrigger(NuclioTrigger):
 class V3IOStreamTrigger(NuclioTrigger):
     kind = 'v3ioStream'
 
-    def __init__(self, name: str, container: str, path: str, seekTo: str = 'latest',
-                 partitions: list = [0], pollingIntervalMS: int = 500,
+    def __init__(self, name: str='streamtrigger', container: str = None, 
+                 path: str = None, workerAllocationMode: str = 'pool',
+                 partitions: list = None, pollingIntervalMS: int = 500,
                  readBatchSize: int = 64, maxWorkers: int = 1,
-                 access_key: str = None, webapi: str = 'http://v3io-webapi:8081',
-                 consumerGroup: str = 'default', sequenceNumberCommitInterval: str = '1s',
-                 workerAllocationMode: str = 'pool', sessionTimeout: str = '10s',
+                 access_key: str = None, sessionTimeout: str = '10s',
+                 webapi: str = 'http://v3io-webapi:8081', url: str = None,
+                 consumerGroup: str = 'default', seekTo: str = 'latest',
+                 sequenceNumberCommitInterval: str = '1s',
                  heartbeatInterval: str = '3s'):
-        self._struct = {'kind': self.kind,
-                        'url': webapi,
-                        'name': name,
-                        'attributes': {
-                            'containerName': container,
-                            'streamPath': path,
-                            'consumerGroup': consumerGroup,
-                            'sequenceNumberCommitInterval': sequenceNumberCommitInterval,
-                            'workerAllocationMode': workerAllocationMode,
-                            'sessionTimeout': sessionTimeout,
-                            'heartbeatInterval': heartbeatInterval
-                        }}
+
+        if url and not container and not path:
+            self._struct = {'kind': self.kind,
+                            'url': url,
+                            'attributes': {}}
+        else:
+            self._struct = {'kind': self.kind,
+                            'url': webapi,
+                            'name': name,
+                            'attributes': {
+                                'containerName': container,
+                                'streamPath': path,
+                                'consumerGroup': consumerGroup,
+                                'sequenceNumberCommitInterval': sequenceNumberCommitInterval,
+                                'workerAllocationMode': workerAllocationMode,
+                                'sessionTimeout': sessionTimeout,
+                                'heartbeatInterval': heartbeatInterval
+                            }}
         
         if maxWorkers:
             self._struct['maxWorkers'] = maxWorkers
@@ -131,6 +139,8 @@ class V3IOStreamTrigger(NuclioTrigger):
             self._struct['attributes']['seekTo'] = seekTo
         if readBatchSize:
             self._struct['attributes']['readBatchSize'] = readBatchSize
+        if partitions:
+            self._struct['attributes']['partitions'] = partitions
         if pollingIntervalMS:
             self._struct['attributes']['pollingIntervalMs'] = pollingIntervalMS
         access_key = access_key if access_key else environ['V3IO_ACCESS_KEY']
