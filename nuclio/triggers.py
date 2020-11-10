@@ -105,16 +105,17 @@ class KafkaTrigger(NuclioTrigger):
 class V3IOStreamTrigger(NuclioTrigger):
     kind = 'v3ioStream'
 
-    def __init__(self, name: str='streamtrigger', container: str = None, 
-                 path: str = None, workerAllocationMode: str = 'pool',
+    def __init__(self, url: str = None, seekTo: str = 'latest',
                  partitions: list = None, pollingIntervalMS: int = 500,
                  readBatchSize: int = 64, maxWorkers: int = 1,
                  access_key: str = None, sessionTimeout: str = '10s',
-                 webapi: str = 'http://v3io-webapi:8081', url: str = None,
-                 consumerGroup: str = 'default', seekTo: str = 'latest',
+                 name: str = 'streamtrigger', container: str = None,
+                 path: str = None, workerAllocationMode: str = 'pool',
+                 webapi: str = 'http://v3io-webapi:8081',
+                 consumerGroup: str = 'default',
                  sequenceNumberCommitInterval: str = '1s',
                  heartbeatInterval: str = '3s'):
-
+                 
         if url and not container and not path:
             self._struct = {'kind': self.kind,
                             'url': url,
