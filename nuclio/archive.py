@@ -319,7 +319,7 @@ class GitRepo(ExternalRepo):
         self.headers = {'Authorization': ''}
         token = urlobj.username or environ.get('GIT_ACCESS_TOKEN')
         if token:
-            self.headers = {'Authorization': 'token '.format(token)}
+            self.headers = {'Authorization': 'token {0}'.format(token)}
 
         # format: git://[token@]github.com/org/repo#master[:<workdir>]
         self.branch = 'master'
