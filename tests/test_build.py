@@ -17,7 +17,8 @@ def test_build_file_py():
     assert tag == 'v7', 'failed, tag not set properly config={}'.format(config)
 
     envs = config['spec']['env']
-    assert envs[0].get('name') == 'MYENV', 'build failed, env err'.format(envs)
+    assert_error_message = 'build failed, env err {0}'.format(envs)
+    assert envs[0].get('name') == 'MYENV', assert_error_message
 
 
 def test_build_file_nb():

@@ -37,12 +37,11 @@ functions = {
 }
 
 projects = {
-    '03ff81bf-00d6-41a4-899c-869a12f06d8c': {
+    "test-project": {
         "metadata": {
-            "name": "03ff81bf-00d6-41a4-899c-869a12f06d8c",
+            "name": "test-project",
             "namespace": "default-tenant"},
-        "spec":
-            {"displayName": "test-project"}
+        "spec": {},
     }
 }
 
