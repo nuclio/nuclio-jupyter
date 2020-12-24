@@ -194,7 +194,7 @@ class NuclioExporter(Exporter):
             if is_comment(line):
                 continue
 
-            if '%nuclio' not in line:
+            if line_magic not in line:
                 # ignore command or magic commands (other than %nuclio)
                 if not (line.startswith('!') or line.startswith('%')):
                     buf.append(line)

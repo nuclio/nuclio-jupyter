@@ -14,7 +14,6 @@
 
 from base64 import b64decode
 from copy import deepcopy
-from datetime import datetime
 from os import path, environ
 import yaml
 from IPython import get_ipython
@@ -330,10 +329,7 @@ def extend_config(config, spec, tag, source=''):
     if tag:
         config['metadata']['labels'][meta_keys.tag] = tag
     if source:
-        now = datetime.utcnow().strftime("%d-%m-%Y")
-        if environ.get('V3IO_USERNAME'):
-            now += ' by ' + environ.get('V3IO_USERNAME')
-        genstr = 'function generated from {}'.format(now, source)
+        genstr = 'function generated from {0}'.format(source)
         config['metadata']['annotations'][meta_keys.generated_by] = genstr
 
     return config
