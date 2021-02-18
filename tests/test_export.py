@@ -74,7 +74,9 @@ def export_notebook(nb, resources=None):
     return code, config
 
 
-@pytest.mark.parametrize('case', cases_from_yml_file(f"{here}/convert_cases.yml"))
+@pytest.mark.parametrize(
+    'case', cases_from_yml_file(f"{here}/convert_cases.yml")
+)
 def test_convert(case, clean_handlers):
     nb = gen_nb([case['in']])
     code, _ = export_notebook(nb)
@@ -82,7 +84,9 @@ def test_convert(case, clean_handlers):
     assert code == case['out'].strip()
 
 
-@pytest.mark.parametrize("case", cases_from_yml_file(f"{here}/annotations_test_cases.yml"))
+@pytest.mark.parametrize(
+    "case", cases_from_yml_file(f"{here}/annotations_test_cases.yml")
+)
 @pytest.mark.parametrize("keyword", ["mlrun", "nuclio"])
 def test_converter_annotations(case: dict, keyword: str):
     notebook = {
