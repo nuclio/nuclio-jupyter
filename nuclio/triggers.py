@@ -135,7 +135,7 @@ class V3IOStreamTrigger(NuclioTrigger):
         maxWorkers: int = 1,
         access_key: str = None,
         sessionTimeout: str = "10s",
-        name: str = "streamtrigger",
+        name: str = None,
         container: str = None,
         path: str = None,
         workerAllocationMode: str = "pool",
@@ -155,7 +155,6 @@ class V3IOStreamTrigger(NuclioTrigger):
             self._struct = {
                 "kind": self.kind,
                 "url": webapi,
-                "name": name,
                 "attributes": {
                     "containerName": container,
                     "streamPath": path,
@@ -166,6 +165,9 @@ class V3IOStreamTrigger(NuclioTrigger):
                     "heartbeatInterval": heartbeatInterval,
                 },
             }
+
+            if name:
+                self._struct["name"] = name
 
         if maxWorkers:
             self._struct["maxWorkers"] = maxWorkers
