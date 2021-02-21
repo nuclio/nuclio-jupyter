@@ -1,0 +1,87 @@
+name: Only Ignore
+cells:
+  - |
+    # {keyword}: ignore
+    a = 1
+expected: |
+---
+name: Start and End with Ignore
+cells:
+  - |
+    # {keyword}: ignore
+    a = 1
+  - b = 2
+  - |
+    # {keyword}: start-code
+  - c = 3
+  - |
+    # {keyword}: end-code
+  - d = 4
+expected: c = 3
+---
+name: Start and End with Ignore in between
+cells:
+  - b = 2
+  - |
+    # {keyword}: start-code
+  - c = 3
+  - |
+    # {keyword}: ignore
+    a = 1
+  - |
+    # {keyword}: end-code
+  - d = 4
+expected: c = 3
+---
+name: Start and End
+cells:
+  - a = 1
+  - b = 2
+  - |
+    # {keyword}: start-code
+  - c = 3
+  - |
+    # {keyword}: end-code
+  - d = 4
+expected: c = 3
+---
+name: Only Start
+cells:
+  - a = 1
+  - b = 2
+  - |
+    # {keyword}: start-code
+  - c = 3
+  - d = 4
+expected: |
+  c = 3
+
+  d = 4
+---
+name: Only End
+cells:
+  - a = 1
+  - b = 2
+  - |
+    # {keyword}: end-code
+  - c = 3
+  - d = 4
+expected: |
+  a = 1
+
+  b = 2
+---
+name: No Keywords
+cells:
+  - a = 1
+  - b = 2
+  - c = 3
+  - d = 4
+expected: |
+  a = 1
+
+  b = 2
+
+  c = 3
+
+  d = 4

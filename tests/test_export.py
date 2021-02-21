@@ -60,10 +60,10 @@ def test_export():
     assert 'def handler(' in code, 'no handler in code'
 
 
-def iter_convert():
-    with open('{}/convert_cases.yml'.format(here)) as fp:
-        for case in yaml.load_all(fp):
-            yield pytest.param(case, id=case['name'])
+def cases_from_yml_file(file_path: str):
+    with open(file_path) as f:
+        for case in yaml.load_all(f):
+            yield pytest.param(case, id=case["name"])
 
 
 def export_notebook(nb, resources=None):
@@ -74,12 +74,32 @@ def export_notebook(nb, resources=None):
     return code, config
 
 
-@pytest.mark.parametrize('case', iter_convert())
+@pytest.mark.parametrize(
+    'case', cases_from_yml_file(f"{here}/convert_cases.yml")
+)
 def test_convert(case, clean_handlers):
     nb = gen_nb([case['in']])
     code, _ = export_notebook(nb)
     code = code[code.find('\n'):].strip()  # Trim first line
     assert code == case['out'].strip()
+
+
+@pytest.mark.parametrize(
+    "case", cases_from_yml_file(f"{here}/annotations_test_cases.yml")
+)
+@pytest.mark.parametrize("keyword", ["mlrun", "nuclio"])
+def test_converter_annotations(case: dict, keyword: str):
+    notebook = {
+        "cells": [
+            {"source": code.format(keyword=keyword), "cell_type": "code"}
+            for code in case["cells"]
+        ],
+    }
+    code, _ = export_notebook(notebook)
+
+    # Trim first line
+    code = "\n".join(code.splitlines()[1:])
+    assert code.strip() == case["expected"].strip()
 
 
 def test_config():
