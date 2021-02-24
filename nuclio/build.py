@@ -173,7 +173,7 @@ def build_notebook(nb_file, no_embed=False, tag=""):
     with open(yaml_path) as yp:
         config_data = yp.read()
     config = yaml.safe_load(config_data)
-    os.remove(yaml_path)
+    # os.remove(yaml_path)
 
     if py_path:
         with open(py_path) as pp:
