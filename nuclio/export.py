@@ -107,7 +107,7 @@ class NuclioExporter(Exporter):
         if name:
             config['metadata']['name'] = normalize_name(name)
         config['spec']['handler'] = handler_name()
-        function_name = environ.get('NUCLIO_FUNCTION_NAME', None)
+        function_name = environ.get(env_keys.function_name)
         raise Exception(f'function name: {function_name}')
 
         io = StringIO()
