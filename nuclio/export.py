@@ -59,6 +59,33 @@ class MagicError(Exception):
     pass
 
 
+class FunctionBuffer:
+
+    def __init__(self):
+        self.io = StringIO()
+        self.closed = False
+
+    def write(self, code, exporter, config):
+        if not self.closed:
+            code = filter_comments(code)
+            if not code.strip():
+                return
+
+            lines = code.splitlines()
+            if cell_magic in code:
+                exporter.handle_cell_magic(lines, self.io, config)
+                return
+
+            exporter.handle_code_cell(lines, self.io, config)
+
+    def close(self):
+        self.closed = True
+
+    def reset(self):
+        self.io = StringIO()
+        print(header(), file=self.io)
+
+
 def create_logger():
     handler = logging.StreamHandler(stdout)
     handler.setFormatter(
@@ -97,35 +124,50 @@ class NuclioExporter(Exporter):
         config['spec']['handler'] = handler_name()
         function_name = environ.get(env_keys.function_name)
 
-        io = StringIO()
-        print(header(), file=io)
+        function_buffers = {
+            function_name: FunctionBuffer(),
+            "": FunctionBuffer(),
+        }
+
+        print(header(), file=function_buffers[function_name].io)
+        print(header(), file=function_buffers[""].io)
+        seen_function_name = ""
 
         for cell in filter(is_code_cell, nb['cells']):
             code = cell['source']
             match = has_ignore(code)
-            if match and match.group('name') in [function_name, ""]:
+            if match:
+                curr_name = match.group('name')
+                if curr_name == "":
+                    function_buffers[function_name].write(code, self, config)
+                elif curr_name == function_name:
+                    function_buffers[""].close()
+                    seen_function_name = curr_name
                 continue
 
             match = has_end(code)
-            if match and match.group('name') in [function_name, ""]:
-                break
+            if match:
+                curr_name = match.group('name')
+                if curr_name == "":
+                    function_buffers[curr_name].close()
+                elif curr_name == function_name:
+                    function_buffers[curr_name].close()
+                    seen_function_name = curr_name
+                    break
+                continue
 
             match = has_start(code)
-            if match and match.group('name') in [function_name, ""]:
+            if match:
                 # if we see indication of start, we ignore all previous cells
-                io = StringIO()
-                print(header(), file=io)
+                curr_name = match.group('name')
+                if curr_name in [function_name, ""]:
+                    function_buffers[curr_name].reset()
+                    seen_function_name = seen_function_name or curr_name
 
-            code = filter_comments(code)
-            if not code.strip():
-                continue
+            for function_buffer in function_buffers.values():
+                function_buffer.write(code, self, config)
 
-            lines = code.splitlines()
-            if cell_magic in code:
-                self.handle_cell_magic(lines, io, config)
-                continue
-
-            self.handle_code_cell(lines, io, config)
+        io = function_buffers[seen_function_name].io
 
         process_env_files(env_files, config)
         py_code = io.getvalue()
