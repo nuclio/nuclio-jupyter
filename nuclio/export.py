@@ -31,7 +31,7 @@ from .utils import (env_keys, iter_env_lines, parse_config_line,
 from .archive import parse_archive_line
 from .config import (new_config, update_in, get_in, set_env, set_commands,
                      Volume, meta_keys)
-from .import magic as magic_module
+from . import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
 
@@ -53,6 +53,18 @@ line_magic = '%nuclio'
 cell_magic = '%' + line_magic
 
 handlers = []
+
+
+def has_ignore_named(name):
+    return re.compile(rf'#\s*(nuclio|mlrun):\s*ignore {name}').search
+
+
+def has_start_named(name):
+    return re.compile(rf'#\s*(nuclio|mlrun):\s*start-code {name}').search
+
+
+def has_end_named(name):
+    return re.compile(rf'#\s*(nuclio|mlrun):\s*end-code {name}').search
 
 
 class MagicError(Exception):
@@ -95,6 +107,8 @@ class NuclioExporter(Exporter):
         if name:
             config['metadata']['name'] = normalize_name(name)
         config['spec']['handler'] = handler_name()
+        function_name = environ.get('NUCLIO_FUNCTION_NAME', None)
+        print(f'function name: {function_name}')
 
         io = StringIO()
         print(header(), file=io)
@@ -348,7 +362,7 @@ def handler_code(name, code):
             continue
 
         if 'return' not in line:
-            lines[len(lines)-i-1] = add_return(line)
+            lines[len(lines) - i - 1] = add_return(line)
         break
 
     return '\n'.join(lines)
