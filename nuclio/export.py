@@ -110,7 +110,7 @@ class NuclioExporter(Exporter):
             if match and match.group('name') in [function_name, ""]:
                 break
 
-            match = has_end(code)
+            match = has_start(code)
             if match and match.group('name') in [function_name, ""]:
                 # if we see indication of start, we ignore all previous cells
                 io = StringIO()
