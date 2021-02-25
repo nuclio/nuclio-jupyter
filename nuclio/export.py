@@ -44,9 +44,9 @@ is_comment = re.compile(r'\s*#.*').match
 # # nuclio: return
 is_return = re.compile(r'#\s*(nuclio|mlrun):\s*return').search
 # # nuclio: ignore
-has_ignore = re.compile(r'#\s*(nuclio|mlrun):\s*ignore\s*(?P<name>.*)').search
-has_start = re.compile(r'#\s*(nuclio|mlrun):\s*start-code\s*(?P<name>.*)').search
-has_end = re.compile(r'#\s*(nuclio|mlrun):\s*end-code\s*(?P<name>.*)').search
+has_ignore = re.compile(r'#\s*(nuclio|mlrun):\s*ignore\s*(?P<name>.*)\n').search
+has_start = re.compile(r'#\s*(nuclio|mlrun):\s*start-code\s*(?P<name>.*)\n').search
+has_end = re.compile(r'#\s*(nuclio|mlrun):\s*end-code\s*(?P<name>.*)\n').search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 line_magic = '%nuclio'
