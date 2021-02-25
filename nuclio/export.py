@@ -62,28 +62,34 @@ class MagicError(Exception):
 class FunctionBuffer:
 
     def __init__(self):
-        self.io = StringIO()
+        self.codes = []
         self.closed = False
 
-    def write(self, code, exporter, config):
-        if not self.closed:
+    def write_codes(self, exporter, config):
+        io = StringIO()
+        print(header(), file=io)
+        for code in self.codes:
             code = filter_comments(code)
             if not code.strip():
-                return
+                continue
 
             lines = code.splitlines()
             if cell_magic in code:
-                exporter.handle_cell_magic(lines, self.io, config)
-                return
+                exporter.handle_cell_magic(lines, io, config)
+                continue
 
-            exporter.handle_code_cell(lines, self.io, config)
+            exporter.handle_code_cell(lines, io, config)
+        return io
 
     def close(self):
         self.closed = True
 
     def reset(self):
-        self.io = StringIO()
-        print(header(), file=self.io)
+        self.codes = []
+
+    def append_code(self, code):
+        if not self.closed:
+            self.codes.append(code)
 
 
 def create_logger():
@@ -129,8 +135,6 @@ class NuclioExporter(Exporter):
             "": FunctionBuffer(),
         }
 
-        print(header(), file=function_buffers[function_name].io)
-        print(header(), file=function_buffers[""].io)
         seen_function_name = ""
 
         for cell in filter(is_code_cell, nb['cells']):
@@ -139,7 +143,7 @@ class NuclioExporter(Exporter):
             if match:
                 curr_name = match.group('name')
                 if curr_name == "":
-                    function_buffers[function_name].write(code, self, config)
+                    function_buffers[function_name].append_code(code)
                 elif curr_name == function_name:
                     function_buffers[""].close()
                     seen_function_name = curr_name
@@ -165,9 +169,9 @@ class NuclioExporter(Exporter):
                     seen_function_name = seen_function_name or curr_name
 
             for function_buffer in function_buffers.values():
-                function_buffer.write(code, self, config)
+                function_buffer.append_code(code)
 
-        io = function_buffers[seen_function_name].io
+        io = function_buffers[seen_function_name].write_codes(self, config)
 
         process_env_files(env_files, config)
         py_code = io.getvalue()
