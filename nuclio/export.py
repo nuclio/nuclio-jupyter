@@ -56,15 +56,15 @@ handlers = []
 
 
 def has_ignore_named(name):
-    return re.compile(rf'#\s*(nuclio|mlrun):\s*ignore {name}').search
+    return re.compile(rf'#\s*(nuclio|mlrun):\s*{name}\s*ignore').search
 
 
 def has_start_named(name):
-    return re.compile(rf'#\s*(nuclio|mlrun):\s*start-code {name}').search
+    return re.compile(rf'#\s*(nuclio|mlrun):\s*{name}\s*start-code').search
 
 
 def has_end_named(name):
-    return re.compile(rf'#\s*(nuclio|mlrun):\s*end-code {name}').search
+    return re.compile(rf'#\s*(nuclio|mlrun):\s*{name}\s*end-code').search
 
 
 class MagicError(Exception):
