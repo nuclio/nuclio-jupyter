@@ -44,27 +44,15 @@ is_comment = re.compile(r'\s*#.*').match
 # # nuclio: return
 is_return = re.compile(r'#\s*(nuclio|mlrun):\s*return').search
 # # nuclio: ignore
-has_ignore = re.compile(r'#\s*(nuclio|mlrun):\s*ignore').search
-has_start = re.compile(r'#\s*(nuclio|mlrun):\s*start-code').search
-has_end = re.compile(r'#\s*(nuclio|mlrun):\s*end-code').search
+has_ignore = re.compile(r'#\s*(nuclio|mlrun):\s*ignore\s*(?P<name>).*').search
+has_start = re.compile(r'#\s*(nuclio|mlrun):\s*start-code\s*(?P<name>.*)').search
+has_end = re.compile(r'#\s*(nuclio|mlrun):\s*end-code\s*(?P<name>.*)').search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 line_magic = '%nuclio'
 cell_magic = '%' + line_magic
 
 handlers = []
-
-
-def has_ignore_named(name):
-    return re.compile(rf'#\s*(nuclio|mlrun):\s*{name}\s*ignore').search
-
-
-def has_start_named(name):
-    return re.compile(rf'#\s*(nuclio|mlrun):\s*{name}\s*start-code').search
-
-
-def has_end_named(name):
-    return re.compile(rf'#\s*(nuclio|mlrun):\s*{name}\s*end-code').search
 
 
 class MagicError(Exception):
@@ -112,35 +100,32 @@ class NuclioExporter(Exporter):
         io = StringIO()
         print(header(), file=io)
 
-        io = self.sweep_with_named_magic(config, function_name, io, nb)
+        for cell in filter(is_code_cell, nb['cells']):
+            code = cell['source']
+            match = has_ignore(code)
+            if match and match.group(name) in [function_name, ""]:
+                continue
 
-        if not io:
-            io = StringIO()
-            print(header(), file=io)
+            match = has_end(code)
+            if match and match.group(name) in [function_name, ""]:
+                break
 
-            for cell in filter(is_code_cell, nb['cells']):
-                code = cell['source']
-                if has_ignore(code):
-                    continue
+            match = has_end(code)
+            if match and match.group(name) in [function_name, ""]:
+                # if we see indication of start, we ignore all previous cells
+                io = StringIO()
+                print(header(), file=io)
 
-                if has_end(code):
-                    break
+            code = filter_comments(code)
+            if not code.strip():
+                continue
 
-                if has_start(code):
-                    # if we see indication of start, we ignore all previous cells
-                    io = StringIO()
-                    print(header(), file=io)
+            lines = code.splitlines()
+            if cell_magic in code:
+                self.handle_cell_magic(lines, io, config)
+                continue
 
-                code = filter_comments(code)
-                if not code.strip():
-                    continue
-
-                lines = code.splitlines()
-                if cell_magic in code:
-                    self.handle_cell_magic(lines, io, config)
-                    continue
-
-                self.handle_code_cell(lines, io, config)
+            self.handle_code_cell(lines, io, config)
 
         process_env_files(env_files, config)
         py_code = io.getvalue()
@@ -177,38 +162,6 @@ class NuclioExporter(Exporter):
         resources['output_extension'] = '.yaml'
 
         return config, resources
-
-    def sweep_with_named_magic(self, config, function_name, io, nb):
-        named_magic = False
-        for cell in filter(is_code_cell, nb['cells']):
-            code = cell['source']
-            if has_ignore_named(function_name)(code):
-                named_magic = True
-                continue
-
-            if has_end_named(function_name)(code):
-                named_magic = True
-                break
-
-            if has_start_named(function_name)(code):
-                named_magic = True
-                # if we see indication of start, we ignore all previous cells
-                io = StringIO()
-                print(header(), file=io)
-
-            code = filter_comments(code)
-            if not code.strip():
-                continue
-
-            lines = code.splitlines()
-            if cell_magic in code:
-                self.handle_cell_magic(lines, io, config)
-                continue
-
-            self.handle_code_cell(lines, io, config)
-        if named_magic:
-            return io
-        return None
 
     def find_cell_magic(self, lines):
         """Return index of first line that has %%nuclio"""
