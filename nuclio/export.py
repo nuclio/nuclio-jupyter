@@ -59,39 +59,6 @@ class MagicError(Exception):
     pass
 
 
-class FunctionBuffer:
-
-    def __init__(self):
-        self.codes = []
-        self.closed = False
-
-    def write_codes(self, exporter, config):
-        io = StringIO()
-        print(header(), file=io)
-        for code in self.codes:
-            code = filter_comments(code)
-            if not code.strip():
-                continue
-
-            lines = code.splitlines()
-            if cell_magic in code:
-                exporter.handle_cell_magic(lines, io, config)
-                continue
-
-            exporter.handle_code_cell(lines, io, config)
-        return io
-
-    def close(self):
-        self.closed = True
-
-    def reset(self):
-        self.codes = []
-
-    def append_code(self, code):
-        if not self.closed:
-            self.codes.append(code)
-
-
 def create_logger():
     handler = logging.StreamHandler(stdout)
     handler.setFormatter(
@@ -129,23 +96,30 @@ class NuclioExporter(Exporter):
             config['metadata']['name'] = normalize_name(name)
         config['spec']['handler'] = handler_name()
         function_name = environ.get(env_keys.function_name)
-
-        function_buffers = {
-            function_name: FunctionBuffer(),
-            "": FunctionBuffer(),
-        }
-
+        if not function_name:
+            # function name must differ from empty name
+            function_name = None
         seen_function_name = ""
+        function_buffers = {
+            function_name: {
+                'closed': False,
+                'codes': [],
+            },
+            "": {
+                'closed': False,
+                'codes': [],
+            },
+        }
 
         for cell in filter(is_code_cell, nb['cells']):
             code = cell['source']
             match = has_ignore(code)
             if match:
                 curr_name = match.group('name')
-                if curr_name == "":
-                    function_buffers[function_name].append_code(code)
+                if curr_name == "" and not function_buffers[function_name]['closed']:
+                    function_buffers[function_name]['codes'].append(code)
                 elif curr_name == function_name:
-                    function_buffers[""].close()
+                    function_buffers[""]['closed'] = True
                     seen_function_name = curr_name
                 continue
 
@@ -153,9 +127,9 @@ class NuclioExporter(Exporter):
             if match:
                 curr_name = match.group('name')
                 if curr_name == "":
-                    function_buffers[curr_name].close()
+                    function_buffers[curr_name]['closed'] = True
                 elif curr_name == function_name:
-                    function_buffers[curr_name].close()
+                    function_buffers[curr_name]['closed'] = True
                     seen_function_name = curr_name
                     break
                 continue
@@ -165,14 +139,14 @@ class NuclioExporter(Exporter):
                 # if we see indication of start, we ignore all previous cells
                 curr_name = match.group('name')
                 if curr_name in [function_name, ""]:
-                    function_buffers[curr_name].reset()
+                    function_buffers[curr_name]['codes'] = []
                     seen_function_name = seen_function_name or curr_name
 
             for function_buffer in function_buffers.values():
-                function_buffer.append_code(code)
+                if not function_buffer['closed']:
+                    function_buffer['codes'].append(code)
 
-        io = function_buffers[seen_function_name].write_codes(self, config)
-
+        io = self.write_codes(function_buffers[seen_function_name]['codes'], config)
         process_env_files(env_files, config)
         py_code = io.getvalue()
         handler_path = environ.get(env_keys.handler_path)
@@ -208,6 +182,22 @@ class NuclioExporter(Exporter):
         resources['output_extension'] = '.yaml'
 
         return config, resources
+
+    def write_codes(self, codes, config):
+        io = StringIO()
+        print(header(), file=io)
+        for code in codes:
+            code = filter_comments(code)
+            if not code.strip():
+                continue
+
+            lines = code.splitlines()
+            if cell_magic in code:
+                self.handle_cell_magic(lines, io, config)
+                continue
+
+            self.handle_code_cell(lines, io, config)
+        return io
 
     def find_cell_magic(self, lines):
         """Return index of first line that has %%nuclio"""
