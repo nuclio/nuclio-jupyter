@@ -154,7 +154,7 @@ def build_notebook(nb_file, no_embed=False, tag="", name=''):
         py_path = mktemp('.py')
         env[env_keys.code_target_path] = py_path
     env[env_keys.drop_nb_outputs] = 'y'
-    env[env_keys.function_name] = 'name'
+    env[env_keys.function_name] = name
 
     cmd = [
         executable, '-m', 'nbconvert',
