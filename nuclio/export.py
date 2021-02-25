@@ -108,20 +108,23 @@ class NuclioExporter(Exporter):
             config['metadata']['name'] = normalize_name(name)
         config['spec']['handler'] = handler_name()
         function_name = environ.get(env_keys.function_name)
-        raise Exception(f'function name: {function_name}')
 
         io = StringIO()
         print(header(), file=io)
 
+        named_magic = False
         for cell in filter(is_code_cell, nb['cells']):
             code = cell['source']
-            if has_ignore(code):
+            if has_ignore_named(function_name)(code):
+                named_magic = True
                 continue
 
-            if has_end(code):
+            if has_end_named(function_name)(code):
+                named_magic = True
                 break
 
-            if has_start(code):
+            if has_start_named(function_name)(code):
+                named_magic = True
                 # if we see indication of start, we ignore all previous cells
                 io = StringIO()
                 print(header(), file=io)
@@ -136,6 +139,34 @@ class NuclioExporter(Exporter):
                 continue
 
             self.handle_code_cell(lines, io, config)
+
+        if not named_magic:
+            io = StringIO()
+            print(header(), file=io)
+
+            for cell in filter(is_code_cell, nb['cells']):
+                code = cell['source']
+                if has_ignore(code):
+                    continue
+
+                if has_end(code):
+                    break
+
+                if has_start(code):
+                    # if we see indication of start, we ignore all previous cells
+                    io = StringIO()
+                    print(header(), file=io)
+
+                code = filter_comments(code)
+                if not code.strip():
+                    continue
+
+                lines = code.splitlines()
+                if cell_magic in code:
+                    self.handle_cell_magic(lines, io, config)
+                    continue
+
+                self.handle_code_cell(lines, io, config)
 
         process_env_files(env_files, config)
         py_code = io.getvalue()
