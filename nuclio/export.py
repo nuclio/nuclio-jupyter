@@ -44,9 +44,9 @@ is_comment = re.compile(r'\s*#.*').match
 # # nuclio: return
 is_return = re.compile(r'#\s*(nuclio|mlrun):\s*return').search
 # # nuclio: ignore
-has_ignore = re.compile(r'#\s*(nuclio|mlrun):\s*ignore[ ]*(?P<name>\S*)').search
-has_start = re.compile(r'#\s*(nuclio|mlrun):\s*start-code[ ]*(?P<name>\S*)').search
-has_end = re.compile(r'#\s*(nuclio|mlrun):\s*end-code[ ]*(?P<name>\S*)').search
+has_ignore = re.compile(r'#\s*(nuclio|mlrun):\s*ignore[ ]*(?P<name>\S*)?[\n\r]').search
+has_start = re.compile(r'#\s*(nuclio|mlrun):\s*start-code[ ]*(?P<name>\S*)?[\n\r]').search
+has_end = re.compile(r'#\s*(nuclio|mlrun):\s*end-code[ ]*(?P<name>\S*)?[\n\r]').search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 line_magic = '%nuclio'
@@ -111,7 +111,7 @@ class NuclioExporter(Exporter):
                 break
 
             match = has_start(code)
-            if match and match.group('name') in [function_name, '']:
+            if match and match.group('name') in [function_name, ""]:
                 # if we see indication of start, we ignore all previous cells
                 io = StringIO()
                 print(header(), file=io)
