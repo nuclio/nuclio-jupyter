@@ -103,15 +103,15 @@ class NuclioExporter(Exporter):
         for cell in filter(is_code_cell, nb['cells']):
             code = cell['source']
             match = has_ignore(code)
-            if match and match.group(name) in [function_name, ""]:
+            if match and match.group('name') in [function_name, ""]:
                 continue
 
             match = has_end(code)
-            if match and match.group(name) in [function_name, ""]:
+            if match and match.group('name') in [function_name, ""]:
                 break
 
             match = has_end(code)
-            if match and match.group(name) in [function_name, ""]:
+            if match and match.group('name') in [function_name, ""]:
                 # if we see indication of start, we ignore all previous cells
                 io = StringIO()
                 print(header(), file=io)
