@@ -111,8 +111,7 @@ class NuclioExporter(Exporter):
                 break
 
             match = has_start(code)
-            print(match)
-            if match and match.group('name') in [function_name, ""]:
+            if match and match.group('name') in [function_name, '']:
                 # if we see indication of start, we ignore all previous cells
                 io = StringIO()
                 print(header(), file=io)
