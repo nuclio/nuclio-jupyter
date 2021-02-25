@@ -145,7 +145,7 @@ def archive_path(archive, project, name, tag=''):
     return archive, url_target
 
 
-def build_notebook(nb_file, no_embed=False, tag="", name=''):
+def build_notebook(nb_file, no_embed=False, tag="", name=""):
     env = environ.copy()  # Pass argument to exporter via environment
     yaml_path = mktemp('.yaml')
     py_path = ''
