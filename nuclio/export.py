@@ -102,6 +102,9 @@ class NuclioExporter(Exporter):
             config['metadata']['name'] = normalize_name(name)
         config['spec']['handler'] = handler_name()
         function_name = environ.get(env_keys.function_name)
+        if not function_name:
+            # function name must differ from empty name
+            function_name = None
         seen_function_name = ""
         function_buffers = {
             function_name: {
@@ -130,12 +133,12 @@ class NuclioExporter(Exporter):
             match = has_end(code)
             if match:
                 curr_name = match.group('name')
-                if curr_name == "":
+                if curr_name in [function_name, ""]:
                     function_buffers[curr_name]['closed'] = True
-                elif curr_name == function_name:
-                    function_buffers[curr_name]['closed'] = True
-                    seen_function_name = curr_name
-                    break
+                    if curr_name == function_name:
+                        # if we see end with function name we can break
+                        seen_function_name = curr_name
+                        break
                 continue
 
             match = has_start(code)
@@ -144,7 +147,9 @@ class NuclioExporter(Exporter):
                 curr_name = match.group('name')
                 if curr_name in [function_name, ""]:
                     function_buffers[curr_name]['codes'] = []
-                    seen_function_name = seen_function_name or curr_name
+                    if curr_name == function_name:
+                        function_buffers[""]['closed'] = True
+                        seen_function_name = curr_name
 
             for function_buffer in function_buffers.values():
                 if not function_buffer['closed']:
