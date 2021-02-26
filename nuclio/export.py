@@ -119,7 +119,8 @@ class NuclioExporter(Exporter):
             match = has_ignore(code)
             if match:
                 curr_name = match.group('name')
-                if curr_name == "" and not function_buffers[function_name]['closed']:
+                if curr_name == "" \
+                        and not function_buffers[function_name]['closed']:
                     function_buffers[function_name]['codes'].append(code)
                 elif curr_name == function_name:
                     function_buffers[""]['closed'] = True
@@ -149,7 +150,8 @@ class NuclioExporter(Exporter):
                 if not function_buffer['closed']:
                     function_buffer['codes'].append(code)
 
-        io = self.write_codes(function_buffers[seen_function_name]['codes'], config)
+        io = self.write_codes(function_buffers[seen_function_name]['codes'],
+                              config)
         process_env_files(env_files, config)
         py_code = io.getvalue()
         handler_path = environ.get(env_keys.handler_path)
