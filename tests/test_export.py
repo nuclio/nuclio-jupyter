@@ -222,3 +222,187 @@ def test_expand_env():
     _, config = export_notebook(nb)
     cmds = config['spec']['build']['commands']
     assert environ['HOME'] in cmds[0], '${HOME} not expanded'
+
+
+def test_end_with_name():
+    cells = [
+        'a = 1',
+        'b = 2',
+        '# nuclio: end-code my-function\nc=3',
+        'd = 4'
+    ]
+    kw = {env_keys.function_name: 'my-function'}
+    with temp_env(kw):
+        nb = gen_nb(cells)
+        code, _ = export_notebook(nb)
+        for cell in cells[:2]:
+            assert cell in code, '{!r} in code'.format(cell)
+        for cell in cells[2:]:
+            cell = export.filter_comments(cell)
+            assert cell not in code, '{!r} not in code'.format(cell)
+
+
+def test_multiple_functions():
+    cells = [
+        'a = 1',
+        '# nuclio: start-code my-function',
+        'b = 2',
+        '# nuclio: end-code my-function',
+        'd = 4',
+        '# nuclio: start-code another-function',
+        'e = 2',
+        '# nuclio: end-code another-function',
+    ]
+    kw = {env_keys.function_name: 'my-function'}
+    with temp_env(kw):
+        nb = gen_nb(cells)
+        code, _ = export_notebook(nb)
+        assert cells[2] in code, '{!r} in code'.format(cells[2])
+        for cell in cells:
+            cell = export.filter_comments(cell)
+            if cell not in [cells[2], '']:
+                assert cell not in code, '{!r} not in code'.format(cell)
+
+    kw = {env_keys.function_name: 'another-function'}
+    with temp_env(kw):
+        nb = gen_nb(cells)
+        code, _ = export_notebook(nb)
+        assert cells[-2] in code, '{!r} in code'.format(cells[-2])
+        for cell in cells:
+            cell = export.filter_comments(cell)
+            if cell not in [cells[-2], '']:
+                assert cell not in code, '{!r} not in code'.format(cell)
+
+
+def test_multiple_starts():
+    cells = [
+        'a = 1',
+        '# nuclio: start-code my-function',
+        'b = 2',
+        '# nuclio: start-code my-function',
+        'd = 4',
+        'e = 2',
+        '# nuclio: end-code my-function',
+    ]
+    kw = {env_keys.function_name: 'my-function'}
+    with temp_env(kw):
+        nb = gen_nb(cells)
+        code, _ = export_notebook(nb)
+        for cell in cells[1:]:
+            cell = export.filter_comments(cell)
+            assert cell in code, '{!r} in code'.format(cell)
+        assert cells[0] not in code, '{!r} not in code'.format(cell)
+
+
+def test_multiple_ends():
+    cells = [
+        'a = 1',
+        'b = 2',
+        '# nuclio: end-code my-function',
+        'd = 4',
+        'e = 2',
+        '# nuclio: end-code my-function',
+    ]
+    kw = {env_keys.function_name: 'my-function'}
+    with temp_env(kw):
+        nb = gen_nb(cells)
+        code, _ = export_notebook(nb)
+        for cell in cells[:2]:
+            cell = export.filter_comments(cell)
+            assert cell in code, '{!r} in code'.format(cell)
+        for cell in cells[2:]:
+            assert cell not in code, '{!r} in code'.format(cell)
+
+
+def test_named_and_nameless():
+    cells = [
+        'a = 1',
+        'b = 2',
+        '# nuclio: end-code my-function',
+        '# nuclio: start-code',
+        'd = 4',
+        'e = 2',
+    ]
+    kw = {env_keys.function_name: 'my-function'}
+    with temp_env(kw):
+        nb = gen_nb(cells)
+        code, _ = export_notebook(nb)
+        for cell in cells[:2]:
+            cell = export.filter_comments(cell)
+            assert cell in code, '{!r} in code'.format(cell)
+        for cell in cells[2:]:
+            assert cell not in code, '{!r} in code'.format(cell)
+
+
+def test_nameless():
+    cells = [
+        'a = 1',
+        'b = 2',
+        '# nuclio: end-code my-function',
+        '# nuclio: start-code',
+        'd = 4',
+        'e = 2',
+    ]
+    nb = gen_nb(cells)
+    code, _ = export_notebook(nb)
+    for cell in cells[:2]:
+        assert cell not in code, '{!r} in code'.format(cell)
+    for cell in cells[2:]:
+        cell = export.filter_comments(cell)
+        assert cell in code, '{!r} in code'.format(cell)
+
+
+def test_overlap():
+    cells = [
+        '# nuclio: start-code',
+        'a = 1',
+        'b = 2',
+        '# nuclio: end-code my-function',
+        'd = 4',
+        'e = 2',
+    ]
+    nb = gen_nb(cells)
+    code, _ = export_notebook(nb)
+    for cell in cells:
+        cell = export.filter_comments(cell)
+        assert cell in code, '{!r} in code'.format(cell)
+
+    kw = {env_keys.function_name: 'my-function'}
+    with temp_env(kw):
+        nb = gen_nb(cells)
+        code, _ = export_notebook(nb)
+        for cell in cells[:3]:
+            cell = export.filter_comments(cell)
+            assert cell in code, '{!r} in code'.format(cell)
+        for cell in cells[3:]:
+            assert cell not in code, '{!r} in code'.format(cell)
+
+
+def test_overlap2():
+    cells = [
+        'a = 1',
+        '# nuclio: start-code my-function',
+        'b = 2',
+        '# nuclio: start-code another-function',
+        'd = 4',
+        'e = 2',
+        '# nuclio: end-code my-function',
+    ]
+    kw = {env_keys.function_name: 'my-function'}
+    with temp_env(kw):
+        nb = gen_nb(cells)
+        code, _ = export_notebook(nb)
+        for cell in cells[1:]:
+            cell = export.filter_comments(cell)
+            assert cell in code, '{!r} in code'.format(cell)
+        assert cells[0] not in code, '{!r} not in code'.format(cell)
+
+    kw = {env_keys.function_name: 'another-function'}
+    with temp_env(kw):
+        nb = gen_nb(cells)
+        code, _ = export_notebook(nb)
+        for cell in cells[3:]:
+            cell = export.filter_comments(cell)
+            assert cell in code, '{!r} in code'.format(cell)
+        for cell in cells[:3]:
+            assert cell not in code, '{!r} in code'.format(cell)

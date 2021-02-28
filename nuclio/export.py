@@ -58,7 +58,7 @@ cell_magic = '%' + line_magic
 closed = 'closed'
 started = 'started'
 code_cells = 'code_cells'
-empty_string = ''
+nameless_annotation = ''
 
 handlers = []
 
@@ -107,14 +107,14 @@ class NuclioExporter(Exporter):
         if not function_name:
             # function name must differ from empty string
             function_name = None
-        seen_function_name = empty_string
+        seen_function_name = nameless_annotation
         function_buffers = {
             function_name: {
                 closed: False,
                 started: False,
                 code_cells: [],
             },
-            empty_string: {
+            nameless_annotation: {
                 closed: False,
                 started: False,
                 code_cells: [],
@@ -129,7 +129,7 @@ class NuclioExporter(Exporter):
             match = has_end(code)
             if match:
                 current_name = match.group('name')
-                if current_name in [function_name, empty_string]:
+                if current_name in [function_name, nameless_annotation]:
                     # found code that belongs to the current function
                     function_buffers[current_name][started] = True
                     function_buffers[current_name][closed] = True
@@ -138,7 +138,7 @@ class NuclioExporter(Exporter):
             match = has_start(code)
             if match:
                 current_name = match.group('name')
-                if current_name in [function_name, empty_string]:
+                if current_name in [function_name, nameless_annotation]:
                     if not function_buffers[current_name][started]:
                         # discard code that doesn't belong to the function
                         function_buffers[current_name][code_cells] = []
