@@ -56,6 +56,7 @@ indent_prefix = '    '
 line_magic = '%nuclio'
 cell_magic = '%' + line_magic
 closed = 'closed'
+started = 'started'
 code_cells = 'code_cells'
 empty_string = ''
 
@@ -110,10 +111,12 @@ class NuclioExporter(Exporter):
         function_buffers = {
             function_name: {
                 closed: False,
+                started: False,
                 code_cells: [],
             },
             empty_string: {
                 closed: False,
+                started: False,
                 code_cells: [],
             },
         }
@@ -127,22 +130,21 @@ class NuclioExporter(Exporter):
             if match:
                 current_name = match.group('name')
                 if current_name in [function_name, empty_string]:
+                    # found code that belongs to the current function
+                    function_buffers[current_name][started] = True
                     function_buffers[current_name][closed] = True
-                    if current_name == function_name:
-                        # if we see end with function name we can break
-                        seen_function_name = current_name
-                        break
-                continue
+                    seen_function_name = seen_function_name or current_name
 
             match = has_start(code)
             if match:
-                # if we see indication of start, we ignore all previous cells
                 current_name = match.group('name')
                 if current_name in [function_name, empty_string]:
-                    function_buffers[current_name][code_cells] = []
-                    if current_name == function_name:
-                        function_buffers[empty_string][closed] = True
-                        seen_function_name = current_name
+                    if not function_buffers[current_name][started]:
+                        # discard code that doesn't belong to the function
+                        function_buffers[current_name][code_cells] = []
+                    function_buffers[current_name][started] = True
+                    function_buffers[current_name][closed] = False
+                    seen_function_name = seen_function_name or current_name
 
             for function_buffer in function_buffers.values():
                 if not function_buffer[closed]:
