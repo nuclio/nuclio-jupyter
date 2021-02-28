@@ -44,19 +44,20 @@ is_comment = re.compile(r'\s*#.*').match
 # # nuclio: return
 is_return = re.compile(r'#\s*(nuclio|mlrun):\s*return').search
 # # nuclio: ignore
-has_ignore = re.compile(
-    r'#\s*(nuclio|mlrun):\s*ignore[ ]*(?P<name>\S*)([\n\r])?'
-).search
+has_ignore = re.compile(r'#\s*(nuclio|mlrun):\s*ignore').search
 has_start = re.compile(
-    r'#\s*(nuclio|mlrun):\s*start-code[ ]*(?P<name>\S*)([\n\r])?'
+    r'#\s*(nuclio|mlrun):\s*start-code[ ]*(?P<name>\S*)$'
 ).search
 has_end = re.compile(
-    r'#\s*(nuclio|mlrun):\s*end-code[ ]*(?P<name>\S*)([\n\r])?'
+    r'#\s*(nuclio|mlrun):\s*end-code[ ]*(?P<name>\S*)$'
 ).search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 line_magic = '%nuclio'
 cell_magic = '%' + line_magic
+closed = 'closed'
+code_cells = 'code_cells'
+empty_string = ''
 
 handlers = []
 
@@ -103,60 +104,52 @@ class NuclioExporter(Exporter):
         config['spec']['handler'] = handler_name()
         function_name = environ.get(env_keys.function_name)
         if not function_name:
-            # function name must differ from empty name
+            # function name must differ from empty string
             function_name = None
-        seen_function_name = ""
+        seen_function_name = empty_string
         function_buffers = {
             function_name: {
-                'closed': False,
-                'codes': [],
+                closed: False,
+                code_cells: [],
             },
-            "": {
-                'closed': False,
-                'codes': [],
+            empty_string: {
+                closed: False,
+                code_cells: [],
             },
         }
 
         for cell in filter(is_code_cell, nb['cells']):
             code = cell['source']
-            match = has_ignore(code)
-            if match:
-                curr_name = match.group('name')
-                if curr_name == "" \
-                        and not function_buffers[function_name]['closed']:
-                    function_buffers[function_name]['codes'].append(code)
-                elif curr_name == function_name:
-                    function_buffers[""]['closed'] = True
-                    seen_function_name = curr_name
+            if has_ignore(code):
                 continue
 
             match = has_end(code)
             if match:
-                curr_name = match.group('name')
-                if curr_name in [function_name, ""]:
-                    function_buffers[curr_name]['closed'] = True
-                    if curr_name == function_name:
+                current_name = match.group('name')
+                if current_name in [function_name, empty_string]:
+                    function_buffers[current_name][closed] = True
+                    if current_name == function_name:
                         # if we see end with function name we can break
-                        seen_function_name = curr_name
+                        seen_function_name = current_name
                         break
                 continue
 
             match = has_start(code)
             if match:
                 # if we see indication of start, we ignore all previous cells
-                curr_name = match.group('name')
-                if curr_name in [function_name, ""]:
-                    function_buffers[curr_name]['codes'] = []
-                    if curr_name == function_name:
-                        function_buffers[""]['closed'] = True
-                        seen_function_name = curr_name
+                current_name = match.group('name')
+                if current_name in [function_name, empty_string]:
+                    function_buffers[current_name][code_cells] = []
+                    if current_name == function_name:
+                        function_buffers[empty_string][closed] = True
+                        seen_function_name = current_name
 
             for function_buffer in function_buffers.values():
-                if not function_buffer['closed']:
-                    function_buffer['codes'].append(code)
+                if not function_buffer[closed]:
+                    function_buffer[code_cells].append(code)
 
-        io = self.write_codes(function_buffers[seen_function_name]['codes'],
-                              config)
+        io = self.write_code_cells(function_buffers[seen_function_name][code_cells],
+                                   config)
         process_env_files(env_files, config)
         py_code = io.getvalue()
         handler_path = environ.get(env_keys.handler_path)
@@ -193,7 +186,7 @@ class NuclioExporter(Exporter):
 
         return config, resources
 
-    def write_codes(self, codes, config):
+    def write_code_cells(self, codes, config):
         io = StringIO()
         print(header(), file=io)
         for code in codes:
