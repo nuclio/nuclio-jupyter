@@ -148,8 +148,9 @@ class NuclioExporter(Exporter):
                 if not function_buffer[closed]:
                     function_buffer[code_cells].append(code)
 
-        io = self.write_code_cells(function_buffers[seen_function_name][code_cells],
-                                   config)
+        io = self.write_code_cells(
+            function_buffers[seen_function_name][code_cells],
+            config)
         process_env_files(env_files, config)
         py_code = io.getvalue()
         handler_path = environ.get(env_keys.handler_path)
