@@ -130,6 +130,10 @@ class NuclioExporter(Exporter):
             if match:
                 current_name = match.group('name')
                 if current_name in [function_name, nameless_annotation]:
+                    if function_buffers[current_name][closed]:
+                        raise MagicError('Found multiple end-code annotations'
+                                         + ' without start-code annotation'
+                                         + ' in between')
                     # found code that belongs to the current function
                     function_buffers[current_name][started] = True
                     function_buffers[current_name][closed] = True
@@ -142,6 +146,11 @@ class NuclioExporter(Exporter):
                     if not function_buffers[current_name][started]:
                         # discard code that doesn't belong to the function
                         function_buffers[current_name][code_cells] = []
+                    if function_buffers[current_name][started]\
+                            and not function_buffers[current_name][closed]:
+                        raise MagicError('Found multiple start-code '
+                                         + 'annotations without end-code '
+                                         + 'annotation in between')
                     function_buffers[current_name][started] = True
                     function_buffers[current_name][closed] = False
                     seen_function_name = seen_function_name or current_name
