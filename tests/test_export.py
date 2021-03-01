@@ -210,6 +210,16 @@ def test_start():
     validate_code(cells[2:], cells[:2], cells)
 
 
+def test_end():
+    cells = [
+        'a = 1',
+        'b = 2',
+        '# nuclio: end-code\nc=3',
+        'd = 4'
+    ]
+    validate_code(cells[:2], cells[2:], cells)
+
+
 def test_expand_env():
     cell = '%nuclio cmd ls ${HOME}'
     nb = gen_nb([cell])
@@ -251,6 +261,58 @@ def test_multiple_functions():
                                      cells[:-2] + cells[-1:],
                                      cells,
                                      'another-function')
+
+
+def test_named_and_nameless_complete():
+    cells = [
+        'a = 1',
+        '# nuclio: start-code',
+        'b = 2',
+        '# nuclio: end-code',
+        'd = 4',
+        '# nuclio: start-code my-function',
+        'e = 2',
+        '# nuclio: end-code my-function',
+    ]
+    validate_code([cells[2]], cells[:1] + cells[3:], cells)
+
+    validate_code_with_function_name([cells[-2]],
+                                     cells[:-2] + cells[-1:],
+                                     cells,
+                                     'my-function')
+
+
+def test_nameless_multi_sections():
+    cells = [
+        'a = 1',
+        '# nuclio: start-code',
+        'b = 2',
+        '# nuclio: end-code',
+        'd = 4',
+        '# nuclio: start-code',
+        'e = 2',
+        '# nuclio: end-code',
+    ]
+    validate_code([cells[2], cells[6]],
+                  cells[:1] + cells[3:5] + cells[7:],
+                  cells)
+
+
+def test_named_multi_sections():
+    cells = [
+        'a = 1',
+        '# nuclio: start-code my-function',
+        'b = 2',
+        '# nuclio: end-code my-function',
+        'd = 4',
+        '# nuclio: start-code my-function',
+        'e = 2',
+        '# nuclio: end-code my-function',
+    ]
+    validate_code_with_function_name([cells[2], cells[6]],
+                                     cells[:1] + cells[3:5] + cells[7:],
+                                     cells,
+                                     'my-function')
 
 
 def test_multiple_starts():
@@ -320,7 +382,7 @@ def test_overlap():
                                      'my-function')
 
 
-def test_overlap_named_functions():
+def test_start_code_overlap_named():
     cells = [
         'a = 1',
         '# nuclio: start-code my-function',
@@ -336,6 +398,26 @@ def test_overlap_named_functions():
                                      'my-function')
     validate_code_with_function_name(cells[3:],
                                      cells[:3],
+                                     cells,
+                                     'another-function')
+
+
+def test_end_code_overlap_named():
+    cells = [
+        'a = 1',
+        '# nuclio: start-code my-function',
+        'b = 2',
+        '# nuclio: end-code another-function',
+        'd = 4',
+        'e = 2',
+        '# nuclio: end-code my-function',
+    ]
+    validate_code_with_function_name(cells[1:],
+                                     [cells[0]],
+                                     cells,
+                                     'my-function')
+    validate_code_with_function_name(cells[:3],
+                                     cells[3:],
                                      cells,
                                      'another-function')
 
@@ -358,20 +440,20 @@ def test_overlap_end_code():
     validate_code(cells[:4], cells[4:], cells)
 
 
-def validate_code(cells_in, cells_out, cells):
+def validate_code(expected_cells, expected_excluded_cells, cells):
     nb = gen_nb(cells)
     code, _ = export_notebook(nb)
-    for cell in cells_in:
+    for cell in expected_cells:
         cell = export.filter_comments(cell)
         assert cell in code, '{!r} in code'.format(cell)
-    for cell in cells_out:
+    for cell in expected_excluded_cells:
         assert cell not in code, '{!r} in code'.format(cell)
 
 
-def validate_code_with_function_name(cells_in,
-                                     cells_out,
+def validate_code_with_function_name(expected_cells,
+                                     expected_excluded_cells,
                                      cells,
                                      function_name):
     kw = {env_keys.function_name: function_name}
     with temp_env(kw):
-        validate_code(cells_in, cells_out, cells)
+        validate_code(expected_cells, expected_excluded_cells, cells)
