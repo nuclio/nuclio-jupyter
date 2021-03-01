@@ -269,15 +269,16 @@ def test_named_and_nameless_complete():
         '# nuclio: start-code',
         'b = 2',
         '# nuclio: end-code',
-        'd = 4',
+        'c = 3',
         '# nuclio: start-code my-function',
-        'e = 2',
+        'd = 4',
         '# nuclio: end-code my-function',
+        'e = 2',
     ]
     validate_code([cells[2]], cells[:1] + cells[3:], cells)
 
-    validate_code_with_function_name([cells[-2]],
-                                     cells[:-2] + cells[-1:],
+    validate_code_with_function_name([cells[-3]],
+                                     cells[:-3] + cells[-1:],
                                      cells,
                                      'my-function')
 
@@ -288,10 +289,11 @@ def test_nameless_multi_sections():
         '# nuclio: start-code',
         'b = 2',
         '# nuclio: end-code',
-        'd = 4',
+        'c = 3',
         '# nuclio: start-code',
-        'e = 2',
+        'd = 4',
         '# nuclio: end-code',
+        'e = 2',
     ]
     validate_code([cells[2], cells[6]],
                   cells[:1] + cells[3:5] + cells[7:],
@@ -304,10 +306,11 @@ def test_named_multi_sections():
         '# nuclio: start-code my-function',
         'b = 2',
         '# nuclio: end-code my-function',
-        'd = 4',
+        'c = 3',
         '# nuclio: start-code my-function',
-        'e = 2',
+        'd = 4',
         '# nuclio: end-code my-function',
+        'e = 2',
     ]
     validate_code_with_function_name([cells[2], cells[6]],
                                      cells[:1] + cells[3:5] + cells[7:],
