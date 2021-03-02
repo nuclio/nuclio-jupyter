@@ -55,10 +55,6 @@ handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 line_magic = '%nuclio'
 cell_magic = '%' + line_magic
-closed = 'closed'
-started = 'started'
-code_cells = 'code_cells'
-nameless_annotation = ''
 
 handlers = []
 
@@ -103,23 +99,30 @@ class NuclioExporter(Exporter):
         if name:
             config['metadata']['name'] = normalize_name(name)
         config['spec']['handler'] = handler_name()
-        function_name = environ.get(env_keys.function_name)
-        if not function_name:
-            # function name must differ from empty string
-            function_name = None
+
+        ended = 'ended'
+        started = 'started'
+        code_cells = 'code_cells'
+        nameless_annotation = ''
+        target_function_name = environ.get(env_keys.function_name)
         seen_function_name = nameless_annotation
+
         function_buffers = {
-            function_name: {
-                closed: False,
-                started: False,
-                code_cells: [],
-            },
             nameless_annotation: {
-                closed: False,
+                ended: False,
                 started: False,
                 code_cells: [],
             },
         }
+        if target_function_name:
+            function_buffers[target_function_name] = {
+                ended: False,
+                started: False,
+                code_cells: [],
+            }
+        else:
+            # to not get accidental KeyError
+            target_function_name = nameless_annotation
 
         for cell in filter(is_code_cell, nb['cells']):
             code = cell['source']
@@ -129,34 +132,32 @@ class NuclioExporter(Exporter):
             match = has_end(code)
             if match:
                 current_name = match.group('name')
-                if current_name in [function_name, nameless_annotation]:
-                    if function_buffers[current_name][closed]:
-                        raise MagicError('Found multiple end-code annotations'
-                                         + ' without start-code annotation'
-                                         + ' in between')
+                if current_name in [target_function_name, nameless_annotation]:
+                    if function_buffers[current_name][ended]:
+                        raise MagicError('Found multiple consecutive '
+                                         + '"end-code" annotations')
                     # found code that belongs to the current function
                     function_buffers[current_name][started] = True
-                    function_buffers[current_name][closed] = True
+                    function_buffers[current_name][ended] = True
                     seen_function_name = seen_function_name or current_name
 
             match = has_start(code)
             if match:
                 current_name = match.group('name')
-                if current_name in [function_name, nameless_annotation]:
+                if current_name in [target_function_name, nameless_annotation]:
                     if not function_buffers[current_name][started]:
                         # discard code that doesn't belong to the function
                         function_buffers[current_name][code_cells] = []
                     if function_buffers[current_name][started]\
-                            and not function_buffers[current_name][closed]:
-                        raise MagicError('Found multiple start-code '
-                                         + 'annotations without end-code '
-                                         + 'annotation in between')
+                            and not function_buffers[current_name][ended]:
+                        raise MagicError('Found multiple consecutive '
+                                         + '"start-code" annotations')
                     function_buffers[current_name][started] = True
-                    function_buffers[current_name][closed] = False
+                    function_buffers[current_name][ended] = False
                     seen_function_name = seen_function_name or current_name
 
             for function_buffer in function_buffers.values():
-                if not function_buffer[closed]:
+                if not function_buffer[ended]:
                     function_buffer[code_cells].append(code)
 
         io = self.write_code_cells(

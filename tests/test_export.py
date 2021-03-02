@@ -448,9 +448,9 @@ def validate_code(expected_cells, expected_excluded_cells, cells):
     code, _ = export_notebook(nb)
     for cell in expected_cells:
         cell = export.filter_comments(cell)
-        assert cell in code, '{!r} in code'.format(cell)
+        assert cell in code, '{0!r} not in code'.format(cell)
     for cell in expected_excluded_cells:
-        assert cell not in code, '{!r} in code'.format(cell)
+        assert cell not in code, '{0!r} unexpectedly in code'.format(cell)
 
 
 def validate_code_with_function_name(expected_cells,
