@@ -46,10 +46,10 @@ is_return = re.compile(r'#[ \t]*(nuclio|mlrun):[ \t]*return').search
 # # nuclio: ignore
 has_ignore = re.compile(r'#[ \t]*(nuclio|mlrun):[ \t]*ignore').search
 has_start = re.compile(
-    r'#[ \t]*(nuclio|mlrun):[ \t]*start-code[ \t]*(?P<name>([\S]*))?$'
+    r'#[ \t]*(nuclio|mlrun):[ \t]*start-code[ \t]*(?P<name>([\S]*))?'
 ).search
 has_end = re.compile(
-    r'#[ \t]*(nuclio|mlrun):[ \t]*end-code[ \t]*(?P<name>([\S]*))?$'
+    r'#[ \t]*(nuclio|mlrun):[ \t]*end-code[ \t]*(?P<name>([\S]*))?'
 ).search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
