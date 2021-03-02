@@ -44,12 +44,12 @@ is_comment = re.compile(r'\s*#.*').match
 # # nuclio: return
 is_return = re.compile(r'#\s*(nuclio|mlrun):\s*return').search
 # # nuclio: ignore
-has_ignore = re.compile(r'#\s*(nuclio|mlrun):\s*ignore').search
+has_ignore = re.compile(r'#[ \t]*(nuclio|mlrun):[ \t]*ignore').search
 has_start = re.compile(
-    r'#\s*(nuclio|mlrun):\s*start-code[ ]*(?P<name>\S*)($)?'
+    r'#[ \t]*(nuclio|mlrun):[ \t]*start-code[ ]*(?P<name>([\S]*))'
 ).search
 has_end = re.compile(
-    r'#\s*(nuclio|mlrun):\s*end-code[ ]*(?P<name>\S*)($)?'
+    r'#[ \t]*(nuclio|mlrun):[ \t]*end-code[ ]*(?P<name>([\S]*))'
 ).search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
