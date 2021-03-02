@@ -121,7 +121,7 @@ class NuclioExporter(Exporter):
                 code_cells: [],
             }
         else:
-            # to not get accidental KeyError
+            # to avoid accidental KeyError
             target_function_name = nameless_annotation
 
         for cell in filter(is_code_cell, nb['cells']):
