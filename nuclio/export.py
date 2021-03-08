@@ -31,7 +31,7 @@ from .utils import (env_keys, iter_env_lines, parse_config_line,
 from .archive import parse_archive_line
 from .config import (new_config, update_in, get_in, set_env, set_commands,
                      Volume, meta_keys)
-from .import magic as magic_module
+from . import magic as magic_module
 
 here = path.dirname(path.abspath(__file__))
 
@@ -40,13 +40,17 @@ magic_handlers = {}  # name -> function
 env_files = set()
 archive_settings = {}
 
-is_comment = re.compile(r'\s*#.*').match
+is_comment = re.compile(r'[ \t]*#.*').match
 # # nuclio: return
-is_return = re.compile(r'#\s*(nuclio|mlrun):\s*return').search
+is_return = re.compile(r'#[ \t]*(nuclio|mlrun):[ \t]*return').search
 # # nuclio: ignore
-has_ignore = re.compile(r'#\s*(nuclio|mlrun):\s*ignore').search
-has_start = re.compile(r'#\s*(nuclio|mlrun):\s*start-code').search
-has_end = re.compile(r'#\s*(nuclio|mlrun):\s*end-code').search
+has_ignore = re.compile(r'#[ \t]*(nuclio|mlrun):[ \t]*ignore').search
+has_start = re.compile(
+    r'#[ \t]*(nuclio|mlrun):[ \t]*start-code[ \t]*(?P<name>([\S]*))?'
+).search
+has_end = re.compile(
+    r'#[ \t]*(nuclio|mlrun):[ \t]*end-code[ \t]*(?P<name>([\S]*))?'
+).search
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 line_magic = '%nuclio'
@@ -96,33 +100,69 @@ class NuclioExporter(Exporter):
             config['metadata']['name'] = normalize_name(name)
         config['spec']['handler'] = handler_name()
 
-        io = StringIO()
-        print(header(), file=io)
+        ended = 'ended'
+        started = 'started'
+        code_cells = 'code_cells'
+        nameless_annotation = ''
+        target_function_name = environ.get(env_keys.function_name)
+        seen_function_name = nameless_annotation
+
+        function_buffers = {
+            nameless_annotation: {
+                ended: False,
+                started: False,
+                code_cells: [],
+            },
+        }
+        if target_function_name:
+            function_buffers[target_function_name] = {
+                ended: False,
+                started: False,
+                code_cells: [],
+            }
+        else:
+            # to avoid accidental KeyError
+            target_function_name = nameless_annotation
 
         for cell in filter(is_code_cell, nb['cells']):
             code = cell['source']
             if has_ignore(code):
                 continue
 
-            if has_end(code):
-                break
+            match = has_end(code)
+            if match:
+                current_name = match.group('name')
+                if current_name in [target_function_name, nameless_annotation]:
+                    if function_buffers[current_name][ended]:
+                        raise MagicError('Found multiple consecutive '
+                                         + '"end-code" annotations')
+                    # found code that belongs to the current function
+                    function_buffers[current_name][started] = True
+                    function_buffers[current_name][ended] = True
+                    seen_function_name = seen_function_name or current_name
 
-            if has_start(code):
-                # if we see indication of start, we ignore all previous cells
-                io = StringIO()
-                print(header(), file=io)
+            match = has_start(code)
+            if match:
+                current_name = match.group('name')
+                if current_name in [target_function_name, nameless_annotation]:
+                    if not function_buffers[current_name][started]:
+                        # discard code that doesn't belong to the function
+                        function_buffers[current_name][code_cells] = []
+                    if function_buffers[current_name][started]\
+                            and not function_buffers[current_name][ended]:
+                        raise MagicError('Found multiple consecutive '
+                                         + '"start-code" annotations')
+                    function_buffers[current_name][started] = True
+                    function_buffers[current_name][ended] = False
+                    seen_function_name = seen_function_name or current_name
 
-            code = filter_comments(code)
-            if not code.strip():
-                continue
+            for function_buffer in function_buffers.values():
+                if not function_buffer[ended]:
+                    function_buffer[code_cells].append(code)
 
-            lines = code.splitlines()
-            if cell_magic in code:
-                self.handle_cell_magic(lines, io, config)
-                continue
-
-            self.handle_code_cell(lines, io, config)
-
+        io = self.write_code_cells(
+            function_buffers[seen_function_name][code_cells],
+            config)
         process_env_files(env_files, config)
         py_code = io.getvalue()
         handler_path = environ.get(env_keys.handler_path)
@@ -158,6 +198,22 @@ class NuclioExporter(Exporter):
         resources['output_extension'] = '.yaml'
 
         return config, resources
+
+    def write_code_cells(self, codes, config):
+        io = StringIO()
+        print(header(), file=io)
+        for code in codes:
+            code = filter_comments(code)
+            if not code.strip():
+                continue
+
+            lines = code.splitlines()
+            if cell_magic in code:
+                self.handle_cell_magic(lines, io, config)
+                continue
+
+            self.handle_code_cell(lines, io, config)
+        return io
 
     def find_cell_magic(self, lines):
         """Return index of first line that has %%nuclio"""
@@ -348,7 +404,7 @@ def handler_code(name, code):
             continue
 
         if 'return' not in line:
-            lines[len(lines)-i-1] = add_return(line)
+            lines[len(lines) - i - 1] = add_return(line)
         break
 
     return '\n'.join(lines)

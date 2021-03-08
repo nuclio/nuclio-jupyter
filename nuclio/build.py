@@ -52,7 +52,7 @@ def build_file(filename='', name='', handler='', archive=False, project='',
             url2repo(filename).download(tmpfile)
             filename = tmpfile
 
-        config, code = build_notebook(filename, dont_embed, tag)
+        config, code = build_notebook(filename, dont_embed, tag, name)
         nb_files = config['metadata']['annotations'].get(meta_keys.extra_files)
         ext = '.py'
         if nb_files:
@@ -145,7 +145,7 @@ def archive_path(archive, project, name, tag=''):
     return archive, url_target
 
 
-def build_notebook(nb_file, no_embed=False, tag=""):
+def build_notebook(nb_file, no_embed=False, tag="", name=""):
     env = environ.copy()  # Pass argument to exporter via environment
     yaml_path = mktemp('.yaml')
     py_path = ''
@@ -154,6 +154,7 @@ def build_notebook(nb_file, no_embed=False, tag=""):
         py_path = mktemp('.py')
         env[env_keys.code_target_path] = py_path
     env[env_keys.drop_nb_outputs] = 'y'
+    env[env_keys.function_name] = name
 
     cmd = [
         executable, '-m', 'nbconvert',

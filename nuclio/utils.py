@@ -54,6 +54,7 @@ class env_keys:
     code_target_path = 'NUCLIO_CODE_PATH'
     env_files = 'NUCLIO_ENV_FILES'
     default_archive = 'NUCLIO_ARCHIVE_PATH'
+    function_name = 'NUCLIO_FUNCTION_NAME'
 
 
 def list2dict(lines: list):
