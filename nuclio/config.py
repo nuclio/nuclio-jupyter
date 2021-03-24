@@ -151,6 +151,11 @@ class Volume:
                 'name': self.name,
                 'persistentVolumeClaim': {'claimName': self.remote},
             }
+        elif self.type == 'host':
+            vol = {
+                'name': self.name,
+                'hostPath': {'path': self.remote},
+            }
         elif self.type == 'secret':
             vol = {
                 'name': self.name,
