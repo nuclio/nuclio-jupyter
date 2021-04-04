@@ -443,11 +443,82 @@ def test_overlap_end_code():
     validate_code(cells[:4], cells[4:], cells)
 
 
-def test_handle_cell_magic_before_start():
+def test_handle_line_magic_before_start():
     cells = [
         'a = 1',
         'b = 2',
         '%nuclio cmd ls ${HOME}',
+        '# nuclio: start-code\nc=3',
+        'd = 4'
+    ]
+    nb = gen_nb(cells)
+    _, config = export_notebook(nb)
+    cmds = config['spec']['build']['commands']
+    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
+
+
+def test_handle_line_magic_after_start():
+    cells = [
+        'a = 1',
+        'b = 2',
+        '# nuclio: start-code\nc=3',
+        '%nuclio cmd ls ${HOME}',
+        'd = 4'
+    ]
+    nb = gen_nb(cells)
+    _, config = export_notebook(nb)
+    cmds = config['spec']['build']['commands']
+    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
+
+
+def test_handle_line_magic_after_end():
+    cells = [
+        'a = 1',
+        'b = 2',
+        '# nuclio: end-code\nc=3',
+        '%nuclio cmd ls ${HOME}',
+        'd = 4'
+    ]
+    nb = gen_nb(cells)
+    _, config = export_notebook(nb)
+    cmds = config['spec']['build']['commands']
+    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
+
+
+def test_handle_line_magic_before_end():
+    cells = [
+        'a = 1',
+        'b = 2',
+        '%nuclio cmd ls ${HOME}',
+        '# nuclio: end-code\nc=3',
+        'd = 4'
+    ]
+    nb = gen_nb(cells)
+    _, config = export_notebook(nb)
+    cmds = config['spec']['build']['commands']
+    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
+
+
+def test_handle_line_magic_with_code():
+    cells = [
+        'a = 1',
+        'b = 2',
+        '%nuclio cmd ls ${HOME}\nc=3',
+        '# nuclio: end-code',
+        'd = 4'
+    ]
+    nb = gen_nb(cells)
+    _, config = export_notebook(nb)
+    cmds = config['spec']['build']['commands']
+    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
+    validate_code(cells[:2]+['c=3'], cells[3:], cells)
+
+
+def test_handle_cell_magic_before_start():
+    cells = [
+        'a = 1',
+        'b = 2',
+        '%%nuclio cmd ls ${HOME}',
         '# nuclio: start-code\nc=3',
         'd = 4'
     ]
@@ -461,8 +532,8 @@ def test_handle_cell_magic_after_start():
     cells = [
         'a = 1',
         'b = 2',
-        '# nuclio: start-code\nc=3',
-        '%nuclio cmd ls ${HOME}',
+        '# nuclio: start-code',
+        '%%nuclio cmd ls ${HOME}',
         'd = 4'
     ]
     nb = gen_nb(cells)
@@ -475,8 +546,8 @@ def test_handle_cell_magic_after_end():
     cells = [
         'a = 1',
         'b = 2',
-        '# nuclio: end-code\nc=3',
-        '%nuclio cmd ls ${HOME}',
+        '# nuclio: end-code',
+        '%%nuclio cmd ls ${HOME}',
         'd = 4'
     ]
     nb = gen_nb(cells)
@@ -489,8 +560,8 @@ def test_handle_cell_magic_before_end():
     cells = [
         'a = 1',
         'b = 2',
-        '%nuclio cmd ls ${HOME}',
-        '# nuclio: end-code\nc=3',
+        '%%nuclio cmd ls ${HOME}',
+        '# nuclio: end-code',
         'd = 4'
     ]
     nb = gen_nb(cells)
