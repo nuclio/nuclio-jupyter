@@ -262,7 +262,7 @@ class NuclioExporter(Exporter):
         if code:
             for function_buffer in function_buffers.values():
                 if not function_buffer[ended]:
-                    function_buffer[code_cells].append(ipython2python(code))
+                    function_buffer[code_cells].append(code)
 
     def handle_code_cell(self, lines, io):
         buf = []
@@ -304,7 +304,7 @@ class NuclioExporter(Exporter):
                 for function_buffer in function_buffers.values():
                     if not function_buffer[ended]:
                         function_buffer[code_cells].\
-                            append(ipython2python('\n'.join(buf)))
+                            append('\n'.join(buf))
                 buf = []
 
             name, args = parse_magic_line(line)
@@ -318,13 +318,13 @@ class NuclioExporter(Exporter):
             if out:
                 for function_buffer in function_buffers.values():
                     if not function_buffer[ended]:
-                        function_buffer[code_cells].append(ipython2python(out))
+                        function_buffer[code_cells].append(out)
 
         if buf:
             for function_buffer in function_buffers.values():
                 if not function_buffer[ended]:
                     function_buffer[code_cells].\
-                        append(ipython2python('\n'.join(buf)))
+                        append('\n'.join(buf))
 
 
 def header():
