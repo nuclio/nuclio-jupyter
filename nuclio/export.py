@@ -255,7 +255,7 @@ class NuclioExporter(Exporter):
             if line_magic in line:
                 continue
 
-            # ignore commands (!) or any magic commands (other than %nuclio)
+            # ignore commands or any magic commands (other than %nuclio)
             if line.startswith('!') or line.startswith('%'):
                 continue
 
@@ -271,7 +271,7 @@ class NuclioExporter(Exporter):
                 continue
 
             if line_magic not in line:
-                # ignore commands (!) or any magic commands (other than %nuclio)
+                # ignore commands or any magic commands (other than %nuclio)
                 if not (line.startswith('!') or line.startswith('%')):
                     buf.append(line)
                 continue
