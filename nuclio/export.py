@@ -156,6 +156,15 @@ class NuclioExporter(Exporter):
                     function_buffers[current_name][ended] = False
                     seen_function_name = seen_function_name or current_name
 
+            lines = code.splitlines()
+            if cell_magic in code:
+                self.handle_cell_magic(config, lines, function_buffers, ended, code_cells)
+                continue
+
+            if line_magic in code:
+                self.handle_line_magic(config, lines, function_buffers, ended, code_cells)
+                continue
+
             for function_buffer in function_buffers.values():
                 if not function_buffer[ended]:
                     function_buffer[code_cells].append(code)
@@ -208,11 +217,7 @@ class NuclioExporter(Exporter):
                 continue
 
             lines = code.splitlines()
-            if cell_magic in code:
-                self.handle_cell_magic(lines, io, config)
-                continue
-
-            self.handle_code_cell(lines, io, config)
+            self.handle_code_cell(lines, io)
         return io
 
     def find_cell_magic(self, lines):
@@ -222,7 +227,7 @@ class NuclioExporter(Exporter):
                 return i
         return -1
 
-    def handle_cell_magic(self, lines, io, config):
+    def handle_cell_magic(self, config, lines, function_buffers, ended, code_cells):
         i = self.find_cell_magic(lines)
         if i == -1:
             raise MagicError('cannot find {}'.format(cell_magic))
@@ -242,9 +247,11 @@ class NuclioExporter(Exporter):
             code = handler(magic, config)
 
         if code:
-            print(ipython2python(code), file=io)
+            for function_buffer in function_buffers.values():
+                if not function_buffer[ended]:
+                    function_buffer[code_cells].append(ipython2python(code))
 
-    def handle_code_cell(self, lines, io, config):
+    def handle_code_cell(self, lines, io):
         buf = []
         for line in lines:
             if is_comment(line):
@@ -260,6 +267,27 @@ class NuclioExporter(Exporter):
                 print(ipython2python('\n'.join(buf)), file=io)
                 buf = []
 
+        if buf:
+            print(ipython2python('\n'.join(buf)), file=io)
+
+    def handle_line_magic(self, config, lines, function_buffers, ended, code_cells):
+        buf = []
+        for line in lines:
+            if is_comment(line):
+                continue
+
+            if line_magic not in line:
+                # ignore command or magic commands (other than %nuclio)
+                if not (line.startswith('!') or line.startswith('%')):
+                    buf.append(line)
+                continue
+
+            if buf:
+                for function_buffer in function_buffers.values():
+                    if not function_buffer[ended]:
+                        function_buffer[code_cells].append(ipython2python('\n'.join(buf)))
+                buf = []
+
             name, args = parse_magic_line(line)
             magic = Magic(name, args, [], is_cell=False)
             handler = magic_handlers.get(magic.name)
@@ -269,10 +297,14 @@ class NuclioExporter(Exporter):
 
             out = handler(magic, config)
             if out:
-                print(ipython2python(out), file=io)
+                for function_buffer in function_buffers.values():
+                    if not function_buffer[ended]:
+                        function_buffer[code_cells].append(ipython2python(out))
 
         if buf:
-            print(ipython2python('\n'.join(buf)), file=io)
+            for function_buffer in function_buffers.values():
+                if not function_buffer[ended]:
+                    function_buffer[code_cells].append(ipython2python('\n'.join(buf)))
 
 
 def header():
