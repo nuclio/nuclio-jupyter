@@ -200,24 +200,24 @@ def test_ignore_comment():
     assert nb_code in code, 'missing code'
 
 
-def test_start():
-    cells = [
-        'a = 1',
-        'b = 2',
-        '# nuclio: start-code\nc=3',
-        'd = 4'
-    ]
-    validate_code(cells[2:], cells[:2], cells)
+@pytest.mark.parametrize(
+    "case", cases_from_yml_file(f"{here}/code_generation_test_cases.yml")
+)
+def test_converter_code_generation(case: dict):
+    notebook = {
+        "cells": [
+            {"source": code, "cell_type": "code"}
+            for code in case["cells"]
+        ],
+    }
+    function_name = case["function name"]
+    kw = {env_keys.function_name: function_name}
+    with temp_env(kw):
+        code, _ = export_notebook(notebook)
 
-
-def test_end():
-    cells = [
-        'a = 1',
-        'b = 2',
-        '# nuclio: end-code\nc=3',
-        'd = 4'
-    ]
-    validate_code(cells[:2], cells[2:], cells)
+        # Trim first line
+        code = "\n".join(code.splitlines()[1:])
+        assert code.strip() == case["expected"].strip()
 
 
 def test_expand_env():
@@ -226,96 +226,6 @@ def test_expand_env():
     _, config = export_notebook(nb)
     cmds = config['spec']['build']['commands']
     assert environ['HOME'] in cmds[0], '${HOME} not expanded'
-
-
-def test_end_with_name():
-    cells = [
-        'a = 1',
-        'b = 2',
-        '# nuclio: end-code my-function\nc=3',
-        'd = 4'
-    ]
-    validate_code_with_function_name(cells[:2],
-                                     cells[2:],
-                                     cells,
-                                     'my-function')
-
-
-def test_multiple_functions():
-    cells = [
-        'a = 1',
-        '# nuclio: start-code my-function',
-        'b = 2',
-        '# nuclio: end-code my-function',
-        'd = 4',
-        '# nuclio: start-code another-function',
-        'e = 2',
-        '# nuclio: end-code another-function',
-    ]
-    validate_code_with_function_name([cells[2]],
-                                     cells[:1] + cells[3:],
-                                     cells,
-                                     'my-function')
-
-    validate_code_with_function_name([cells[-2]],
-                                     cells[:-2] + cells[-1:],
-                                     cells,
-                                     'another-function')
-
-
-def test_named_and_nameless_complete():
-    cells = [
-        'a = 1',
-        '# nuclio: start-code',
-        'b = 2',
-        '# nuclio: end-code',
-        'c = 3',
-        '# nuclio: start-code my-function',
-        'd = 4',
-        '# nuclio: end-code my-function',
-        'e = 2',
-    ]
-    validate_code([cells[2]], cells[:1] + cells[3:], cells)
-
-    validate_code_with_function_name([cells[-3]],
-                                     cells[:-3] + cells[-1:],
-                                     cells,
-                                     'my-function')
-
-
-def test_nameless_multi_sections():
-    cells = [
-        'a = 1',
-        '# nuclio: start-code',
-        'b = 2',
-        '# nuclio: end-code',
-        'c = 3',
-        '# nuclio: start-code',
-        'd = 4',
-        '# nuclio: end-code',
-        'e = 2',
-    ]
-    validate_code([cells[2], cells[6]],
-                  cells[:1] + cells[3:5] + cells[7:],
-                  cells)
-
-
-def test_named_multi_sections():
-    cells = [
-        'a = 1',
-        '# nuclio: start-code my-function',
-        'b = 2',
-        '# nuclio: end-code my-function',
-        'c = 3',
-        '# nuclio: start-code my-function',
-        'd = 4',
-        '# nuclio: end-code my-function',
-        'e = 2',
-    ]
-    validate_code_with_function_name([cells[2], cells[6]],
-                                     cells[:1] + cells[3:5] + cells[7:],
-                                     cells,
-                                     'my-function')
 
 
 def test_multiple_starts():
@@ -351,239 +261,16 @@ def test_multiple_ends():
             code, _ = export_notebook(nb)
 
 
-def test_named_and_nameless():
-    cells = [
-        'a = 1',
-        'b = 2',
-        '# nuclio: end-code my-function',
-        '# nuclio: start-code',
-        'd = 4',
-        'e = 2',
-    ]
-    validate_code(cells[2:], cells[:2], cells)
-
-    validate_code_with_function_name(cells[:2],
-                                     cells[2:],
-                                     cells,
-                                     'my-function')
-
-
-def test_overlap():
-    cells = [
-        '# nuclio: start-code',
-        'a = 1',
-        'b = 2',
-        '# nuclio: end-code my-function',
-        'd = 4',
-        'e = 2',
-    ]
-    validate_code(cells, [], cells)
-
-    validate_code_with_function_name(cells[:3],
-                                     cells[3:],
-                                     cells,
-                                     'my-function')
-
-
-def test_start_code_overlap_named():
-    cells = [
-        'a = 1',
-        '# nuclio: start-code my-function',
-        'b = 2',
-        '# nuclio: start-code another-function',
-        'd = 4',
-        'e = 2',
-        '# nuclio: end-code my-function',
-    ]
-    validate_code_with_function_name(cells[1:],
-                                     [cells[0]],
-                                     cells,
-                                     'my-function')
-    validate_code_with_function_name(cells[3:],
-                                     cells[:3],
-                                     cells,
-                                     'another-function')
-
-
-def test_end_code_overlap_named():
-    cells = [
-        'a = 1',
-        '# nuclio: start-code my-function',
-        'b = 2',
-        '# nuclio: end-code another-function',
-        'd = 4',
-        'e = 2',
-        '# nuclio: end-code my-function',
-    ]
-    validate_code_with_function_name(cells[1:],
-                                     [cells[0]],
-                                     cells,
-                                     'my-function')
-    validate_code_with_function_name(cells[:3],
-                                     cells[3:],
-                                     cells,
-                                     'another-function')
-
-
-def test_overlap_end_code():
-    cells = [
-        'a = 1',
-        '# nuclio: start-code my-function',
-        'b = 2',
-        'd = 4',
-        '# nuclio: end-code',
-        'e = 2',
-        '# nuclio: end-code my-function',
-    ]
-    validate_code_with_function_name(cells[1:],
-                                     [cells[0]],
-                                     cells,
-                                     'my-function')
-
-    validate_code(cells[:4], cells[4:], cells)
-
-
-def test_handle_line_magic_before_start():
-    cells = [
-        'a = 1',
-        'b = 2',
-        '%nuclio cmd ls ${HOME}',
-        '# nuclio: start-code\nc=3',
-        'd = 4'
-    ]
-    nb = gen_nb(cells)
-    _, config = export_notebook(nb)
+@pytest.mark.parametrize(
+    "case", cases_from_yml_file(f"{here}/cell_and_line_magic_test_cases.yml")
+)
+def test_converter_cell_and_line_magic(case: dict):
+    notebook = {
+        "cells": [
+            {"source": code, "cell_type": "code"}
+            for code in case["cells"]
+        ],
+    }
+    _, config = export_notebook(notebook)
     cmds = config['spec']['build']['commands']
     assert environ['HOME'] in cmds[0], '${HOME} not expanded'
-
-
-def test_handle_line_magic_after_start():
-    cells = [
-        'a = 1',
-        'b = 2',
-        '# nuclio: start-code\nc=3',
-        '%nuclio cmd ls ${HOME}',
-        'd = 4'
-    ]
-    nb = gen_nb(cells)
-    _, config = export_notebook(nb)
-    cmds = config['spec']['build']['commands']
-    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
-
-
-def test_handle_line_magic_after_end():
-    cells = [
-        'a = 1',
-        'b = 2',
-        '# nuclio: end-code\nc=3',
-        '%nuclio cmd ls ${HOME}',
-        'd = 4'
-    ]
-    nb = gen_nb(cells)
-    _, config = export_notebook(nb)
-    cmds = config['spec']['build']['commands']
-    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
-
-
-def test_handle_line_magic_before_end():
-    cells = [
-        'a = 1',
-        'b = 2',
-        '%nuclio cmd ls ${HOME}',
-        '# nuclio: end-code\nc=3',
-        'd = 4'
-    ]
-    nb = gen_nb(cells)
-    _, config = export_notebook(nb)
-    cmds = config['spec']['build']['commands']
-    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
-
-
-def test_handle_line_magic_with_code():
-    cells = [
-        'a = 1',
-        'b = 2',
-        '%nuclio cmd ls ${HOME}\nc=3',
-        '# nuclio: end-code',
-        'd = 4'
-    ]
-    nb = gen_nb(cells)
-    _, config = export_notebook(nb)
-    cmds = config['spec']['build']['commands']
-    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
-    validate_code(cells[:2]+['c=3'], cells[3:], cells)
-
-
-def test_handle_cell_magic_before_start():
-    cells = [
-        'a = 1',
-        'b = 2',
-        '%%nuclio cmd ls ${HOME}',
-        '# nuclio: start-code\nc=3',
-        'd = 4'
-    ]
-    nb = gen_nb(cells)
-    _, config = export_notebook(nb)
-    cmds = config['spec']['build']['commands']
-    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
-
-
-def test_handle_cell_magic_after_start():
-    cells = [
-        'a = 1',
-        'b = 2',
-        '# nuclio: start-code',
-        '%%nuclio cmd ls ${HOME}',
-        'd = 4'
-    ]
-    nb = gen_nb(cells)
-    _, config = export_notebook(nb)
-    cmds = config['spec']['build']['commands']
-    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
-
-
-def test_handle_cell_magic_after_end():
-    cells = [
-        'a = 1',
-        'b = 2',
-        '# nuclio: end-code',
-        '%%nuclio cmd ls ${HOME}',
-        'd = 4'
-    ]
-    nb = gen_nb(cells)
-    _, config = export_notebook(nb)
-    cmds = config['spec']['build']['commands']
-    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
-
-
-def test_handle_cell_magic_before_end():
-    cells = [
-        'a = 1',
-        'b = 2',
-        '%%nuclio cmd ls ${HOME}',
-        '# nuclio: end-code',
-        'd = 4'
-    ]
-    nb = gen_nb(cells)
-    _, config = export_notebook(nb)
-    cmds = config['spec']['build']['commands']
-    assert environ['HOME'] in cmds[0], '${HOME} not expanded'
-
-
-def validate_code(expected_cells, expected_excluded_cells, cells):
-    nb = gen_nb(cells)
-    code, _ = export_notebook(nb)
-    for cell in expected_cells:
-        cell = export.filter_comments(cell)
-        assert cell in code, '{0!r} not in code'.format(cell)
-    for cell in expected_excluded_cells:
-        assert cell not in code, '{0!r} unexpectedly in code'.format(cell)
-
-
-def validate_code_with_function_name(expected_cells,
-                                     expected_excluded_cells,
-                                     cells,
-                                     function_name):
-    kw = {env_keys.function_name: function_name}
-    with temp_env(kw):
-        validate_code(expected_cells, expected_excluded_cells, cells)

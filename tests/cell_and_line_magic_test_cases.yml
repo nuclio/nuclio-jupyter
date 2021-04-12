@@ -1,0 +1,97 @@
+---
+name: Line magic before start code
+cells:
+  - a = 1
+  - b = 2
+  - |
+    %nuclio cmd ls ${HOME}
+  - |
+    # nuclio: start-code
+    c = 3
+  - d = 4
+---
+name: Line magic after start code
+cells:
+  - a = 1
+  - b = 2
+  - |
+    # nuclio: start-code
+    c = 3
+  - |
+    %nuclio cmd ls ${HOME}
+  - d = 4
+---
+name: Line magic after end code
+cells:
+  - a = 1
+  - b = 2
+  - |
+    # nuclio: end-code
+    c = 3
+  - |
+    %nuclio cmd ls ${HOME}
+  - d = 4
+---
+name: Line magic before end code
+cells:
+  - a = 1
+  - b = 2
+  - |
+    %nuclio cmd ls ${HOME}
+  - |
+    # nuclio: end-code
+    c = 3
+  - d = 4
+---
+name: Line magic with code
+cells:
+  - a = 1
+  - b = 2
+  - |
+    %nuclio cmd ls ${HOME}
+    c = 3
+  - |
+    # nuclio: end-code
+  - d = 4
+---
+name: Cell magic before start code
+cells:
+  - a = 1
+  - b = 2
+  - |
+    %%nuclio cmd ls ${HOME}
+  - |
+    # nuclio: start-code
+    c = 3
+  - d = 4
+---
+name: Cell magic after start code
+cells:
+  - a = 1
+  - b = 2
+  - |
+    # nuclio: start-code
+  - |
+    %%nuclio cmd ls ${HOME}
+    c = 3
+  - d = 4
+---
+name: Cell magic after end code
+cells:
+  - a = 1
+  - b = 2
+  - |
+    # nuclio: end-code
+  - |
+    %%nuclio cmd ls ${HOME}
+  - d = 4
+---
+name: Cell magic before end code
+cells:
+  - a = 1
+  - b = 2
+  - |
+    %%nuclio cmd ls ${HOME}
+  - |
+    # nuclio: end-code
+  - d = 4
