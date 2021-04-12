@@ -274,4 +274,3 @@ def test_converter_cell_and_line_magic(case: dict):
     _, config = export_notebook(notebook)
     cmds = config['spec']['build']['commands']
     assert environ['HOME'] in cmds[0], '${HOME} not expanded'
-
