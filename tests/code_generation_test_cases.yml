@@ -78,7 +78,7 @@ cells:
 expected: |
   e = 2
 ---
-name: Nameless with named complete
+name: Nameless function with named complete
 function name: None
 cells:
   - a = 1
@@ -116,7 +116,7 @@ cells:
 expected: |
   d = 4
 ---
-name: Nameless with multi sections
+name: Nameless function with multi sections
 function name: None
 cells:
   - a = 1
@@ -137,7 +137,7 @@ expected: |
 
   d = 4
 ---
-name: Nameled with multi sections
+name: Named function with multi sections
 function name: my-function
 cells:
   - a = 1
@@ -158,7 +158,7 @@ expected: |
 
   d = 4
 ---
-name: Named End with Nameless Start
+name: Named function end with nameless Start
 function name: my-function
 cells:
   - a = 1
@@ -175,7 +175,7 @@ expected: |
 
   b = 2
 ---
-name: Nameless Start with Named End
+name: Nameless function start with named End
 function name: none
 cells:
   - a = 1
@@ -195,7 +195,7 @@ expected: |
   e = 2
 
 ---
-name: Overlap Nameless with Named
+name: Overlap nameless with named function
 function name: none
 cells:
   - |
@@ -215,7 +215,7 @@ expected: |
 
   e = 2
 ---
-name: Overlap Named with Nameless
+name: Overlap named with nameless function
 function name: my-function
 cells:
   - |
@@ -231,7 +231,7 @@ expected: |
 
   b = 2
 ---
-name: Start Code Overlap Named
+name: Start code overlap with named function
 function name: my-function
 cells:
   - a = 1
@@ -251,7 +251,7 @@ expected: |
 
   e = 2
 ---
-name: End Code Overlap Named
+name: End code overlap named function
 function name: another-function
 cells:
   - a = 1
@@ -269,7 +269,7 @@ expected: |
 
   b = 2
 ---
-name: End Code Overlap Named with Nameless
+name: End code overlap named with nameless function
 function name: my-function
 cells:
   - a = 1
@@ -289,7 +289,7 @@ expected: |
 
   e = 2
 ---
-name: End Code Overlap Nameless with Named
+name: End code overlap nameless with named fucntion
 function name: None
 cells:
   - a = 1

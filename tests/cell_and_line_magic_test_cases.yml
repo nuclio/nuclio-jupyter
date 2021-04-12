@@ -1,5 +1,5 @@
 ---
-name: Line magic before Start Code
+name: Line magic before start code
 cells:
   - a = 1
   - b = 2
@@ -10,7 +10,7 @@ cells:
     c = 3
   - d = 4
 ---
-name: Line magic after Start Code
+name: Line magic after start code
 cells:
   - a = 1
   - b = 2
@@ -21,7 +21,7 @@ cells:
     %nuclio cmd ls ${HOME}
   - d = 4
 ---
-name: Line magic after End Code
+name: Line magic after end code
 cells:
   - a = 1
   - b = 2
@@ -32,7 +32,7 @@ cells:
     %nuclio cmd ls ${HOME}
   - d = 4
 ---
-name: Line magic before End Code
+name: Line magic before end code
 cells:
   - a = 1
   - b = 2
@@ -54,7 +54,7 @@ cells:
     # nuclio: end-code
   - d = 4
 ---
-name: Cell magic before Start Code
+name: Cell magic before start code
 cells:
   - a = 1
   - b = 2
@@ -65,7 +65,7 @@ cells:
     c = 3
   - d = 4
 ---
-name: Cell magic after Start Code
+name: Cell magic after start code
 cells:
   - a = 1
   - b = 2
@@ -76,7 +76,7 @@ cells:
     c = 3
   - d = 4
 ---
-name: Cell magic after End Code
+name: Cell magic after end code
 cells:
   - a = 1
   - b = 2
@@ -86,7 +86,7 @@ cells:
     %%nuclio cmd ls ${HOME}
   - d = 4
 ---
-name: Cell magic before End Code
+name: Cell magic before end code
 cells:
   - a = 1
   - b = 2
