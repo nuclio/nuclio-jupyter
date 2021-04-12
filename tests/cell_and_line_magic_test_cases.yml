@@ -59,7 +59,7 @@ cells:
   - a = 1
   - b = 2
   - |
-    %nuclio cmd ls ${HOME}
+    %%nuclio cmd ls ${HOME}
   - |
     # nuclio: start-code
     c = 3
@@ -72,7 +72,7 @@ cells:
   - |
     # nuclio: start-code
   - |
-    %nuclio cmd ls ${HOME}
+    %%nuclio cmd ls ${HOME}
     c = 3
   - d = 4
 ---
@@ -83,7 +83,7 @@ cells:
   - |
     # nuclio: end-code
   - |
-    %nuclio cmd ls ${HOME}
+    %%nuclio cmd ls ${HOME}
   - d = 4
 ---
 name: Cell magic before End Code
@@ -91,7 +91,7 @@ cells:
   - a = 1
   - b = 2
   - |
-    %nuclio cmd ls ${HOME}
+    %%nuclio cmd ls ${HOME}
   - |
     # nuclio: end-code
   - d = 4
