@@ -1,6 +1,30 @@
+import os
+import shutil
+
+import pytest
+
 from nuclio.build import build_file
 from nuclio.config import ConfigSpec, meta_keys, get_in
 from conftest import here
+
+
+@pytest.fixture()
+def url_filename():
+    url_filename = 'https://raw.githubusercontent.com/nuclio/nuclio/master/' \
+                   'hack/examples/java/empty/EmptyHandler.java'
+    yield url_filename
+    if os.path.exists('EmptyHandler.java'):
+        os.remove('EmptyHandler.java')
+    if os.path.exists('function.yaml'):
+        os.remove('function.yaml')
+
+
+@pytest.fixture()
+def project():
+    project = 'p1'
+    yield project
+    if os.path.exists(project):
+        shutil.rmtree(project)
 
 
 def test_build_file_py():
@@ -34,23 +58,22 @@ def test_build_file_nb():
     assert maxRep == 2, 'failed to set replicas, {}'.format(maxRep)
 
 
-def test_build_url():
-    filepath = 'https://raw.githubusercontent.com/nuclio/nuclio/master/hack/' \
-               + 'examples/java/empty/EmptyHandler.java'
-
-    name, config, code = build_file(filepath, name='javatst', output_dir='.')
+def test_build_url(url_filename):
+    name, config, code = build_file(url_filename,
+                                    name='javatst',
+                                    output_dir='.')
 
     assert name == 'javatst', 'build failed, name doesnt match={}'.format(name)
     assert config.get('spec'), 'build failed, config={}'.format(config)
     assert get_in(config, 'spec.runtime') == 'java', 'not java runtime'
 
 
-def test_build_file_zip():
+def test_build_file_zip(project):
     filepath = '{}/handler.py'.format(here)
     filepath = filepath.replace("\\", "/")  # handle windows
     spec = ConfigSpec(env={'MYENV': 'text'})
     name, config, code = build_file(filepath, name='hw', spec=spec,
-                                    archive=True, project='p1', tag='v7',
+                                    archive=True, project=project, tag='v7',
                                     output_dir='.')
 
     assert name == 'hw', 'build failed, name doesnt match={}'.format(name)
