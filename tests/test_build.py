@@ -66,6 +66,10 @@ def test_build_url(url_filepath):
     assert name == 'javatst', 'build failed, name doesnt match={}'.format(name)
     assert config.get('spec'), 'build failed, config={}'.format(config)
     assert get_in(config, 'spec.runtime') == 'java', 'not java runtime'
+    assert os.path.exists('EmptyHandler.java'), \
+        'EmptyHandler.java file was not created'
+    assert os.path.exists('function.yaml'), \
+        'function.yaml file was not created'
 
 
 def test_build_file_zip(project):
@@ -78,3 +82,6 @@ def test_build_file_zip(project):
 
     assert name == 'hw', 'build failed, name doesnt match={}'.format(name)
     assert config.get('spec'), 'build failed, config={}'.format(config)
+    assert os.path.exists(project), '{} dir was not created'.format(project)
+    zip_path = os.path.join(project, 'hw_v7.zip')
+    assert os.path.exists(zip_path), '{} dir was not created'.format(zip_path)
