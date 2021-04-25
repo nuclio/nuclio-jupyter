@@ -9,10 +9,10 @@ from conftest import here
 
 
 @pytest.fixture()
-def url_filename():
-    url_filename = 'https://raw.githubusercontent.com/nuclio/nuclio/master/' \
+def url_filepath():
+    url_filepath = 'https://raw.githubusercontent.com/nuclio/nuclio/master/' \
                    'hack/examples/java/empty/EmptyHandler.java'
-    yield url_filename
+    yield url_filepath
     if os.path.exists('EmptyHandler.java'):
         os.remove('EmptyHandler.java')
     if os.path.exists('function.yaml'):
@@ -58,8 +58,8 @@ def test_build_file_nb():
     assert maxRep == 2, 'failed to set replicas, {}'.format(maxRep)
 
 
-def test_build_url(url_filename):
-    name, config, code = build_file(url_filename,
+def test_build_url(url_filepath):
+    name, config, code = build_file(url_filepath,
                                     name='javatst',
                                     output_dir='.')
 
