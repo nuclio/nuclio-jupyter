@@ -125,6 +125,7 @@ class NuclioExporter(Exporter):
             target_function_name = nameless_annotation
 
         for cell in filter(is_code_cell, nb['cells']):
+            code_in_cell_with_annotation = ''
             code = cell['source']
             if has_ignore(code):
                 continue
@@ -136,6 +137,8 @@ class NuclioExporter(Exporter):
                     if function_buffers[current_name][ended]:
                         raise MagicError('Found multiple consecutive '
                                          + '"end-code" annotations')
+                    # keep code before 1st occurrence of end-code
+                    code_in_cell_with_annotation = code[:match.span()[0]]
                     # found code that belongs to the current function
                     function_buffers[current_name][started] = True
                     function_buffers[current_name][ended] = True
@@ -148,10 +151,12 @@ class NuclioExporter(Exporter):
                     if not function_buffers[current_name][started]:
                         # discard code that doesn't belong to the function
                         function_buffers[current_name][code_cells] = []
-                    if function_buffers[current_name][started]\
+                    if function_buffers[current_name][started] \
                             and not function_buffers[current_name][ended]:
                         raise MagicError('Found multiple consecutive '
                                          + '"start-code" annotations')
+                    # keep code after 1st occurrence of start-code
+                    code_in_cell_with_annotation = code[match.span()[1]:]
                     function_buffers[current_name][started] = True
                     function_buffers[current_name][ended] = False
                     seen_function_name = seen_function_name or current_name
@@ -165,7 +170,10 @@ class NuclioExporter(Exporter):
                 code = self.handle_line_magic(config, lines)
 
             for function_buffer in function_buffers.values():
-                if not function_buffer[ended]:
+                if code_in_cell_with_annotation:
+                    function_buffer[code_cells].\
+                        append(code_in_cell_with_annotation)
+                elif not function_buffer[ended]:
                     function_buffer[code_cells].append(code)
 
         io = self.write_code_cells(

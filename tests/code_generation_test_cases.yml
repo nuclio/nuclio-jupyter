@@ -324,3 +324,23 @@ expected: |
   b = 2
 
   c = 3
+---
+name: End code in the middle of a cell
+function name: None
+cells:
+  - |
+    a = 1
+    # nuclio: end-code
+    b = 2
+expected: |
+  a = 1
+---
+name: Start code in the middle of a cell
+function name: None
+cells:
+  - |
+    a = 1
+    # nuclio: start-code
+    b = 2
+expected: |
+  b = 2
