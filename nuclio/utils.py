@@ -191,6 +191,6 @@ def notebook_file_name(ikernel):
             if session['kernel']['id'] == kernel_id:
                 relative_path = session['notebook']['path']
                 return path.join(
-                    srv['notebook_dir'] or srv['root_dir'],
+                    srv.get('notebook_dir') or srv.get('root_dir'),
                     relative_path
                 )
