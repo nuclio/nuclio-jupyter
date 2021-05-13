@@ -168,7 +168,10 @@ def notebook_file_name(ikernel):
     # the following code won't work when the notebook is being executed
     # through running `jupyter nbconvert --execute` this env var enables to
     # overcome it
-    from notebook.notebookapp import list_running_servers
+    from notebook.notebookapp import list_running_servers \
+        as nb_list_running_servers
+    from jupyter_server.serverapp import list_running_servers \
+        as jp_list_running_servers
 
     file_name = environ.get('JUPYTER_NOTEBOOK_FILE_NAME')
     if file_name is not None:
@@ -180,11 +183,14 @@ def notebook_file_name(ikernel):
 
     kernel_id = re.search('kernel-(.*).json',
                           ipykernel.connect.get_connection_file()).group(1)
-    servers = list_running_servers()
+    servers = nb_list_running_servers() + jp_list_running_servers()
     for srv in servers:
         query = {'token': srv.get('token', '')}
         url = urljoin(srv['url'], 'api/sessions') + '?' + urlencode(query)
         for session in json.load(urlopen(url)):
             if session['kernel']['id'] == kernel_id:
                 relative_path = session['notebook']['path']
-                return path.join(srv['notebook_dir'], relative_path)
+                return path.join(
+                    srv['notebook_dir'] or srv['root_dir'],
+                    relative_path
+                )
