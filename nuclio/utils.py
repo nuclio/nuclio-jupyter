@@ -184,6 +184,10 @@ def notebook_file_name(ikernel):
 
     kernel_id = re.search('kernel-(.*).json',
                           ipykernel.connect.get_connection_file()).group(1)
+
+    # list both notebook servers (nbserver-*.json) and the newer
+    # jupyter servers (jpserver-*.json), remove nb_list_running_servers()
+    # when fully moving to jupyter servers.
     servers = chain(nb_list_running_servers(), jp_list_running_servers())
     for srv in servers:
         query = {'token': srv.get('token', '')}
@@ -191,6 +195,8 @@ def notebook_file_name(ikernel):
         for session in json.load(urlopen(url)):
             if session['kernel']['id'] == kernel_id:
                 relative_path = session['notebook']['path']
+
+                # remove srv.get('notebook_dir') when fully moving to jupyter servers.
                 return path.join(
                     srv.get('notebook_dir') or srv.get('root_dir'),
                     relative_path
