@@ -18,6 +18,7 @@ from os import path, environ
 import shlex
 from argparse import ArgumentParser
 from sys import stdout
+from itertools import chain
 
 import ipykernel
 from urllib.parse import urlencode, urljoin
@@ -183,7 +184,7 @@ def notebook_file_name(ikernel):
 
     kernel_id = re.search('kernel-(.*).json',
                           ipykernel.connect.get_connection_file()).group(1)
-    servers = nb_list_running_servers() + jp_list_running_servers()
+    servers = chain(nb_list_running_servers(), jp_list_running_servers())
     for srv in servers:
         query = {'token': srv.get('token', '')}
         url = urljoin(srv['url'], 'api/sessions') + '?' + urlencode(query)
