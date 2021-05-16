@@ -196,7 +196,8 @@ def notebook_file_name(ikernel):
             if session['kernel']['id'] == kernel_id:
                 relative_path = session['notebook']['path']
 
-                # remove srv.get('notebook_dir') when fully moving to jupyter servers.
+                # remove srv.get('notebook_dir') when fully moving to
+                # jupyter servers.
                 return path.join(
                     srv.get('notebook_dir') or srv.get('root_dir'),
                     relative_path
