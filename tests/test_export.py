@@ -261,6 +261,21 @@ def test_multiple_ends():
             code, _ = export_notebook(nb)
 
 
+def test_end_and_then_start():
+    cells = [
+        'b = 2',
+        '# nuclio: end-code my-function\n' +
+        'd = 4\n' +
+        '# nuclio: start-code my-function\n',
+        'a = 1',
+    ]
+    kw = {env_keys.function_name: 'my-function'}
+    with temp_env(kw):
+        nb = gen_nb(cells)
+        with pytest.raises(export.MagicError):
+            code, _ = export_notebook(nb)
+
+
 @pytest.mark.parametrize(
     "case", cases_from_yml_file(f"{here}/cell_and_line_magic_test_cases.yml")
 )

@@ -130,20 +130,6 @@ class NuclioExporter(Exporter):
             if has_ignore(code):
                 continue
 
-            match = has_end(code)
-            if match:
-                current_name = match.group('name')
-                if current_name in [target_function_name, nameless_annotation]:
-                    if function_buffers[current_name][ended]:
-                        raise MagicError('Found multiple consecutive '
-                                         + '"end-code" annotations')
-                    # keep code before 1st occurrence of end-code
-                    code_in_cell_with_annotation = code[:match.span()[0]]
-                    # found code that belongs to the current function
-                    function_buffers[current_name][started] = True
-                    function_buffers[current_name][ended] = True
-                    seen_function_name = seen_function_name or current_name
-
             match = has_start(code)
             if match:
                 current_name = match.group('name')
@@ -159,6 +145,29 @@ class NuclioExporter(Exporter):
                     code_in_cell_with_annotation = code[match.span()[1]:]
                     function_buffers[current_name][started] = True
                     function_buffers[current_name][ended] = False
+                    seen_function_name = seen_function_name or current_name
+
+            match = has_end(code)
+            if match:
+                current_name = match.group('name')
+                if current_name in [target_function_name, nameless_annotation]:
+                    if function_buffers[current_name][ended]:
+                        raise MagicError('Found multiple consecutive '
+                                         + '"end-code" annotations')
+                    # keep code before 1st occurrence of end-code
+                    if code_in_cell_with_annotation:
+                        match = has_end(code_in_cell_with_annotation)
+                        if not match:
+                            raise MagicError('end-code before start-code in '
+                                             + 'the same cell is not '
+                                             + 'supported')
+                        code_in_cell_with_annotation = \
+                            code_in_cell_with_annotation[:match.span()[0]]
+                    else:
+                        code_in_cell_with_annotation = code[:match.span()[0]]
+                    # found code that belongs to the current function
+                    function_buffers[current_name][started] = True
+                    function_buffers[current_name][ended] = True
                     seen_function_name = seen_function_name or current_name
 
             lines = code.splitlines()
