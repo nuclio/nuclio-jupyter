@@ -95,3 +95,39 @@ cells:
   - |
     # nuclio: end-code
   - d = 4
+---
+name: Cell magic before end code in cell
+cells:
+  - a = 1
+  - b = 2
+  - |
+    %%nuclio cmd ls ${HOME}
+    # nuclio: end-code
+  - d = 4
+---
+name: Cell magic before start code in cell
+cells:
+  - a = 1
+  - b = 2
+  - |
+    %%nuclio cmd ls ${HOME}
+    # nuclio: start-code
+  - d = 4
+---
+name: Cell magic after end code in cell
+cells:
+  - a = 1
+  - b = 2
+  - |
+    # nuclio: end-code
+    %%nuclio cmd ls ${HOME}
+  - d = 4
+---
+name: Cell magic after start code in cell
+cells:
+  - a = 1
+  - b = 2
+  - |
+    # nuclio: start-code
+    %%nuclio cmd ls ${HOME}
+  - d = 4
