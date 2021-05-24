@@ -171,8 +171,17 @@ def notebook_file_name(ikernel):
     # overcome it
     from notebook.notebookapp import list_running_servers \
         as nb_list_running_servers
-    from jupyter_server.serverapp import list_running_servers \
-        as jp_list_running_servers
+    # installing jupyter-server is optional (only when doing pip install nuclio-jupyter[jupyter-server]) therefore don't
+    # fail on import error
+    jupyter_server_supported = False
+    try:
+        from jupyter_server.serverapp import list_running_servers \
+            as jp_list_running_servers
+    except ImportError:
+        pass
+    else:
+        jupyter_server_supported = True
+
 
     file_name = environ.get('JUPYTER_NOTEBOOK_FILE_NAME')
     if file_name is not None:
@@ -188,7 +197,9 @@ def notebook_file_name(ikernel):
     # list both notebook servers (nbserver-*.json) and the newer
     # jupyter servers (jpserver-*.json), remove nb_list_running_servers()
     # when fully moving to jupyter servers.
-    servers = chain(nb_list_running_servers(), jp_list_running_servers())
+    servers = nb_list_running_servers()
+    if jupyter_server_supported:
+        servers = chain(nb_list_running_servers(), jp_list_running_servers())
     for srv in servers:
         query = {'token': srv.get('token', '')}
         url = urljoin(srv['url'], 'api/sessions') + '?' + urlencode(query)
