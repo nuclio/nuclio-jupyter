@@ -144,7 +144,6 @@ class NuclioExporter(Exporter):
         code_cells = 'code_cells'
         nameless_annotation = ''
         target_function_name = environ.get(env_keys.function_name)
-
         seen_function_name = nameless_annotation
 
         function_buffers = {
