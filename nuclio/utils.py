@@ -18,6 +18,7 @@ from os import path, environ
 import shlex
 from argparse import ArgumentParser
 from sys import stdout
+from itertools import chain
 
 import ipykernel
 from urllib.parse import urlencode, urljoin
@@ -168,7 +169,19 @@ def notebook_file_name(ikernel):
     # the following code won't work when the notebook is being executed
     # through running `jupyter nbconvert --execute` this env var enables to
     # overcome it
-    from notebook.notebookapp import list_running_servers
+    from notebook.notebookapp import list_running_servers \
+        as nb_list_running_servers
+    # installing jupyter-server is optional (only when doing pip install nuclio-jupyter[jupyter-server]) therefore don't
+    # fail on import error
+    jupyter_server_supported = False
+    try:
+        from jupyter_server.serverapp import list_running_servers \
+            as jp_list_running_servers
+    except ImportError:
+        pass
+    else:
+        jupyter_server_supported = True
+
 
     file_name = environ.get('JUPYTER_NOTEBOOK_FILE_NAME')
     if file_name is not None:
@@ -180,11 +193,23 @@ def notebook_file_name(ikernel):
 
     kernel_id = re.search('kernel-(.*).json',
                           ipykernel.connect.get_connection_file()).group(1)
-    servers = list_running_servers()
+
+    # list both notebook servers (nbserver-*.json) and the newer
+    # jupyter servers (jpserver-*.json), remove nb_list_running_servers()
+    # when fully moving to jupyter servers.
+    servers = nb_list_running_servers()
+    if jupyter_server_supported:
+        servers = chain(nb_list_running_servers(), jp_list_running_servers())
     for srv in servers:
         query = {'token': srv.get('token', '')}
         url = urljoin(srv['url'], 'api/sessions') + '?' + urlencode(query)
         for session in json.load(urlopen(url)):
             if session['kernel']['id'] == kernel_id:
                 relative_path = session['notebook']['path']
-                return path.join(srv['notebook_dir'], relative_path)
+
+                # remove srv.get('notebook_dir') when fully moving to
+                # jupyter servers.
+                return path.join(
+                    srv.get('notebook_dir') or srv.get('root_dir'),
+                    relative_path
+                )

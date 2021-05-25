@@ -92,6 +92,12 @@ setup(
     ],
     setup_requires=['pytest-runner'],
     tests_require=tests_require,
+    extras_require={
+        # jupyter-server is the new "infrastructure" of jupyter, in the Iguazio Jupyter we're still using an old version
+        # which uses the notebook-server. installing jupyter-server there is causing troubles (unwanted upgrade of
+        # tornado package, so we're installing jupyter-server only if explictly requested by adding an extra
+        "jupyter-server": ["jupyter-server~=1.0"],
+    },
     entry_points={
         'nbconvert.exporters': [
             'nuclio=nuclio.export:NuclioExporter',
