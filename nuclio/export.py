@@ -100,11 +100,51 @@ class NuclioExporter(Exporter):
             config['metadata']['name'] = normalize_name(name)
         config['spec']['handler'] = handler_name()
 
+        code_cells = self.scan_notebook_cells(config, nb['cells'])
+        io = self.write_code_cells(code_cells)
+        process_env_files(env_files, config)
+        py_code = io.getvalue()
+        handler_path = environ.get(env_keys.handler_path)
+        if handler_path:
+            with open(handler_path) as fp:
+                py_code = fp.read()
+
+        efiles = []
+        if archive_settings:
+            if archive_settings['notebook'] and nbname:
+                archive_settings['files'] += [nbname + '.ipynb']
+            efiles = ','.join(archive_settings['files'])
+            config['metadata']['annotations'][meta_keys.extra_files] = efiles
+
+        if env_keys.code_target_path in environ:
+            code_path = environ.get(env_keys.code_target_path)
+            with open(code_path, 'w') as fp:
+                fp.write(py_code)
+                fp.close()
+        elif efiles and env_keys.drop_nb_outputs not in environ:
+            outputs = {'handler.py': py_code,
+                       'function.yaml': gen_config(config)}
+            for filename in efiles:
+                with open(filename) as fp:
+                    data = fp.read()
+                    outputs[filename] = data
+            resources['outputs'] = outputs
+        else:
+            data = b64encode(py_code.encode('utf-8')).decode('utf-8')
+            update_in(config, 'spec.build.functionSourceCode', data)
+
+        config = gen_config(config)
+        resources['output_extension'] = '.yaml'
+
+        return config, resources
+
+    def scan_notebook_cells(self, config, cells):
         ended = 'ended'
         started = 'started'
         code_cells = 'code_cells'
         nameless_annotation = ''
         target_function_name = environ.get(env_keys.function_name)
+
         seen_function_name = nameless_annotation
 
         function_buffers = {
@@ -124,7 +164,7 @@ class NuclioExporter(Exporter):
             # to avoid accidental KeyError
             target_function_name = nameless_annotation
 
-        for cell in filter(is_code_cell, nb['cells']):
+        for cell in filter(is_code_cell, cells):
             code_in_cell_with_annotation = ''
             code = cell['source']
             if has_ignore(code):
@@ -185,43 +225,7 @@ class NuclioExporter(Exporter):
                 elif not function_buffer[ended]:
                     function_buffer[code_cells].append(code)
 
-        io = self.write_code_cells(
-            function_buffers[seen_function_name][code_cells])
-        process_env_files(env_files, config)
-        py_code = io.getvalue()
-        handler_path = environ.get(env_keys.handler_path)
-        if handler_path:
-            with open(handler_path) as fp:
-                py_code = fp.read()
-
-        efiles = []
-        if archive_settings:
-            if archive_settings['notebook'] and nbname:
-                archive_settings['files'] += [nbname + '.ipynb']
-            efiles = ','.join(archive_settings['files'])
-            config['metadata']['annotations'][meta_keys.extra_files] = efiles
-
-        if env_keys.code_target_path in environ:
-            code_path = environ.get(env_keys.code_target_path)
-            with open(code_path, 'w') as fp:
-                fp.write(py_code)
-                fp.close()
-        elif efiles and env_keys.drop_nb_outputs not in environ:
-            outputs = {'handler.py': py_code,
-                       'function.yaml': gen_config(config)}
-            for filename in efiles:
-                with open(filename) as fp:
-                    data = fp.read()
-                    outputs[filename] = data
-            resources['outputs'] = outputs
-        else:
-            data = b64encode(py_code.encode('utf-8')).decode('utf-8')
-            update_in(config, 'spec.build.functionSourceCode', data)
-
-        config = gen_config(config)
-        resources['output_extension'] = '.yaml'
-
-        return config, resources
+        return function_buffers[seen_function_name][code_cells]
 
     def write_code_cells(self, codes):
         io = StringIO()
