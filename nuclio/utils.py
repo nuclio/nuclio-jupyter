@@ -171,8 +171,8 @@ def notebook_file_name(ikernel):
     # overcome it
     from notebook.notebookapp import list_running_servers \
         as nb_list_running_servers
-    # installing jupyter-server is optional (only when doing pip install nuclio-jupyter[jupyter-server]) therefore don't
-    # fail on import error
+    # installing jupyter-server is optional (only when doing pip install
+    # nuclio-jupyter[jupyter-server]) therefore don't fail on import error
     jupyter_server_supported = False
     try:
         from jupyter_server.serverapp import list_running_servers \
@@ -181,7 +181,6 @@ def notebook_file_name(ikernel):
         pass
     else:
         jupyter_server_supported = True
-
 
     file_name = environ.get('JUPYTER_NOTEBOOK_FILE_NAME')
     if file_name is not None:
