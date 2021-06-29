@@ -388,41 +388,44 @@ def deploy_progress(api_address, name, verbose=False, return_function_status=Fal
         function_status = resp_as_json.get('status')
         http_port = function_status.get('httpPort', 0)
 
-        state, last_time, _ = process_resp(resp_as_json, last_time,
-                                           verbose, log_message=True)
+        state, last_time, _ = process_resp(resp_as_json, last_time, verbose, log_message=True)
         if state in {'ready', 'error', 'unhealthy'}:
             function_is_ready = state == 'ready'
             if function_is_ready:
                 if return_function_status:
                     return state, function_status
 
-                address = get_address(api_address)
-                address = '{}:{}'.format(address, http_port)
+                ip = get_address(api_address)
+                address = '{}:{}'.format(ip, http_port)
 
             return state, address
 
         sleep(1)
 
 
-def get_deploy_status(api_address, name, last_time=None, verbose=False):
-    url = '{}/functions/{}'.format(api_address, name)
+def get_deploy_status(api_address, name, last_time=None, verbose=False, resolve_address=True):
     last_time = last_time or (time() * 1000.0)
     address = ''
+    function_status = get_function_status(api_address, name)
 
+    http_port = function_status.get('httpPort', 0)
+    state, last_time, outputs = process_resp({'status': function_status}, last_time, verbose, log_message=False)
+    if state in {'ready', 'error', 'unhealthy'}:
+        if state == 'ready' and resolve_address:
+            ip = get_address(api_address)
+            address = '{}:{}'.format(ip, http_port)
+
+    return state, address, last_time, outputs, function_status
+
+
+def get_function_status(api_address, name):
+    url = '{}/functions/{}'.format(api_address, name)
     resp = requests.get(url, verify=VERIFY_CERT)
     if not resp.ok:
         raise DeployError('error: cannot poll {} status'.format(name))
 
-    state, last_time, outputs = process_resp(resp.json(), last_time,
-                                             verbose, log_message=False)
-    if state in {'ready', 'error'}:
-
-        if state == 'ready':
-            ip = get_address(api_address)
-            address = '{}:{}'.format(ip, resp.json()['status']
-                                     .get('httpPort', 0))
-
-    return state, address, last_time, outputs
+    resp_as_json = resp.json()
+    return resp_as_json.get('status', {})
 
 
 def get_address(api_url):
