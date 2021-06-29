@@ -72,7 +72,7 @@ def build_file(filename='', name='', handler='', archive=False, project='',
         ext = get_lang_ext(config)
 
     else:
-        raise BuildError('illegal filename or extension: '+filename)
+        raise BuildError(f'illegal filename or extension: {filename}')
 
     if not code:
         code_buf = config['spec']['build'].get('functionSourceCode')

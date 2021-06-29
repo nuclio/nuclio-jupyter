@@ -167,7 +167,7 @@ def test_process_resp():
             state, last_time, _ = deploy.process_resp(
                 resp, last_time, False, True)
             if i > 0:
-                assert last_time == logs[i-1]['time'], 'bad last_time'
+                assert last_time == logs[i - 1]['time'], 'bad last_time'
             assert state == resp['status']['state'], 'bad state'
 
     assert len(logger.logs) == len(logs), 'bad number of logs'

@@ -1,0 +1,15 @@
+[flake8]
+
+# no lines over 120 allowed
+max-line-length = 120
+
+# exclude these dirs
+exclude = venv
+
+# show us where we got stuff wrong
+show_source = True
+
+# include our stuff
+select = E,F,W,C,I
+
+statistics = True

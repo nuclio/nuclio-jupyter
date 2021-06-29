@@ -178,8 +178,7 @@ class NuclioExporter(Exporter):
                         function_buffers[current_name][code_cells] = []
                     if function_buffers[current_name][started] \
                             and not function_buffers[current_name][ended]:
-                        raise MagicError('Found multiple consecutive '
-                                         + '"start-code" annotations')
+                        raise MagicError('Found multiple consecutive "start-code" annotations')
                     # keep code after 1st occurrence of start-code
                     code_in_cell_with_annotation = code[match.span()[1]:]
                     function_buffers[current_name][started] = True
@@ -191,15 +190,14 @@ class NuclioExporter(Exporter):
                 current_name = match.group('name')
                 if current_name in [target_function_name, nameless_annotation]:
                     if function_buffers[current_name][ended]:
-                        raise MagicError('Found multiple consecutive '
-                                         + '"end-code" annotations')
+                        raise MagicError('Found multiple consecutive "end-code" annotations')
                     # keep code before 1st occurrence of end-code
                     if code_in_cell_with_annotation:
                         match = has_end(code_in_cell_with_annotation)
                         if not match:
                             raise MagicError('end-code before start-code in '
-                                             + 'the same cell is not '
-                                             + 'supported')
+                                             'the same cell is not '
+                                             'supported')
                         code_in_cell_with_annotation = \
                             code_in_cell_with_annotation[:match.span()[0]]
                     else:
