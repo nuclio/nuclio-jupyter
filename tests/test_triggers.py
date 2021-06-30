@@ -11,9 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import pytest
+
+from nuclio.triggers import HttpTrigger, V3IOStreamTrigger, Constants
 
 
-from nuclio.triggers import HttpTrigger
+def test_access_key_must_be_set():
+    with pytest.raises(ValueError):
+        V3IOStreamTrigger(url="some-url", access_key=None)
+
+    V3IOStreamTrigger(url="some-url", access_key="set")
+
+
+def test_create_v3io_stream_trigger():
+    v3io_stream_trigger = V3IOStreamTrigger(url="some-url", access_key="123")
+    assert v3io_stream_trigger.get_url == "some-url"
+
+    v3io_stream_trigger = V3IOStreamTrigger(access_key="abc")
+    assert v3io_stream_trigger.get_url == Constants.default_webapi_address
 
 
 def test_cast_http_trigger_port_to_int():
