@@ -1,22 +1,27 @@
+import typing
 from os import environ
 
 
 class NuclioTrigger:
     kind = ""
 
-    def __init__(self, struct={}):
-        self._struct = struct
+    def __init__(self, struct: typing.Optional[dict] = None):
+        self._struct = struct or {}
 
     def to_dict(self):
         return self._struct
 
-    def disable(self, disabled=True):
+    def disable(self, disabled: bool = True):
         self._struct["disabled"] = disabled
         return self
 
-    def workers(self, workers=4):
-        self._struct["maxWorkers"] = workers
+    def workers(self, workers: int = 4):
+        self._struct["maxWorkers"] = int(workers)
         return self
+
+    @property
+    def get_workers(self) -> int:
+        return self._struct["maxWorkers"]
 
 
 class HttpTrigger(NuclioTrigger):
@@ -31,13 +36,17 @@ class HttpTrigger(NuclioTrigger):
         canary=None,
         secret=None,
     ):
-        self._struct = {
+        super(HttpTrigger, self).__init__({
             "kind": self.kind,
-            "maxWorkers": workers,
+            "maxWorkers": int(workers),
             "attributes": {"ingresses": {}},
             "annotations": {},
-        }
+        })
         if port:
+
+            # if port is a string for some reason, cast it
+            if not isinstance(port, int):
+                port = int(port)
             self._struct["attributes"]["port"] = port
         if host:
             self._ingress(host, paths, canary, secret=secret)
@@ -46,6 +55,14 @@ class HttpTrigger(NuclioTrigger):
         self, host, paths=None, canary=None, name="0", secret=None,
     ):
         return self._ingress(host, paths, canary, name, secret)
+
+    @property
+    def get_port(self) -> typing.Optional[int]:
+        return self._struct["attributes"].get("port")
+
+    @property
+    def get_ingresses(self) -> typing.Optional[typing.Dict[str, dict]]:
+        return self._struct["attributes"]["ingresses"]
 
     def _ingress(
         self, host, paths=None, canary=None, name="0", secret=None,
@@ -83,11 +100,12 @@ class HttpTrigger(NuclioTrigger):
 class CronTrigger(NuclioTrigger):
     kind = "cron"
 
-    def __init__(self, interval="", schedule="", body="", headers={}):
-        self._struct = {
+    def __init__(self, interval="", schedule="", body="", headers=None):
+        super(CronTrigger, self).__init__({
             "kind": self.kind,
             "attributes": {},
-        }
+        })
+        headers = headers or {}
         if interval:
             self._struct["attributes"]["interval"] = interval
         elif schedule:
@@ -104,12 +122,13 @@ class CronTrigger(NuclioTrigger):
 class KafkaTrigger(NuclioTrigger):
     kind = "kafka"
 
-    def __init__(self, url, topic, partitions=[]):
-        self._struct = {
+    def __init__(self, url, topic, partitions=None):
+        super(KafkaTrigger, self).__init__({
             "kind": self.kind,
             "url": url,
             "attributes": {"topic": topic},
-        }
+        })
+        partitions = partitions or []
         if partitions:
             self._struct["attributes"]["partitions"] = partitions
 
@@ -144,15 +163,14 @@ class V3IOStreamTrigger(NuclioTrigger):
         sequenceNumCommitInterval: str = "1s",
         heartbeatInterval: str = "3s",
     ):
-
         if url and not container and not path:
-            self._struct = {
+            struct = {
                 "kind": self.kind,
                 "url": url,
                 "attributes": {},
             }
         else:
-            self._struct = {
+            struct = {
                 "kind": self.kind,
                 "url": webapi,
                 "attributes": {
@@ -168,6 +186,8 @@ class V3IOStreamTrigger(NuclioTrigger):
 
             if name:
                 self._struct["name"] = name
+
+        super(V3IOStreamTrigger, self).__init__(struct)
 
         if maxWorkers:
             self._struct["maxWorkers"] = maxWorkers
