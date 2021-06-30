@@ -201,9 +201,11 @@ class V3IOStreamTrigger(NuclioTrigger):
             struct["attributes"]["partitions"] = partitions
         if pollingIntervalMS:
             struct["attributes"]["pollingIntervalMs"] = pollingIntervalMS
-        access_key = access_key if access_key else environ.get("V3IO_ACCESS_KEY")
+        access_key = access_key \
+            if access_key else environ.get("V3IO_ACCESS_KEY")
         if not access_key:
-            raise ValueError('access_key must be set (via argument or environ V3IO_ACCESS_KEY)')
+            raise ValueError('access_key must be set '
+                             '(via argument or environ V3IO_ACCESS_KEY)')
         struct["password"] = access_key
 
         super(V3IOStreamTrigger, self).__init__(struct)
