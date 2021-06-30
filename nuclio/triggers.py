@@ -2,6 +2,10 @@ import typing
 from os import environ
 
 
+class Constants(object):
+    default_webapi_address = "http://v3io-webapi:8081"
+
+
 class NuclioTrigger:
     kind = ""
 
@@ -158,7 +162,7 @@ class V3IOStreamTrigger(NuclioTrigger):
         container: str = None,
         path: str = None,
         workerAllocationMode: str = "pool",
-        webapi: str = "http://v3io-webapi:8081",
+        webapi: str = Constants.default_webapi_address,
         consumerGroup: str = "default",
         sequenceNumCommitInterval: str = "1s",
         heartbeatInterval: str = "3s",
@@ -185,19 +189,27 @@ class V3IOStreamTrigger(NuclioTrigger):
             }
 
             if name:
-                self._struct["name"] = name
+                struct["name"] = name
+
+        if maxWorkers:
+            struct["maxWorkers"] = maxWorkers
+        if seekTo:
+            struct["attributes"]["seekTo"] = seekTo
+        if readBatchSize:
+            struct["attributes"]["readBatchSize"] = readBatchSize
+        if partitions:
+            struct["attributes"]["partitions"] = partitions
+        if pollingIntervalMS:
+            struct["attributes"]["pollingIntervalMs"] = pollingIntervalMS
+        access_key = access_key \
+            if access_key else environ.get("V3IO_ACCESS_KEY")
+        if not access_key:
+            raise ValueError('access_key must be set '
+                             '(via argument or environ V3IO_ACCESS_KEY)')
+        struct["password"] = access_key
 
         super(V3IOStreamTrigger, self).__init__(struct)
 
-        if maxWorkers:
-            self._struct["maxWorkers"] = maxWorkers
-        if seekTo:
-            self._struct["attributes"]["seekTo"] = seekTo
-        if readBatchSize:
-            self._struct["attributes"]["readBatchSize"] = readBatchSize
-        if partitions:
-            self._struct["attributes"]["partitions"] = partitions
-        if pollingIntervalMS:
-            self._struct["attributes"]["pollingIntervalMs"] = pollingIntervalMS
-        access_key = access_key if access_key else environ["V3IO_ACCESS_KEY"]
-        self._struct["password"] = access_key
+    @property
+    def get_url(self):
+        return self._struct["url"]
