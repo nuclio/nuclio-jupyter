@@ -320,6 +320,10 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
         else:
             log_message += ' your function is not exposed externally.'
 
+        # for backwards compatibility reasons, the expected return type is a single object represented
+        # the external invocation url
+        # for client who uses the new nuclio-jupyter, there is an option to return both internal and external
+        # invocation urls.
         if return_address_mode == ReturnAddressModes.external_first:
             return external_invocation_urls[0] if external_invocation_urls else ''
 
