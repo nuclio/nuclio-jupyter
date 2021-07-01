@@ -336,8 +336,8 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
 
 def _resolve_function_addresses(api_address, function_status):
     # exists on nuclio >= 1.6.x only
-    internal_invocation_urls = function_status.get('externalInvocationUrls', [])
-    external_invocation_urls = function_status.get('internalInvocationUrls', [])
+    internal_invocation_urls = function_status.get('internalInvocationUrls', [])
+    external_invocation_urls = function_status.get('externalInvocationUrls', [])
 
     # all function are created with internal invocation urls, if that field is missing
     # we can safely assume that the nuclio api version is < 1.6.x
