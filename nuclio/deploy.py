@@ -359,7 +359,7 @@ def _resolve_function_addresses(api_address, function_name, function_config):
 
 def _resolve_hardcoded_internal_invocation_url(function_name):
     # hard-coding the internal invocation url
-    # template: (<function-namespace>.)?<function_name>.svc.cluster.local:8080
+    # template: <function_name>.(<function-namespace>.)?svc.cluster.local:8080
     internal_invocation_url = f"nuclio-{function_name}."
     namespace_domain = os.environ.get("IGZ_NAMESPACE_DOMAIN")
     if namespace_domain:
