@@ -349,7 +349,7 @@ def _resolve_function_addresses(api_address, function_status):
         if function_status.get('httpPort', 0) == 0:
             return [], []
 
-        return [], ['{}:{}'.format(get_address(api_address), function_status.get('httpPort', 0))]
+        return [], ['{}:{}'.format(get_address(api_address), function_status['httpPort'])]
 
     return internal_invocation_urls, external_invocation_urls
 
