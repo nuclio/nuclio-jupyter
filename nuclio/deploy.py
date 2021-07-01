@@ -366,7 +366,7 @@ def _resolve_hardcoded_internal_invocation_url(function_name):
         # namespace.something.com -> "namespace."
         internal_invocation_url += f"{namespace_domain.split('.')[0]}."
 
-    internal_invocation_url += f"svc.cluster.local:8080"
+    internal_invocation_url += "svc.cluster.local:8080"
     return internal_invocation_url
 
 
