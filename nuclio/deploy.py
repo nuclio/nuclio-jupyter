@@ -304,24 +304,24 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
                                                                                          name,
                                                                                          function_config)
 
-        logger.info(f'done {verb} {name}.')
+        logger.info(f'done {verb} {name}')
 
         if internal_invocation_urls:
             url_plural = 'url' if len(internal_invocation_urls) == 1 else 'urls'
             encoded_internal_invocation_urls = ', '.join(internal_invocation_urls)
             logger.info(f' function internal'
                         f' invocation {url_plural}:'
-                        f' {encoded_internal_invocation_urls}.')
+                        f' {encoded_internal_invocation_urls}')
 
         if external_invocation_urls:
             url_plural = 'url' if len(external_invocation_urls) == 1 else 'urls'
             encoded_external_invocation_urls = ', '.join(external_invocation_urls)
             logger.info(f' function external'
                         f' invocation {url_plural}:'
-                        f' {encoded_external_invocation_urls}.')
+                        f' {encoded_external_invocation_urls}')
 
         else:
-            logger.info('note: your function is not exposed externally.')
+            logger.info('note: your function is not exposed externally')
 
         # for backwards compatibility reasons, the expected return type is a single object represented
         # the external invocation url
