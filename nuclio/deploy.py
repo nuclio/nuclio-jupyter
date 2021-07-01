@@ -13,6 +13,7 @@
 # limitations under the License.
 """Deploy notebook to nuclio"""
 import json
+import os
 from os import environ
 from operator import itemgetter
 from tempfile import mktemp
@@ -294,33 +295,33 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
     log('deploying ...')
 
     if watch:
-        state, function_status = deploy_progress(api_address, name, verbose, return_function_status=True)
+        state, function_config = deploy_progress(api_address, name, verbose, return_function_config=True)
         if state != 'ready':
             log('ERROR: {}'.format(resp.text))
             raise DeployError('cannot deploy ' + resp.text)
 
-        internal_invocation_urls, external_invocation_urls = _resolve_function_addresses(api_address, function_status)
+        internal_invocation_urls, external_invocation_urls = _resolve_function_addresses(api_address,
+                                                                                         name,
+                                                                                         function_config)
 
-        log_message = f'done {verb} {name}.'
+        logger.info(f'done {verb} {name}.')
 
         if internal_invocation_urls:
             url_plural = 'url' if len(internal_invocation_urls) == 1 else 'urls'
             encoded_internal_invocation_urls = ', '.join(internal_invocation_urls)
-            log_message += f' function internal' \
-                           f' invocation {url_plural}:' \
-                           f' {encoded_internal_invocation_urls}.'
+            logger.info(f' function internal'
+                        f' invocation {url_plural}:'
+                        f' {encoded_internal_invocation_urls}.')
 
         if external_invocation_urls:
             url_plural = 'url' if len(external_invocation_urls) == 1 else 'urls'
             encoded_external_invocation_urls = ', '.join(external_invocation_urls)
-            log_message += f' function external' \
-                           f' invocation {url_plural}:' \
-                           f' {encoded_external_invocation_urls}.'
+            logger.info(f' function external'
+                        f' invocation {url_plural}:'
+                        f' {encoded_external_invocation_urls}.')
 
         else:
-            log_message += ' your function is not exposed externally.'
-
-        logger.info(log_message)
+            logger.info('note: your function is not exposed externally.')
 
         # for backwards compatibility reasons, the expected return type is a single object represented
         # the external invocation url
@@ -334,7 +335,8 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
     return None
 
 
-def _resolve_function_addresses(api_address, function_status):
+def _resolve_function_addresses(api_address, function_name, function_config):
+    function_spec, function_status = function_config.get('spec'), function_config.get('status')
     # exists on nuclio >= 1.6.x only
     internal_invocation_urls = function_status.get('internalInvocationUrls', [])
     external_invocation_urls = function_status.get('externalInvocationUrls', [])
@@ -342,16 +344,47 @@ def _resolve_function_addresses(api_address, function_status):
     # all function are created with internal invocation urls, if that field is missing
     # we can safely assume that the nuclio api version is < 1.6.x
     if not internal_invocation_urls:
+        internal_invocation_urls = [
+            _resolve_hardcoded_internal_invocation_url(function_name)
+        ]
+        external_invocation_urls = []
 
-        # function was deployed with clusterIP
-        # the response has no internal invocation urls which means against nuclio < 1.6.x
-        # for those reasons, we return an empty results
-        if function_status.get('httpPort', 0) == 0:
-            return [], []
+        # function was deployed with NodePort
+        if function_status.get('httpPort', 0) != 0:
+            node_port_url = '{}:{}'.format(get_address(api_address), function_status['httpPort'])
+            external_invocation_urls.append(node_port_url)
 
-        return [], ['{}:{}'.format(get_address(api_address), function_status['httpPort'])]
+        external_invocation_urls.extend(_infer_function_ingresses_hosts(function_spec))
+
+        return internal_invocation_urls, external_invocation_urls
 
     return internal_invocation_urls, external_invocation_urls
+
+
+def _resolve_hardcoded_internal_invocation_url(function_name):
+    # hard-coding the internal invocation url
+    # template: (<function-namespace>.)?<function_name>.svc.cluster.local:8080
+    internal_invocation_url = ""
+    namespace_domain = os.environ.get("IGZ_NAMESPACE_DOMAIN")
+    if namespace_domain:
+        # namespace.something.com -> "namespace."
+        internal_invocation_url += f"{namespace_domain.split('.')[0]}."
+
+    internal_invocation_url += f"{function_name}.svc.cluster.local:8080"
+    return internal_invocation_url
+
+
+def _infer_function_ingresses_hosts(function_spec):
+    ingresses_hosts = []
+    for trigger_name, trigger_config in function_spec.get('triggers', {}).items():
+        if trigger_config.get('kind') != 'http':
+            continue
+
+        # trigger is an HTTP trigger
+        for _, ingress_config in trigger_config.get('attributes', {}).get('ingresses', {}).items():
+            ingresses_hosts.append(f"{ingress_config['host']}/{ingress_config['paths'][0]}")
+
+    return ingresses_hosts
 
 
 def populate_parser(parser):
@@ -387,7 +420,7 @@ def populate_parser(parser):
     parser.add_argument('--kind', default=None)
 
 
-def deploy_progress(api_address, name, verbose=False, return_function_status=False):
+def deploy_progress(api_address, name, verbose=False, return_function_config=False):
     url = '{}/functions/{}'.format(api_address, name)
     last_time = time() * 1000.0
     address = ''
@@ -405,8 +438,8 @@ def deploy_progress(api_address, name, verbose=False, return_function_status=Fal
         if state in {'ready', 'error', 'unhealthy'}:
             function_is_ready = state == 'ready'
             if function_is_ready:
-                if return_function_status:
-                    return state, function_status
+                if return_function_config:
+                    return state, resp_as_json
 
                 ip = get_address(api_address)
                 address = '{}:{}'.format(ip, http_port)
