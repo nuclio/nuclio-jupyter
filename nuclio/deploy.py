@@ -378,7 +378,7 @@ def _infer_function_ingresses_hosts(function_spec):
 
         # trigger is an HTTP trigger
         for _, ingress_config in trigger_config.get('attributes', {}).get('ingresses', {}).items():
-            ingresses_hosts.append(f"{ingress_config['host']}/{ingress_config['paths'][0]}")
+            ingresses_hosts.append(f"{ingress_config['host']}{ingress_config['paths'][0]}")
 
     return ingresses_hosts
 
