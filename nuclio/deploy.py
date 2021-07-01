@@ -342,6 +342,13 @@ def _resolve_function_addresses(api_address, function_status):
     # all function are created with internal invocation urls, if that field is missing
     # we can safely assume that the nuclio api version is < 1.6.x
     if not internal_invocation_urls:
+
+        # function was deployed with clusterIP
+        # the response has no internal invocation urls which means against nuclio < 1.6.x
+        # for those reasons, we return an empty results
+        if function_status.get('httpPort', 0) == 0:
+            return [], []
+
         return [], ['{}:{}'.format(get_address(api_address), function_status.get('httpPort', 0))]
 
     return internal_invocation_urls, external_invocation_urls
