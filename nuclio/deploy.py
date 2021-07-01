@@ -309,16 +309,12 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
         if internal_invocation_urls:
             url_plural = 'url' if len(internal_invocation_urls) == 1 else 'urls'
             encoded_internal_invocation_urls = ', '.join(internal_invocation_urls)
-            logger.info(f' function internal'
-                        f' invocation {url_plural}:'
-                        f' {encoded_internal_invocation_urls}')
+            logger.info(f'function internal invocation {url_plural}: {encoded_internal_invocation_urls}')
 
         if external_invocation_urls:
             url_plural = 'url' if len(external_invocation_urls) == 1 else 'urls'
             encoded_external_invocation_urls = ', '.join(external_invocation_urls)
-            logger.info(f' function external'
-                        f' invocation {url_plural}:'
-                        f' {encoded_external_invocation_urls}')
+            logger.info(f'function external invocation {url_plural}: {encoded_external_invocation_urls}')
 
         else:
             logger.info('note: your function is not exposed externally')
