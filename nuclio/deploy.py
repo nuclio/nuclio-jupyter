@@ -13,6 +13,7 @@
 # limitations under the License.
 """Deploy notebook to nuclio"""
 import json
+import os
 from os import environ
 from operator import itemgetter
 from tempfile import mktemp
@@ -28,6 +29,21 @@ from .archive import get_archive_config, build_zip, upload_file, is_archive
 from .build import code2config, build_file, archive_path
 
 VERIFY_CERT = False
+
+
+class ReturnAddressModes(object):
+    external_first = 'external_first'
+    all = 'all'
+
+    # For backwards compatibility
+    default = external_first
+
+    @staticmethod
+    def modes():
+        return [
+            ReturnAddressModes.external_first,
+            ReturnAddressModes.all,
+        ]
 
 
 def get_function(api_address, name):
@@ -97,7 +113,8 @@ def deploy_from_args(args, name=''):
 def deploy_model(models: dict, source='', model_class='', protocol='',
                  endpoint='', dashboard_url='', name='', project='', tag='',
                  explainer=False, spec: ConfigSpec = None, image='',
-                 workers=8, canary=None, handler='', verbose=False):
+                 workers=8, canary=None, handler='', verbose=False,
+                 return_address_mode=ReturnAddressModes.default):
 
     if not models or not isinstance(models, dict):
         raise DeployError('please specify models dict {model-name: path}')
@@ -127,12 +144,14 @@ def deploy_model(models: dict, source='', model_class='', protocol='',
     update_in(config, 'metadata.name', name)
 
     return deploy_config(config, dashboard_url, name=name, project=project,
-                         tag=tag, verbose=verbose, create_new=True)
+                         tag=tag, verbose=verbose, create_new=True,
+                         return_address_mode=return_address_mode)
 
 
 def deploy_file(source='', dashboard_url='', name='', project='', handler='',
                 tag='', verbose=False, create_project=True, archive=False,
-                spec: ConfigSpec = None, files=[], output_dir='', kind=None):
+                spec: ConfigSpec = None, files=[], output_dir='', kind=None,
+                return_address_mode=ReturnAddressModes.default):
 
     if source.startswith('$') or is_archive(source):
         return deploy_zip(source, name, project, tag,
@@ -150,15 +169,14 @@ def deploy_file(source='', dashboard_url='', name='', project='', handler='',
                                     files=files, project=project,
                                     output_dir=output_dir, kind=kind)
 
-    addr = deploy_config(config, dashboard_url, name=name, project=project,
-                         tag=tag, verbose=verbose, create_new=create_project)
-
-    return addr
+    return deploy_config(config, dashboard_url, name=name, project=project,
+                         tag=tag, verbose=verbose, create_new=create_project,
+                         return_address_mode=return_address_mode)
 
 
 def deploy_zip(source='', name='', project='', tag='', dashboard_url='',
                verbose=False, spec: ConfigSpec = None,
-               create_project=True):
+               create_project=True, return_address_mode=ReturnAddressModes.default):
 
     if source.startswith('$'):
         oproject, oname, otag = str2nametag(source[1:])
@@ -169,21 +187,21 @@ def deploy_zip(source='', name='', project='', tag='', dashboard_url='',
 
     name = normalize_name(name)
     config = get_archive_config(name, source)
-    config = extend_config(config, spec, tag, 'archive '+source)
+    config = extend_config(config, spec, tag, 'archive ' + source)
 
     if verbose:
         logger.info('Config:\n{}'.format(
             yaml.dump(config, default_flow_style=False)))
 
-    addr = deploy_config(config, dashboard_url, name=name, project=project,
-                         tag=tag, verbose=verbose, create_new=create_project)
-
-    return addr
+    return deploy_config(config, dashboard_url, name=name, project=project,
+                         tag=tag, verbose=verbose, create_new=create_project,
+                         return_address_mode=return_address_mode)
 
 
 def deploy_code(code, dashboard_url='', name='', project='', handler='',
                 lang='.py', tag='', verbose=False, create_project=True,
-                archive='', spec: ConfigSpec = None, files=[], kind=None):
+                archive='', spec: ConfigSpec = None, files=[], kind=None,
+                return_address_mode=ReturnAddressModes.default):
 
     name = normalize_name(name)
     newconfig, code = code2config(code, lang, kind=kind)
@@ -216,13 +234,18 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
     update_in(newconfig, 'metadata.name', name)
 
     return deploy_config(newconfig, dashboard_url, name=name, project=project,
-                         tag=tag, verbose=verbose, create_new=create_project)
+                         tag=tag, verbose=verbose, create_new=create_project,
+                         return_address_mode=return_address_mode)
 
 
 def deploy_config(config, dashboard_url='', name='', project='', tag='',
-                  verbose=False, create_new=False, watch=True):
+                  verbose=False, create_new=False, watch=True,
+                  return_address_mode=ReturnAddressModes.default):
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
+
+    if return_address_mode not in ReturnAddressModes.modes():
+        raise DeployError(f'return_address_mode must be one of {ReturnAddressModes.modes()}')
 
     if not project:
         raise DeployError('project name must be specified (using -p option)')
@@ -242,8 +265,7 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
         func_project = resp.json()['metadata']['labels'].get(
             meta_keys.project, '')
         if func_project != project:
-            raise DeployError('error: function name already exists under a '
-                              + 'different project ({})'.format(func_project))
+            raise DeployError(f'error: function name already exists under a different project ({func_project})')
 
     key = ['metadata', 'labels', meta_keys.project]
     update_in(config, key, project)
@@ -259,7 +281,7 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
             resp = requests.post(api_url, json=config,
                                  headers=headers, verify=VERIFY_CERT)
         else:
-            resp = requests.put(api_url+'/'+name, json=config,
+            resp = requests.put(api_url + '/' + name, json=config,
                                 headers=headers, verify=VERIFY_CERT)
 
     except OSError as err:
@@ -273,15 +295,92 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
     log('deploying ...')
 
     if watch:
-        state, address = deploy_progress(api_address, name, verbose)
+        state, function_config = deploy_progress(api_address, name, verbose, return_function_config=True)
         if state != 'ready':
             log('ERROR: {}'.format(resp.text))
             raise DeployError('cannot deploy ' + resp.text)
 
-        logger.info('done %s %s, function address: %s', verb, name, address)
-        return address
+        internal_invocation_urls, external_invocation_urls = _resolve_function_addresses(api_address,
+                                                                                         name,
+                                                                                         function_config)
+
+        logger.info(f'done {verb} {name}')
+
+        if internal_invocation_urls:
+            url_plural = 'url' if len(internal_invocation_urls) == 1 else 'urls'
+            encoded_internal_invocation_urls = ', '.join(internal_invocation_urls)
+            logger.info(f'function internal invocation {url_plural}: {encoded_internal_invocation_urls}')
+
+        if external_invocation_urls:
+            url_plural = 'url' if len(external_invocation_urls) == 1 else 'urls'
+            encoded_external_invocation_urls = ', '.join(external_invocation_urls)
+            logger.info(f'function external invocation {url_plural}: {encoded_external_invocation_urls}')
+
+        else:
+            logger.info('note: your function is not exposed externally')
+
+        # for backwards compatibility reasons, the expected return type is a single object represented
+        # the external invocation url
+        # for client who uses the new nuclio-jupyter, there is an option to return both internal and external
+        # invocation urls.
+        if return_address_mode == ReturnAddressModes.external_first:
+            return external_invocation_urls[0] if external_invocation_urls else ''
+
+        return internal_invocation_urls, external_invocation_urls
 
     return None
+
+
+def _resolve_function_addresses(api_address, function_name, function_config):
+    function_spec, function_status = function_config.get('spec'), function_config.get('status')
+    # exists on nuclio >= 1.6.x only
+    internal_invocation_urls = function_status.get('internalInvocationUrls', [])
+    external_invocation_urls = function_status.get('externalInvocationUrls', [])
+
+    # all function are created with internal invocation urls, if that field is missing
+    # we can safely assume that the nuclio api version is < 1.6.x
+    if not internal_invocation_urls:
+        internal_invocation_urls = [
+            _resolve_hardcoded_internal_invocation_url(function_name)
+        ]
+        external_invocation_urls = []
+
+        # function was deployed with NodePort
+        if function_status.get('httpPort', 0) != 0:
+            node_port_url = '{}:{}'.format(get_address(api_address), function_status['httpPort'])
+            external_invocation_urls.append(node_port_url)
+
+        external_invocation_urls.extend(_infer_function_ingresses_hosts(function_spec))
+
+        return internal_invocation_urls, external_invocation_urls
+
+    return internal_invocation_urls, external_invocation_urls
+
+
+def _resolve_hardcoded_internal_invocation_url(function_name):
+    # hard-coding the internal invocation url
+    # template: <function_name>.(<function-namespace>.)?svc.cluster.local:8080
+    internal_invocation_url = f"nuclio-{function_name}."
+    namespace_domain = os.environ.get("IGZ_NAMESPACE_DOMAIN")
+    if namespace_domain:
+        # namespace.something.com -> "namespace."
+        internal_invocation_url += f"{namespace_domain.split('.')[0]}."
+
+    internal_invocation_url += "svc.cluster.local:8080"
+    return internal_invocation_url
+
+
+def _infer_function_ingresses_hosts(function_spec):
+    ingresses_hosts = []
+    for trigger_name, trigger_config in function_spec.get('triggers', {}).items():
+        if trigger_config.get('kind') != 'http':
+            continue
+
+        # trigger is an HTTP trigger
+        for _, ingress_config in trigger_config.get('attributes', {}).get('ingresses', {}).items():
+            ingresses_hosts.append(f"{ingress_config['host']}{ingress_config['paths'][0]}")
+
+    return ingresses_hosts
 
 
 def populate_parser(parser):
@@ -317,7 +416,7 @@ def populate_parser(parser):
     parser.add_argument('--kind', default=None)
 
 
-def deploy_progress(api_address, name, verbose=False):
+def deploy_progress(api_address, name, verbose=False, return_function_config=False):
     url = '{}/functions/{}'.format(api_address, name)
     last_time = time() * 1000.0
     address = ''
@@ -327,39 +426,48 @@ def deploy_progress(api_address, name, verbose=False):
         if not resp.ok:
             raise DeployError('error: cannot poll {} status'.format(name))
 
-        state, last_time, _ = process_resp(resp.json(), last_time,
-                                           verbose, log_message=True)
-        if state in {'ready', 'error'}:
+        resp_as_json = resp.json()
+        function_status = resp_as_json.get('status')
+        http_port = function_status.get('httpPort', 0)
 
-            if state == 'ready':
+        state, last_time, _ = process_resp(resp_as_json, last_time, verbose, log_message=True)
+        if state in {'ready', 'error', 'unhealthy'}:
+            function_is_ready = state == 'ready'
+            if function_is_ready:
+                if return_function_config:
+                    return state, resp_as_json
+
                 ip = get_address(api_address)
-                address = '{}:{}'.format(ip, resp.json()['status']
-                                         .get('httpPort', 0))
+                address = '{}:{}'.format(ip, http_port)
 
             return state, address
 
         sleep(1)
 
 
-def get_deploy_status(api_address, name, last_time=None, verbose=False):
-    url = '{}/functions/{}'.format(api_address, name)
+def get_deploy_status(api_address, name, last_time=None, verbose=False, resolve_address=True):
     last_time = last_time or (time() * 1000.0)
     address = ''
+    function_status = get_function_status(api_address, name)
 
+    http_port = function_status.get('httpPort', 0)
+    state, last_time, outputs = process_resp({'status': function_status}, last_time, verbose, log_message=False)
+    if state in {'ready', 'error', 'unhealthy'}:
+        if state == 'ready' and resolve_address:
+            ip = get_address(api_address)
+            address = '{}:{}'.format(ip, http_port)
+
+    return state, address, last_time, outputs, function_status
+
+
+def get_function_status(api_address, name):
+    url = '{}/functions/{}'.format(api_address, name)
     resp = requests.get(url, verify=VERIFY_CERT)
     if not resp.ok:
         raise DeployError('error: cannot poll {} status'.format(name))
 
-    state, last_time, outputs = process_resp(resp.json(), last_time,
-                                             verbose, log_message=False)
-    if state in {'ready', 'error'}:
-
-        if state == 'ready':
-            ip = get_address(api_address)
-            address = '{}:{}'.format(ip, resp.json()['status']
-                                     .get('httpPort', 0))
-
-    return state, address, last_time, outputs
+    resp_as_json = resp.json()
+    return resp_as_json.get('status', {})
 
 
 def get_address(api_url):
@@ -394,7 +502,7 @@ def process_resp(resp, last_time, verbose=False, log_message=False):
         if log_message:
             logger.info('(%s) %s', log['level'], log['message'])
         time_string = datetime.fromtimestamp(
-            timestamp/1000).strftime('%Y-%m-%d %H:%M:%S')
+            timestamp / 1000).strftime('%Y-%m-%d %H:%M:%S')
         message = f'{time_string}  ({log["level"]}) {log["message"]}'
         if verbose:
             if log_message:

@@ -73,7 +73,7 @@ def parse_env(line):
     i = line.find('=')
     if i == -1:
         return None, None
-    key, value = line[:i].strip(), line[i+1:].strip()
+    key, value = line[:i].strip(), line[i + 1:].strip()
     value = path.expandvars(value)
     return key, value
 

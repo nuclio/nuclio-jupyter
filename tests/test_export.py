@@ -264,8 +264,8 @@ def test_multiple_ends():
 def test_end_and_then_start():
     cells = [
         'b = 2',
-        '# nuclio: end-code my-function\n' +
-        'd = 4\n' +
+        '# nuclio: end-code my-function\n'
+        'd = 4\n'
         '# nuclio: start-code my-function\n',
         'a = 1',
     ]
