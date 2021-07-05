@@ -1,6 +1,5 @@
 # Nuclio Function Automation for Python and Jupyter 
 
-[![Build Status](https://travis-ci.org/nuclio/nuclio-jupyter.svg?branch=master)](https://travis-ci.org/nuclio/nuclio-jupyter)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 Python package for automatically generating and deploying [nuclio](https://github.com/nuclio/nuclio) 
