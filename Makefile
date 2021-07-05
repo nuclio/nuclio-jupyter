@@ -20,7 +20,7 @@ all:
 
 .PHONY: upload
 upload:
-	rm -r dist
+	rm -rf dist
 	python setup.py sdist bdist_wheel
 	pipenv run twine upload dist/*
 
