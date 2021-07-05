@@ -445,7 +445,12 @@ def deploy_progress(api_address, name, verbose=False, return_function_config=Fal
         sleep(1)
 
 
-def get_deploy_status(api_address, name, last_time=None, verbose=False, resolve_address=True):
+def get_deploy_status(api_address,
+                      name,
+                      last_time=None,
+                      verbose=False,
+                      resolve_address=True,
+                      return_function_status=False):
     last_time = last_time or (time() * 1000.0)
     address = ''
     function_status = get_function_status(api_address, name)
@@ -457,7 +462,9 @@ def get_deploy_status(api_address, name, last_time=None, verbose=False, resolve_
             ip = get_address(api_address)
             address = '{}:{}'.format(ip, http_port)
 
-    return state, address, last_time, outputs, function_status
+    if return_function_status:
+        return state, address, last_time, outputs, function_status
+    return state, address, last_time, outputs
 
 
 def get_function_status(api_address, name):
