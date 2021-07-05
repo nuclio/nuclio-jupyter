@@ -34,7 +34,7 @@ flake8:
 	pipenv run flake8 nuclio tests
 
 .PHONY: test
-test: clean_pyc flake8
+test: clean_pyc
 	pipenv run python -m pytest --disable-warnings -v tests
 
 .PHONY: build-docker
