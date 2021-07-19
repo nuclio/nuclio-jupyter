@@ -356,3 +356,14 @@ cells:
     c = 3
 expected: |
   b = 2
+---
+name: Commented cell magic after start code in cell
+function name: None
+cells:
+  - b = 2
+  - |
+    # nuclio: start-code
+    # %%nuclio cmd ls ${HOME}
+  - d = 4
+expected: |
+  d = 4
