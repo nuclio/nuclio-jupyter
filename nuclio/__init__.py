@@ -19,7 +19,7 @@ from .config import Volume, ConfigSpec  # noqa
 from .build import build_file  # noqa
 from .triggers import HttpTrigger, CronTrigger, KafkaTrigger  # noqa
 
-__version__ = '0.8.17'
+__version__ = '0.8.18'
 
 _inject_context()
 del _inject_context
