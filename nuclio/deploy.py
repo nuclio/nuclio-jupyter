@@ -27,6 +27,7 @@ from .config import (update_in, meta_keys, ConfigSpec, extend_config, Volume,
                      set_handler, new_config)
 from .archive import get_archive_config, build_zip, upload_file, is_archive
 from .build import code2config, build_file, archive_path
+from .auth import AuthInfo
 
 VERIFY_CERT = False
 
@@ -46,9 +47,11 @@ class ReturnAddressModes(object):
         ]
 
 
-def get_function(api_address, name):
+def get_function(api_address, name, auth_info: AuthInfo = None):
+    if auth_info is None:
+        auth_info = AuthInfo.from_envvar()
     api_url = '{}/functions/{}'.format(api_address, name)
-    return requests.get(api_url, verify=VERIFY_CERT)
+    return requests.get(api_url, verify=VERIFY_CERT, auth=auth_info.to_requests_auth())
 
 
 service_names = {
@@ -151,7 +154,8 @@ def deploy_model(models: dict, source='', model_class='', protocol='',
 def deploy_file(source='', dashboard_url='', name='', project='', handler='',
                 tag='', verbose=False, create_project=True, archive=False,
                 spec: ConfigSpec = None, files=[], output_dir='', kind=None,
-                return_address_mode=ReturnAddressModes.default):
+                return_address_mode=ReturnAddressModes.default,
+                auth_info: AuthInfo = None):
 
     if source.startswith('$') or is_archive(source):
         return deploy_zip(source, name, project, tag,
@@ -171,12 +175,14 @@ def deploy_file(source='', dashboard_url='', name='', project='', handler='',
 
     return deploy_config(config, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_project,
-                         return_address_mode=return_address_mode)
+                         return_address_mode=return_address_mode,
+                         auth_info=auth_info)
 
 
 def deploy_zip(source='', name='', project='', tag='', dashboard_url='',
                verbose=False, spec: ConfigSpec = None,
-               create_project=True, return_address_mode=ReturnAddressModes.default):
+               create_project=True, return_address_mode=ReturnAddressModes.default,
+               auth_info: AuthInfo = None):
 
     if source.startswith('$'):
         oproject, oname, otag = str2nametag(source[1:])
@@ -195,13 +201,15 @@ def deploy_zip(source='', name='', project='', tag='', dashboard_url='',
 
     return deploy_config(config, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_project,
-                         return_address_mode=return_address_mode)
+                         return_address_mode=return_address_mode,
+                         auth_info=auth_info)
 
 
 def deploy_code(code, dashboard_url='', name='', project='', handler='',
                 lang='.py', tag='', verbose=False, create_project=True,
                 archive='', spec: ConfigSpec = None, files=[], kind=None,
-                return_address_mode=ReturnAddressModes.default):
+                return_address_mode=ReturnAddressModes.default,
+                auth_info: AuthInfo = None):
 
     name = normalize_name(name)
     newconfig, code = code2config(code, lang, kind=kind)
@@ -235,12 +243,14 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
 
     return deploy_config(newconfig, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_project,
-                         return_address_mode=return_address_mode)
+                         return_address_mode=return_address_mode,
+                         auth_info=auth_info),
 
 
 def deploy_config(config, dashboard_url='', name='', project='', tag='',
                   verbose=False, create_new=False, watch=True,
-                  return_address_mode=ReturnAddressModes.default):
+                  return_address_mode=ReturnAddressModes.default,
+                  auth_info: AuthInfo = None):
     # logger level is INFO, debug won't emit
     log = logger.info if verbose else logger.debug
 
@@ -250,11 +260,14 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
     if not project:
         raise DeployError('project name must be specified (using -p option)')
 
+    if auth_info is None:
+        auth_info = AuthInfo.from_envvar()
+
     api_address = find_dashboard_url(dashboard_url)
-    project = find_or_create_project(api_address, project, create_new)
+    project = find_or_create_project(api_address, project, create_new, auth_info=auth_info)
 
     try:
-        resp = get_function(api_address, name)
+        resp = get_function(api_address, name, auth_info=auth_info)
     except OSError:
         raise DeployError('error: cannot connect to {}'.format(api_address))
 
@@ -278,11 +291,17 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
     api_url = '{}/functions'.format(api_address)
     try:
         if is_new:
-            resp = requests.post(api_url, json=config,
-                                 headers=headers, verify=VERIFY_CERT)
+            resp = requests.post(api_url,
+                                 json=config,
+                                 headers=headers,
+                                 verify=VERIFY_CERT,
+                                 auth=auth_info.to_requests_auth())
         else:
-            resp = requests.put(api_url + '/' + name, json=config,
-                                headers=headers, verify=VERIFY_CERT)
+            resp = requests.put(api_url + '/' + name,
+                                json=config,
+                                headers=headers,
+                                verify=VERIFY_CERT,
+                                auth=auth_info.to_requests_auth())
 
     except OSError as err:
         log('ERROR: %s', str(err))
@@ -295,14 +314,19 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
     log('deploying ...')
 
     if watch:
-        state, function_config = deploy_progress(api_address, name, verbose, return_function_config=True)
+        state, function_config = deploy_progress(api_address,
+                                                 name,
+                                                 verbose,
+                                                 return_function_config=True,
+                                                 auth_info=auth_info)
         if state != 'ready':
             log('ERROR: {}'.format(resp.text))
             raise DeployError('cannot deploy ' + resp.text)
 
         internal_invocation_urls, external_invocation_urls = _resolve_function_addresses(api_address,
                                                                                          name,
-                                                                                         function_config)
+                                                                                         function_config,
+                                                                                         auth_info)
 
         logger.info(f'done {verb} {name}')
 
@@ -331,7 +355,10 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
     return None
 
 
-def _resolve_function_addresses(api_address, function_name, function_config):
+def _resolve_function_addresses(api_address,
+                                function_name,
+                                function_config,
+                                auth_info: AuthInfo = None):
     function_spec, function_status = function_config.get('spec'), function_config.get('status')
     # exists on nuclio >= 1.6.x only
     internal_invocation_urls = function_status.get('internalInvocationUrls', [])
@@ -347,7 +374,7 @@ def _resolve_function_addresses(api_address, function_name, function_config):
 
         # function was deployed with NodePort
         if function_status.get('httpPort', 0) != 0:
-            node_port_url = '{}:{}'.format(get_address(api_address), function_status['httpPort'])
+            node_port_url = '{}:{}'.format(get_address(api_address, auth_info=auth_info), function_status['httpPort'])
             external_invocation_urls.append(node_port_url)
 
         external_invocation_urls.extend(_infer_function_ingresses_hosts(function_spec))
@@ -416,13 +443,15 @@ def populate_parser(parser):
     parser.add_argument('--kind', default=None)
 
 
-def deploy_progress(api_address, name, verbose=False, return_function_config=False):
+def deploy_progress(api_address, name, verbose=False, return_function_config=False, auth_info: AuthInfo = None):
     url = '{}/functions/{}'.format(api_address, name)
     last_time = time() * 1000.0
     address = ''
+    if auth_info is None:
+        auth_info = AuthInfo.from_envvar()
 
     while True:
-        resp = requests.get(url, verify=VERIFY_CERT)
+        resp = requests.get(url, verify=VERIFY_CERT, auth=auth_info.to_requests_auth())
         if not resp.ok:
             raise DeployError('error: cannot poll {} status'.format(name))
 
@@ -437,7 +466,7 @@ def deploy_progress(api_address, name, verbose=False, return_function_config=Fal
                 if return_function_config:
                     return state, resp_as_json
 
-                ip = get_address(api_address)
+                ip = get_address(api_address, auth_info=auth_info)
                 address = '{}:{}'.format(ip, http_port)
 
             return state, address
@@ -450,16 +479,19 @@ def get_deploy_status(api_address,
                       last_time=None,
                       verbose=False,
                       resolve_address=True,
-                      return_function_status=False):
+                      return_function_status=False,
+                      auth_info: AuthInfo = None):
+    if auth_info is None:
+        auth_info = AuthInfo.from_envvar()
     last_time = last_time or (time() * 1000.0)
     address = ''
-    function_status = get_function_status(api_address, name)
+    function_status = get_function_status(api_address, name, auth_info=auth_info)
 
     http_port = function_status.get('httpPort', 0)
     state, last_time, outputs = process_resp({'status': function_status}, last_time, verbose, log_message=False)
     if state in {'ready', 'error', 'unhealthy'}:
         if state == 'ready' and resolve_address:
-            ip = get_address(api_address)
+            ip = get_address(api_address, auth_info=auth_info)
             address = '{}:{}'.format(ip, http_port)
 
     if return_function_status:
@@ -467,9 +499,11 @@ def get_deploy_status(api_address,
     return state, address, last_time, outputs
 
 
-def get_function_status(api_address, name):
+def get_function_status(api_address, name, auth_info: AuthInfo = None):
+    if auth_info is None:
+        auth_info = AuthInfo.from_envvar()
     url = '{}/functions/{}'.format(api_address, name)
-    resp = requests.get(url, verify=VERIFY_CERT)
+    resp = requests.get(url, verify=VERIFY_CERT, auth=auth_info.to_requests_auth())
     if not resp.ok:
         raise DeployError('error: cannot poll {} status'.format(name))
 
@@ -477,9 +511,12 @@ def get_function_status(api_address, name):
     return resp_as_json.get('status', {})
 
 
-def get_address(api_url):
+def get_address(api_url, auth_info: AuthInfo = None):
+    if auth_info is None:
+        auth_info = AuthInfo.from_envvar()
     resp = requests.get('{}/external_ip_addresses'.format(api_url),
-                        verify=VERIFY_CERT)
+                        verify=VERIFY_CERT,
+                        auth=auth_info.to_requests_auth())
     if not resp.ok:
         logger.warning('failed to obtain external IP address, returned local')
         return "localhost"
@@ -520,13 +557,15 @@ def process_resp(resp, last_time, verbose=False, log_message=False):
     return state, last_time, outputs
 
 
-def find_or_create_project(api_url, project, create_new=False):
+def find_or_create_project(api_url, project, create_new=False, auth_info: AuthInfo = None):
+    if auth_info is None:
+        auth_info = AuthInfo.from_envvar()
     apipath = '{}/projects'.format(api_url)
-    resp = requests.get(apipath, verify=VERIFY_CERT)
+    resp = requests.get(apipath, verify=VERIFY_CERT, auth=auth_info.to_requests_auth())
 
     project = project.strip()
     if not resp.ok:
-        raise OSError('nuclio API call failed')
+        raise OSError(f'nuclio API call failed. status code: {resp.status_code}')
     for k, v in resp.json().items():
         if v['metadata'].get('name') == project:
             return k
@@ -547,8 +586,11 @@ def find_or_create_project(api_url, project, create_new=False):
     config = {"metadata": {"name": project}, "spec": {}}
 
     try:
-        resp = requests.post(apipath, json=config,
-                             headers=headers, verify=VERIFY_CERT)
+        resp = requests.post(apipath,
+                             json=config,
+                             headers=headers,
+                             verify=VERIFY_CERT,
+                             auth=auth_info.to_requests_auth())
     except OSError as err:
         logger.info('ERROR: %s', str(err))
         raise DeployError(
@@ -561,14 +603,19 @@ def find_or_create_project(api_url, project, create_new=False):
     return resp.json()['metadata']['name']
 
 
-def list_functions(dashboard_url='', namespace=''):
+def list_functions(dashboard_url='', namespace='', auth_info: AuthInfo = None):
+    if auth_info is None:
+        auth_info = AuthInfo.from_envvar()
     api_address = find_dashboard_url(dashboard_url)
     api_url = '{}/functions'.format(api_address)
     headers = {}
     if namespace:
         headers = {'x-nuclio-function-namespace': namespace}
     try:
-        resp = requests.get(api_url, headers=headers, verify=VERIFY_CERT)
+        resp = requests.get(api_url,
+                            headers=headers,
+                            verify=VERIFY_CERT,
+                            auth=auth_info.to_requests_auth())
 
     except OSError as err:
         logger.error('ERROR: %s', str(err))
@@ -581,7 +628,9 @@ def list_functions(dashboard_url='', namespace=''):
     return resp.json()
 
 
-def delete_func(name, dashboard_url='', namespace=''):
+def delete_func(name, dashboard_url='', namespace='', auth_info: AuthInfo = None):
+    if auth_info is None:
+        auth_info = AuthInfo.from_envvar()
     api_address = find_dashboard_url(dashboard_url)
     headers = {'Content-Type': 'application/json'}
     body = {'metadata': {'name': name}}
@@ -590,8 +639,11 @@ def delete_func(name, dashboard_url='', namespace=''):
 
     api_url = '{}/functions'.format(api_address)
     try:
-        resp = requests.delete(api_url, json=body,
-                               headers=headers, verify=VERIFY_CERT)
+        resp = requests.delete(api_url,
+                               json=body,
+                               headers=headers,
+                               verify=VERIFY_CERT,
+                               auth=auth_info.to_requests_auth())
     except OSError as err:
         logger.error('ERROR: %s', str(err))
         raise DeployError('error: cannot del {} at {}'.format(name, api_url))
