@@ -207,6 +207,8 @@ class NuclioExporter(Exporter):
                     function_buffers[current_name][ended] = True
                     seen_function_name = seen_function_name or current_name
 
+            # filter comments now to not erase start/end/ignore annotations but erase commented out magic
+            code = filter_comments(code)
             lines = code.splitlines()
             if cell_magic in code:
                 code = self.handle_cell_magic(config, lines)
@@ -228,7 +230,6 @@ class NuclioExporter(Exporter):
         io = StringIO()
         print(header(), file=io)
         for code in codes:
-            code = filter_comments(code)
             if not code.strip():
                 continue
 

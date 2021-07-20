@@ -289,3 +289,20 @@ def test_converter_cell_and_line_magic(case: dict):
     _, config = export_notebook(notebook)
     cmds = config['spec']['build']['commands']
     assert environ['HOME'] in cmds[0], '${HOME} not expanded'
+
+
+def test_commented_out_line_magic():
+    cells = [
+        'd = 4\n'
+        '# %%nuclio cmd ls ${HOME}\n',
+        'a = 1',
+    ]
+    notebook = {
+        "cells": [
+            {"source": code, "cell_type": "code"}
+            for code in cells
+        ],
+    }
+    _, config = export_notebook(notebook)
+    cmds = config['spec']['build']['commands']
+    assert len(cmds) == 0, 'parsed commented out magic'
