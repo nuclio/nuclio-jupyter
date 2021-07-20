@@ -3,34 +3,36 @@ import os
 import requests.auth
 
 
-class AuthInfo(requests.auth.HTTPBasicAuth):
+class AuthInfo:
     """
     Accommodate Iguazio-based authentication mechanism
     """
 
-    @classmethod
-    def from_session_key(cls, session_key):
-        return cls("", session_key)
+    def __init__(self, username="", password="", mode="nop"):
+        self._username = username
+        self._password = password
+        self._mode = mode
 
     @classmethod
     def from_envvar(cls):
         access_key = os.getenv("V3IO_ACCESS_KEY")
         if access_key:
-            return cls.from_session_key(access_key)
+            return cls(password=access_key, mode="iguazio")
+        return cls(mode="nop")
 
+    def to_requests_auth(self):
+        if self._mode == "iguazio":
+            return IguazioBasicAuthRequests(self._username, self._password)
+        elif self._username or self._password:
+            return requests.auth.HTTPBasicAuth(self._username, self._password)
         return None
 
-    def compile_iguazio_cookie(self):
-        return f'j:{{"sid": "{self.password}"}}'
+
+class IguazioBasicAuthRequests(requests.auth.HTTPBasicAuth):
 
     def __call__(self, r: requests.request):
-
-        # if provided a username, let it be a basic auth
-        if self.username != "":
-            return super.__call__(r)
-
-        # otherwise, treat as a session key in which we send as a cookie
+        # password as session key, send as a cookie
         r.prepare_cookies({
-            "session": self.compile_iguazio_cookie(),
+            "session": f'j:{{"sid": "{self.password}"}}',
         })
         return r

@@ -51,7 +51,7 @@ def get_function(api_address, name, auth_info: AuthInfo = None):
     if auth_info is None:
         auth_info = AuthInfo.from_envvar()
     api_url = '{}/functions/{}'.format(api_address, name)
-    return requests.get(api_url, verify=VERIFY_CERT, auth=auth_info)
+    return requests.get(api_url, verify=VERIFY_CERT, auth=auth_info.to_requests_auth())
 
 
 service_names = {
@@ -295,13 +295,13 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
                                  json=config,
                                  headers=headers,
                                  verify=VERIFY_CERT,
-                                 auth=auth_info)
+                                 auth=auth_info.to_requests_auth())
         else:
             resp = requests.put(api_url + '/' + name,
                                 json=config,
                                 headers=headers,
                                 verify=VERIFY_CERT,
-                                auth=auth_info)
+                                auth=auth_info.to_requests_auth())
 
     except OSError as err:
         log('ERROR: %s', str(err))
@@ -318,7 +318,7 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
                                                  name,
                                                  verbose,
                                                  return_function_config=True,
-                                                 auth_info=auth_info)
+                                                 auth_info=auth_info.to_requests_auth())
         if state != 'ready':
             log('ERROR: {}'.format(resp.text))
             raise DeployError('cannot deploy ' + resp.text)
@@ -451,7 +451,7 @@ def deploy_progress(api_address, name, verbose=False, return_function_config=Fal
         auth_info = AuthInfo.from_envvar()
 
     while True:
-        resp = requests.get(url, verify=VERIFY_CERT, auth=auth_info)
+        resp = requests.get(url, verify=VERIFY_CERT, auth=auth_info.to_requests_auth())
         if not resp.ok:
             raise DeployError('error: cannot poll {} status'.format(name))
 
@@ -466,7 +466,7 @@ def deploy_progress(api_address, name, verbose=False, return_function_config=Fal
                 if return_function_config:
                     return state, resp_as_json
 
-                ip = get_address(api_address, auth_info=auth_info)
+                ip = get_address(api_address, auth_info=auth_info.to_requests_auth())
                 address = '{}:{}'.format(ip, http_port)
 
             return state, address
@@ -503,7 +503,7 @@ def get_function_status(api_address, name, auth_info: AuthInfo = None):
     if auth_info is None:
         auth_info = AuthInfo.from_envvar()
     url = '{}/functions/{}'.format(api_address, name)
-    resp = requests.get(url, verify=VERIFY_CERT, auth=auth_info)
+    resp = requests.get(url, verify=VERIFY_CERT, auth=auth_info.to_requests_auth())
     if not resp.ok:
         raise DeployError('error: cannot poll {} status'.format(name))
 
@@ -516,7 +516,7 @@ def get_address(api_url, auth_info: AuthInfo = None):
         auth_info = AuthInfo.from_envvar()
     resp = requests.get('{}/external_ip_addresses'.format(api_url),
                         verify=VERIFY_CERT,
-                        auth=auth_info)
+                        auth=auth_info.to_requests_auth())
     if not resp.ok:
         logger.warning('failed to obtain external IP address, returned local')
         return "localhost"
@@ -561,11 +561,11 @@ def find_or_create_project(api_url, project, create_new=False, auth_info: AuthIn
     if auth_info is None:
         auth_info = AuthInfo.from_envvar()
     apipath = '{}/projects'.format(api_url)
-    resp = requests.get(apipath, verify=VERIFY_CERT, auth=auth_info)
+    resp = requests.get(apipath, verify=VERIFY_CERT, auth=auth_info.to_requests_auth())
 
     project = project.strip()
     if not resp.ok:
-        raise OSError('nuclio API call failed')
+        raise OSError(f'nuclio API call failed. status code: {resp.status_code}')
     for k, v in resp.json().items():
         if v['metadata'].get('name') == project:
             return k
@@ -590,7 +590,7 @@ def find_or_create_project(api_url, project, create_new=False, auth_info: AuthIn
                              json=config,
                              headers=headers,
                              verify=VERIFY_CERT,
-                             auth=auth_info)
+                             auth=auth_info.to_requests_auth())
     except OSError as err:
         logger.info('ERROR: %s', str(err))
         raise DeployError(
@@ -615,7 +615,7 @@ def list_functions(dashboard_url='', namespace='', auth_info: AuthInfo = None):
         resp = requests.get(api_url,
                             headers=headers,
                             verify=VERIFY_CERT,
-                            auth=auth_info)
+                            auth=auth_info.to_requests_auth())
 
     except OSError as err:
         logger.error('ERROR: %s', str(err))
@@ -643,7 +643,7 @@ def delete_func(name, dashboard_url='', namespace='', auth_info: AuthInfo = None
                                json=body,
                                headers=headers,
                                verify=VERIFY_CERT,
-                               auth=auth_info)
+                               auth=auth_info.to_requests_auth())
     except OSError as err:
         logger.error('ERROR: %s', str(err))
         raise DeployError('error: cannot del {} at {}'.format(name, api_url))
