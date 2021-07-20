@@ -485,7 +485,18 @@ def get_deploy_status(api_address,
         auth_info = AuthInfo.from_envvar()
     last_time = last_time or (time() * 1000.0)
     address = ''
-    function_status = get_function_status(api_address, name, auth_info=auth_info)
+    resp = get_function(api_address, name, auth_info)
+    if not resp.ok:
+        raise DeployError('error: failed getting function {}'.format(name))
+
+    function_config = resp.json()
+    function_status = function_config.get('status', {})
+    internal_invocation_urls, external_invocation_urls = _resolve_function_addresses(api_address,
+                                                                                     name,
+                                                                                     function_config,
+                                                                                     auth_info)
+    function_status["internalInvocationUrls"] = internal_invocation_urls
+    function_status["externalInvocationUrls"] = external_invocation_urls
 
     http_port = function_status.get('httpPort', 0)
     state, last_time, outputs = process_resp({'status': function_status}, last_time, verbose, log_message=False)
