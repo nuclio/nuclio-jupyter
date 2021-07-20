@@ -318,7 +318,7 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
                                                  name,
                                                  verbose,
                                                  return_function_config=True,
-                                                 auth_info=auth_info.to_requests_auth())
+                                                 auth_info=auth_info)
         if state != 'ready':
             log('ERROR: {}'.format(resp.text))
             raise DeployError('cannot deploy ' + resp.text)
@@ -466,7 +466,7 @@ def deploy_progress(api_address, name, verbose=False, return_function_config=Fal
                 if return_function_config:
                     return state, resp_as_json
 
-                ip = get_address(api_address, auth_info=auth_info.to_requests_auth())
+                ip = get_address(api_address, auth_info=auth_info)
                 address = '{}:{}'.format(ip, http_port)
 
             return state, address
