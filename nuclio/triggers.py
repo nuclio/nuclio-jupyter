@@ -129,17 +129,15 @@ class KafkaTrigger(NuclioTrigger):
     def __init__(self, brokers, topics, partitions=None, consumer_group="kafka", initial_offset="earliest"):
         super(KafkaTrigger, self).__init__({
             "kind": self.kind,
+            "url": brokers[0],
             "maxWorkers": 1,
             "attributes": {"Topics": topics, "Brokers": brokers, "ConsumerGroup": consumer_group,
-                           "InitialOffset": initial_offset},
+                           "InitialOffset": initial_offset, "SessionTimeout":"10s",
+                            "HeartbeatInterval":"3s", "WorkerAllocationMode":"pool", "FetchDefault":1048576},
         })
         partitions = partitions or []
         if partitions:
             self._struct["attributes"]["Partitions"] = partitions
-        self._struct["attributes"]["SessionTimeout"] = "10s"
-        self._struct["attributes"]["HeartbeatInterval"] = "3s"
-        self._struct["attributes"]["WorkerAllocationMode"] = "pool"
-        self._struct["attributes"]["FetchDefault"] = 1048576
     def sasl(self, user="", password=""):
         self._struct["attributes"]["Sasl"] = {
             "enable": True,
