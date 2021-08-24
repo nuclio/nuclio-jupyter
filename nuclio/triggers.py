@@ -129,7 +129,6 @@ class KafkaTrigger(NuclioTrigger):
     def __init__(self, brokers, topics, partitions=None, consumer_group="kafka", initial_offset="earliest"):
         super(KafkaTrigger, self).__init__({
             "kind": self.kind,
-            "url": brokers[0],
             "maxWorkers": 1,
             "attributes": {"Topics": topics, "Brokers": brokers, "ConsumerGroup": consumer_group,
                            "InitialOffset": initial_offset, "SessionTimeout":"10s",
