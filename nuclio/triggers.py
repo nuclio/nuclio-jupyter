@@ -124,20 +124,22 @@ class CronTrigger(NuclioTrigger):
 
 
 class KafkaTrigger(NuclioTrigger):
-    kind = "kafka"
+    kind = "kafka-cluster"
 
-    def __init__(self, url, topic, partitions=None):
+    def __init__(self, brokers, topics, partitions=None, consumer_group="kafka", initial_offset="earliest"):
         super(KafkaTrigger, self).__init__({
             "kind": self.kind,
-            "url": url,
-            "attributes": {"topic": topic},
+            "maxWorkers": 1,
+            "attributes": {"Topics": topics, "Brokers": brokers, "ConsumerGroup": consumer_group,
+                           "InitialOffset": initial_offset, "SessionTimeout": "10s",
+                           "HeartbeatInterval": "3s", "WorkerAllocationMode": "pool", "FetchDefault": 1048576},
         })
         partitions = partitions or []
         if partitions:
-            self._struct["attributes"]["partitions"] = partitions
+            self._struct["attributes"]["Partitions"] = partitions
 
     def sasl(self, user="", password=""):
-        self._struct["attributes"]["sasl"] = {
+        self._struct["attributes"]["Sasl"] = {
             "enable": True,
             "user": user,
             "password": password,
