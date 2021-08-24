@@ -131,12 +131,13 @@ class KafkaTrigger(NuclioTrigger):
             "kind": self.kind,
             "maxWorkers": 1,
             "attributes": {"Topics": topics, "Brokers": brokers, "ConsumerGroup": consumer_group,
-                           "InitialOffset": initial_offset, "SessionTimeout":"10s",
-                            "HeartbeatInterval":"3s", "WorkerAllocationMode":"pool", "FetchDefault":1048576},
+                           "InitialOffset": initial_offset, "SessionTimeout": "10s",
+                           "HeartbeatInterval": "3s", "WorkerAllocationMode": "pool", "FetchDefault": 1048576},
         })
         partitions = partitions or []
         if partitions:
             self._struct["attributes"]["Partitions"] = partitions
+
     def sasl(self, user="", password=""):
         self._struct["attributes"]["Sasl"] = {
             "enable": True,
