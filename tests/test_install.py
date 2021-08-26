@@ -17,7 +17,7 @@ from os import path
 from shutil import rmtree
 from subprocess import PIPE, run
 from sys import executable
-from tempfile import mkdtemp
+import tempfile
 
 from conftest import here, is_travis
 
@@ -36,7 +36,7 @@ def test_install():
     wheels = glob('{}/*.whl'.format(dist_dir))
     assert len(wheels) == 1, 'bad number of wheels'
 
-    venv_dir = mkdtemp(prefix='nuclio-jupyter-venv-')
+    venv_dir = tempfile.mkdtemp(prefix='nuclio-jupyter-venv-')
     print('venv = {}'.format(venv_dir))
     run(['virtualenv', '-p', executable, venv_dir], check=True)
 

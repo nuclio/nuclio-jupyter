@@ -18,7 +18,7 @@ from glob import glob
 from os import environ
 from subprocess import run
 from sys import executable
-from tempfile import mkdtemp
+import tempfile
 
 import pytest
 import yaml
@@ -44,7 +44,7 @@ def temp_env(kw):
 
 
 def test_export():
-    out_dir = mkdtemp(prefix='nuclio-jupyter-export-')
+    out_dir = tempfile.mkdtemp(prefix='nuclio-jupyter-export-')
     cmd = [
         executable, '-m', 'nbconvert',
         '--to', 'nuclio.export.NuclioExporter',

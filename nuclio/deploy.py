@@ -14,9 +14,8 @@
 """Deploy notebook to nuclio"""
 import json
 import os
-from os import environ
+import tempfile
 from operator import itemgetter
-from tempfile import mktemp
 from time import sleep, time
 from datetime import datetime
 
@@ -64,20 +63,20 @@ def find_dashboard_url(dashboard_url=''):
 
     def with_prefix(url):
         api_prefix = '/api'
-        if environ.get('NUCLIO_DROP_API'):
+        if os.environ.get('NUCLIO_DROP_API'):
             api_prefix = ''
         return url + api_prefix
 
     if dashboard_url:
         return with_prefix(dashboard_url)
 
-    if 'NUCLIO_DASHBOARD_URL' in environ:
-        return with_prefix(environ.get('NUCLIO_DASHBOARD_URL'))
+    if 'NUCLIO_DASHBOARD_URL' in os.environ:
+        return with_prefix(os.environ.get('NUCLIO_DASHBOARD_URL'))
 
     for service, endpoint in service_names.items():
         env_name = service + '_SERVICE_PORT'
-        if env_name in environ:
-            port = environ.get(env_name) or '8070'
+        if env_name in os.environ:
+            port = os.environ.get(env_name) or '8070'
             return with_prefix('http://{}:{}'.format(endpoint, port))
 
     return with_prefix('http://localhost:8070')
@@ -230,7 +229,7 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
     if files:
         zip_path = archive
         if url_target:
-            zip_path = mktemp('.zip')
+            zip_path = tempfile.NamedTemporaryFile(suffix='.zip', delete=False).name
         build_zip(zip_path, newconfig, code, files, lang)
         upload_file(zip_path, archive, True)
         newconfig = get_archive_config(name, archive)
