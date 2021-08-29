@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-from os import path, environ
-from tempfile import mktemp
+import os.path
+import tempfile
+
 from sys import executable, stderr
 from subprocess import run, PIPE
 from base64 import b64encode, b64decode
@@ -43,14 +43,16 @@ def build_file(filename='', name='', handler='', archive=False, project='',
         else:
             raise ValueError('please specify file name/path/url')
 
-    filebase, ext = path.splitext(path.basename(filename))
+    filebase, ext = os.path.splitext(os.path.basename(filename))
     is_source = False
     if ext == '.ipynb':
         from_url = '://' in filename
         if from_url:
-            tmpfile = mktemp('.ipynb')
-            url2repo(filename).download(tmpfile)
-            filename = tmpfile
+            tmpfile = tempfile.NamedTemporaryFile(suffix='.ipynb', delete=False)
+            url2repo(filename).download(tmpfile.name)
+
+            # override with local file path
+            filename = tmpfile.name
 
         config, code = build_notebook(filename, dont_embed, tag, name)
         nb_files = config['metadata']['annotations'].get(meta_keys.extra_files)
@@ -60,7 +62,7 @@ def build_file(filename='', name='', handler='', archive=False, project='',
             config['metadata']['annotations'].pop(meta_keys.extra_files, None)
 
         if from_url:
-            os.remove(tmpfile)
+            os.remove(tmpfile.name)
 
     elif ext in ['.py', '.go', '.js', '.java', '.sh']:
         code = url2repo(filename).get()
@@ -93,10 +95,10 @@ def build_file(filename='', name='', handler='', archive=False, project='',
     if archive or files:
         output, url_target = archive_path(output_dir, project, name, tag)
         if url_target:
-            zip_path = mktemp('.zip')
+            zip_path = tempfile.NamedTemporaryFile(suffix='.zip', delete=False).name
         else:
-            zip_path = path.abspath(output)
-            os.makedirs(path.dirname(zip_path), exist_ok=True)
+            zip_path = os.path.abspath(output)
+            os.makedirs(os.path.dirname(zip_path), exist_ok=True)
 
         log('Build/upload archive in: {}'.format(output))
         build_zip(zip_path, config, code, files, ext, filebase)
@@ -109,7 +111,7 @@ def build_file(filename='', name='', handler='', archive=False, project='',
 
     elif output_dir:
         if '://' not in output_dir:
-            output_dir = path.abspath(output_dir)
+            output_dir = os.path.abspath(output_dir)
             os.makedirs(output_dir, exist_ok=True)
 
         config['metadata'].pop("name", None)
@@ -119,14 +121,14 @@ def build_file(filename='', name='', handler='', archive=False, project='',
 
         # make sure we dont overwrite the source code
         output_path = '{}/{}{}'.format(output_dir, filebase, ext)
-        if not is_source or (output_path != path.abspath(filename)):
+        if not is_source or (output_path != os.path.abspath(filename)):
             put_data(output_path, code)
 
     return name, config, code
 
 
 def archive_path(archive, project, name, tag=''):
-    archive = archive or environ.get(env_keys.default_archive)
+    archive = archive or os.environ.get(env_keys.default_archive)
     if not project:
         raise BuildError('project name must be specified for archives')
     if not archive:
@@ -134,7 +136,7 @@ def archive_path(archive, project, name, tag=''):
 
     url_target = '://' in archive
     if not url_target:
-        archive = path.abspath(archive)
+        archive = os.path.abspath(archive)
         os.makedirs(archive, exist_ok=True)
     if not archive.endswith('/'):
         archive += '/'
@@ -146,20 +148,22 @@ def archive_path(archive, project, name, tag=''):
 
 
 def build_notebook(nb_file, no_embed=False, tag="", name=""):
-    env = environ.copy()  # Pass argument to exporter via environment
-    yaml_path = mktemp('.yaml')
-    py_path = ''
+
+    # Pass argument to exporter via environment
+    env = os.environ.copy()
+    yaml_filepath = tempfile.NamedTemporaryFile(suffix='.yaml', delete=False).name
+    py_filepath = ''
     code = ''
     if no_embed:
-        py_path = mktemp('.py')
-        env[env_keys.code_target_path] = py_path
+        py_filepath = tempfile.NamedTemporaryFile(suffix='.py', delete=False).name
+        env[env_keys.code_target_path] = py_filepath
     env[env_keys.drop_nb_outputs] = 'y'
     env[env_keys.function_name] = name
 
     cmd = [
         executable, '-m', 'nbconvert',
         '--to', 'nuclio.export.NuclioExporter',
-        '--output', yaml_path,
+        '--output', yaml_filepath,
         nb_file,
     ]
     out = run(cmd, env=env, stdout=PIPE, stderr=PIPE)
@@ -168,18 +172,18 @@ def build_notebook(nb_file, no_embed=False, tag="", name=""):
         print(out.stderr.decode('utf-8'), file=stderr)
         raise BuildError('cannot convert notebook')
 
-    if not path.isfile(yaml_path):
-        raise BuildError('failed to convert, tmp file %s not found', yaml_path)
+    if not os.path.isfile(yaml_filepath):
+        raise BuildError('failed to convert, tmp file %s not found', yaml_filepath)
 
-    with open(yaml_path) as yp:
+    with open(yaml_filepath) as yp:
         config_data = yp.read()
     config = yaml.safe_load(config_data)
-    os.remove(yaml_path)
+    os.remove(yaml_filepath)
 
-    if py_path:
-        with open(py_path) as pp:
+    if py_filepath:
+        with open(py_filepath) as pp:
             code = pp.read()
-        os.remove(py_path)
+        os.remove(py_filepath)
 
     return config, code
 
