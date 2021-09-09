@@ -41,9 +41,7 @@ env_files = set()
 archive_settings = {}
 
 is_comment = re.compile(r'[ \t]*#.*').match
-is_annotation = re.compile(
-    r'[ \t]*#[ \t]*(nuclio|mlrun):[ \t]*(return|ignore|start-code|end-code).*'
-).match
+is_annotation = re.compile(r'[ \t]*#[ \t]*(nuclio|mlrun):[ \t]*(return|ignore|start-code|end-code).*').match
 # # nuclio: return
 is_return = re.compile(r'[ \t]*#[ \t]*(nuclio|mlrun):[ \t]*return').search
 # # nuclio: ignore
