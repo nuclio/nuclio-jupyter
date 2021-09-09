@@ -367,3 +367,16 @@ cells:
   - d = 4
 expected: |
   d = 4
+---
+name: User comment in code
+function name: None
+cells:
+  - b = 2
+  - |
+    # nuclio: start-code
+    # comment
+  - d = 4
+expected: |
+  # comment
+
+  d = 4

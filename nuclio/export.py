@@ -41,6 +41,9 @@ env_files = set()
 archive_settings = {}
 
 is_comment = re.compile(r'[ \t]*#.*').match
+is_annotation = re.compile(
+    r'[ \t]*#[ \t]*(nuclio|mlrun):[ \t]*(return|ignore|start-code|end-code).*'
+).match
 # # nuclio: return
 is_return = re.compile(r'[ \t]*#[ \t]*(nuclio|mlrun):[ \t]*return').search
 # # nuclio: ignore
@@ -207,8 +210,7 @@ class NuclioExporter(Exporter):
                     function_buffers[current_name][ended] = True
                     seen_function_name = seen_function_name or current_name
 
-            # filter comments now to not erase start/end/ignore annotations but erase commented out magic
-            code = filter_comments(code)
+            code = filter_annotations_and_commented_magic(code)
             lines = code.splitlines()
             if cell_magic in code:
                 code = self.handle_cell_magic(config, lines)
@@ -268,9 +270,6 @@ class NuclioExporter(Exporter):
     def handle_code_cell(self, lines, io):
         buf = []
         for line in lines:
-            if is_comment(line):
-                continue
-
             if line_magic in line:
                 continue
 
@@ -535,6 +534,8 @@ def handler_name():
     return '{}:{}'.format(module, name)
 
 
-def filter_comments(code):
-    lines = (line for line in code.splitlines() if not is_comment(line))
+def filter_annotations_and_commented_magic(code):
+    lines = [
+        line for line in code.splitlines() if not ((line_magic in line and is_comment(line)) or is_annotation(line))
+    ]
     return '\n'.join(lines)
