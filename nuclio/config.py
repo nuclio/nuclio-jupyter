@@ -11,14 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 from base64 import b64decode
 from copy import deepcopy
 from os import path, environ
 import yaml
 from IPython import get_ipython
 
-from . import utils
-from .utils import parse_env, logger
+from .utils import parse_env, logger, get_item_attr
 from .archive import url2repo
 from .triggers import HttpTrigger
 
@@ -214,9 +214,9 @@ def set_env_dict(config, env={}):
 
 def set_secrets_dict(config, secrets={}):
     for k, v in secrets.items():
-        secret_key_ref = utils.get_item_attr(v, 'secret_key_ref', {})
-        name = utils.get_item_attr(secret_key_ref, 'name', '')
-        secret_key = utils.get_item_attr(secret_key_ref, 'key', '')
+        secret_key_ref = get_item_attr(v, 'secret_key_ref', {})
+        name = get_item_attr(secret_key_ref, 'name', '')
+        secret_key = get_item_attr(secret_key_ref, 'key', '')
         if not name or not secret_key:
             message = f'Env variable from secret must not be nameless nor keyless: {v}'
             logger.info(message)
