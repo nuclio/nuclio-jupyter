@@ -220,7 +220,7 @@ def set_secrets_dict(config, secrets={}):
             logger.warning(f'failed to deserialize env variable from secret: {v}')
             raise e
 
-        secret_key_ref = v_dict.get('secret_key_ref', {})
+        secret_key_ref = v_dict.get('secretKeyRef', {}) or v_dict.get('secret_key_ref', {})
         name = secret_key_ref.get('name', '')
         secret_key = secret_key_ref.get('key', '')
         if not name or not secret_key:
