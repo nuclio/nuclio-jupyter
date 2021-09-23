@@ -145,6 +145,32 @@ def test_deploy_code(requests):
     assert func['status']['state'] == 'ready', 'not ready'
 
 
+def test_deploy_with_secret_env_vars(requests):
+    # define my function code template
+    code = '''
+    def handler(context, event):
+        context.logger.info('text')
+        return 'something'
+    '''
+
+    # deploy code with extra configuration (env vars, secrets)
+    secret = {"ENV1": {"secret_key_ref": {"name": "secret1", "key": "secret-key1"}}}
+    expected_output_secret = {'name': 'ENV1', 'valueFrom': {'secretKeyRef': {'key': 'secret-key1', 'name': 'secret1'}}}
+    env_var = {'MYENV_VAR': 'something'}
+    expected_output_env_var = {'name': 'MYENV_VAR', 'value': 'something'}
+    spec = ConfigSpec(env=env_var, secrets=secret)
+    function_names = set(functions)
+    deploy.deploy_code(code, name='myfunc2', project='test-project',
+                       verbose=True, spec=spec)
+
+    new_function_names = set(functions)
+    assert len(new_function_names) == len(function_names) + 1, 'not deployed'
+    name = first(new_function_names - function_names)
+    func = functions[name]
+    assert expected_output_secret in func['spec']['env'], 'secret is not in function spec'
+    assert expected_output_env_var in func['spec']['env'], 'env var is not in function spec'
+
+
 class MockLogger:
     def __init__(self):
         self.logs = []

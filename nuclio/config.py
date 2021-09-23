@@ -11,13 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import json
 from base64 import b64decode
 from copy import deepcopy
 from os import path, environ
 import yaml
 from IPython import get_ipython
 
+from . import utils
 from .utils import parse_env, logger
 from .archive import url2repo
 from .triggers import HttpTrigger
@@ -214,25 +214,18 @@ def set_env_dict(config, env={}):
 
 def set_secrets_dict(config, secrets={}):
     for k, v in secrets.items():
-        try:
-            v_dict = json.loads(v)
-        except ValueError as e:
-            logger.warning(f'failed to deserialize env variable from secret: {v}')
-            raise e
-
-        secret_key_ref = v_dict.get('secretKeyRef', {}) or v_dict.get('secret_key_ref', {})
-        name = secret_key_ref.get('name', '')
-        secret_key = secret_key_ref.get('key', '')
+        secret_key_ref = utils.get_item_attr(v, 'secret_key_ref', {})
+        name = utils.get_item_attr(secret_key_ref, 'name', '')
+        secret_key = utils.get_item_attr(secret_key_ref, 'key', '')
         if not name or not secret_key:
-            logger.info(f'skipping nameless or keyless env variable from secret: {v}')
-            continue
+            message = f'Env variable from secret must not be nameless nor keyless: {v}'
+            logger.info(message)
+            raise Exception(message)
 
         value_from = {
             'secretKeyRef': {
-                {
-                    "name": name,
-                    "key": secret_key
-                }
+                "name": name,
+                "key": secret_key
             }
         }
         update_env_var(config, k, value_from=value_from)
@@ -244,18 +237,14 @@ def update_env_var(config, key, value=None, value_from=None):
     elif value_from:
         item = {'name': key, 'valueFrom': value_from}
     else:
-        return
+        message = 'Env var requires either value or value_from'
+        logger.info(message, config=config, key=key)
+        raise Exception(message)
 
-    i = 0
-    found = False
-    for v in config['spec']['env']:
-        if v['name'] == key:
-            found = True
-            break
-        i += 1
-
-    if found:
-        config['spec']['env'][i] = item
+    # find key existence in env
+    location = next((idx for idx, env_var in enumerate(config['spec']['env']) if env_var['name'] == key), None)
+    if location is not None:
+        config['spec']['env'][location] = item
     else:
         config['spec']['env'].append(item)
 
@@ -287,8 +276,8 @@ class ConfigSpec:
 
     """
 
-    def __init__(self, env={}, secrets={}, config={}, cmd=[],
-                 mount: Volume = None, v3io=False):
+    def __init__(self, env={}, config={}, cmd=[],
+                 mount: Volume = None, v3io=False, secrets={}):
         self.env = env
         self.secrets = secrets
         self.extra_config = config
@@ -316,7 +305,6 @@ class ConfigSpec:
     def apply(self, skipcmd=False):
         for k, v in self.env.items():
             environ[k] = v
-        # TODO: add secrets to environ ?
 
         if not skipcmd:
             ipy = get_ipython()

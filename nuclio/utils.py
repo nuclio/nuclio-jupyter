@@ -212,3 +212,10 @@ def notebook_file_name(ikernel):
                     srv.get('notebook_dir') or srv.get('root_dir'),
                     relative_path
                 )
+
+
+def get_item_attr(item, attr, default=None):
+    if isinstance(item, dict):
+        return item.get(attr)
+    else:
+        return getattr(item, attr, default)
