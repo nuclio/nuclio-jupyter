@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import json
 from base64 import b64decode
 from copy import deepcopy
 from os import path, environ
@@ -203,15 +203,44 @@ def set_env(config, env):
             raise ValueError(
                 'cannot parse environment value from: {}'.format(line))
 
+        # TODO: change to allow magic secrets
         update_env_var(config, key, value)
 
 
 def set_env_dict(config, env={}):
     for k, v in env.items():
-        update_env_var(config, k, str(v))
+        update_env_var(config, k, value=str(v))
 
 
-def update_env_var(config, key, value):
+def set_secrets_dict(config, secrets={}):
+    for k, v in secrets.items():
+        try:
+            v_dict = json.loads(v)
+            secret_key_ref = v_dict.get('secret_key_ref', {})
+            name = secret_key_ref.get('name', '')
+            secret_key = secret_key_ref.get('key', '')
+            value_from = {
+                'secretKeyRef': {
+                    {
+                        "name": name,
+                        "key": secret_key
+                    }
+                }
+            }
+            update_env_var(config, k, value_from=value_from)
+        except ValueError as e:
+            # TODO: add err msg
+            raise e
+
+
+def update_env_var(config, key, value=None, value_from=None):
+    if value:
+        item = {'name': key, 'value': value}
+    elif value_from:
+        item = {'name': key, 'valueFrom': value_from}
+    else:
+        return
+
     i = 0
     found = False
     for v in config['spec']['env']:
@@ -220,7 +249,6 @@ def update_env_var(config, key, value):
             break
         i += 1
 
-    item = {'name': key, 'value': value}
     if found:
         config['spec']['env'][i] = item
     else:
@@ -243,18 +271,21 @@ def fill_config(config, extra_config={}, env={}, cmd=[], mount: Volume = None):
 class ConfigSpec:
     """Function configuration spec
 
-    env    - dictionary of environment variables {"key1": val1, ..}
-    config - function spec parameters dictionary {"config_key": config, ..}
-            e.g. {"config spec.build.baseImage" : "python:3.6-jessie"}
-    cmd    - string list with build commands
-            e.g. ["pip install requests", "apt-get wget -y"]
-    mount  - Volume object for remote mount into a function
+    env         - dictionary of environment variables {"key1": val1, ..}
+    secrets     - dictionary of names to value_from variables
+                    e.g. {"name1": {"secret_key_ref": {"name": "secret1", "key": "secret-key1"}}, ..}
+    config      - function spec parameters dictionary {"config_key": config, ..}
+                    e.g. {"config spec.build.baseImage" : "python:3.6-jessie"}
+    cmd         - string list with build commands
+                    e.g. ["pip install requests", "apt-get wget -y"]
+    mount       - Volume object for remote mount into a function
 
     """
 
-    def __init__(self, env={}, config={}, cmd=[],
+    def __init__(self, env={}, secrets={}, config={}, cmd=[],
                  mount: Volume = None, v3io=False):
         self.env = env
+        self.secrets = secrets
         self.extra_config = config
         self.cmd = cmd
         self.mounts = []
@@ -270,6 +301,8 @@ class ConfigSpec:
                 update_in(config, k, v, isinstance(current, list))
         if self.env:
             set_env_dict(config, self.env)
+        if self.secrets:
+            set_secrets_dict(config, self.secrets)
         if self.cmd:
             set_commands(config, self.cmd)
         for mount in self.mounts:
@@ -278,6 +311,7 @@ class ConfigSpec:
     def apply(self, skipcmd=False):
         for k, v in self.env.items():
             environ[k] = v
+        # TODO: add secrets to environ ?
 
         if not skipcmd:
             ipy = get_ipython()
@@ -286,6 +320,10 @@ class ConfigSpec:
 
     def set_env(self, name, value):
         self.env[name] = value
+        return self
+
+    def set_secret(self, name, value_from):
+        self.secrets[name] = value_from
         return self
 
     def set_config(self, key, value):
