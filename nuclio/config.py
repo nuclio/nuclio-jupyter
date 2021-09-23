@@ -18,7 +18,7 @@ from os import path, environ
 import yaml
 from IPython import get_ipython
 
-from .utils import parse_env
+from .utils import parse_env, logger
 from .archive import url2repo
 from .triggers import HttpTrigger
 
@@ -216,21 +216,26 @@ def set_secrets_dict(config, secrets={}):
     for k, v in secrets.items():
         try:
             v_dict = json.loads(v)
-            secret_key_ref = v_dict.get('secret_key_ref', {})
-            name = secret_key_ref.get('name', '')
-            secret_key = secret_key_ref.get('key', '')
-            value_from = {
-                'secretKeyRef': {
-                    {
-                        "name": name,
-                        "key": secret_key
-                    }
+        except ValueError as e:
+            logger.warning(f'failed to deserialize env variable from secret: {v}')
+            raise e
+
+        secret_key_ref = v_dict.get('secret_key_ref', {})
+        name = secret_key_ref.get('name', '')
+        secret_key = secret_key_ref.get('key', '')
+        if not name:
+            logger.info(f'skipping nameless env variable from secret: {v}')
+            continue
+
+        value_from = {
+            'secretKeyRef': {
+                {
+                    "name": name,
+                    "key": secret_key
                 }
             }
-            update_env_var(config, k, value_from=value_from)
-        except ValueError as e:
-            # TODO: add err msg
-            raise e
+        }
+        update_env_var(config, k, value_from=value_from)
 
 
 def update_env_var(config, key, value=None, value_from=None):
