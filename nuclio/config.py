@@ -223,8 +223,8 @@ def set_secrets_dict(config, secrets={}):
         secret_key_ref = v_dict.get('secret_key_ref', {})
         name = secret_key_ref.get('name', '')
         secret_key = secret_key_ref.get('key', '')
-        if not name:
-            logger.info(f'skipping nameless env variable from secret: {v}')
+        if not name or not secret_key:
+            logger.info(f'skipping nameless or keyless env variable from secret: {v}')
             continue
 
         value_from = {
