@@ -154,8 +154,9 @@ def test_deploy_with_secret_env_vars(requests):
     '''
 
     # deploy code with extra configuration (env vars, secrets)
-    secret = {"ENV1": {"secret_key_ref": {"name": "secret1", "key": "secret-key1"}}}
-    expected_output_secret = {'name': 'ENV1', 'valueFrom': {'secretKeyRef': {'key': 'secret-key1', 'name': 'secret1'}}}
+    name = 'ENV1'
+    secret = {name: {'secretKeyRef': {'name': 'secret1', 'key': 'secret-key1'}}}
+    expected_output_secret = {'name': name, 'valueFrom': secret[name]}
     env_var = {'MYENV_VAR': 'something'}
     expected_output_env_var = {'name': 'MYENV_VAR', 'value': 'something'}
     spec = ConfigSpec(env=env_var, secrets=secret)

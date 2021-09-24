@@ -214,7 +214,7 @@ def set_env_dict(config, env={}):
 
 def set_secrets_dict(config, secrets={}):
     for k, v in secrets.items():
-        secret_key_ref = get_item_attr(v, 'secret_key_ref', {})
+        secret_key_ref = get_item_attr(v, 'secretKeyRef', {})
         name = get_item_attr(secret_key_ref, 'name', '')
         secret_key = get_item_attr(secret_key_ref, 'key', '')
         if not name or not secret_key:

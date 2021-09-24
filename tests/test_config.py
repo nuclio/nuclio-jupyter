@@ -31,7 +31,13 @@ def test_update_env_var_missing_value():
 
 
 def test_update_env_var_existing_key():
-    config_dict = {'spec': {'env': [{'name': 'key', 'value': 'value1'}, {'name': 'key2', 'value': 'value1'}]}}
+    config_dict = {'spec': {
+            'env': [
+                {'name': 'key', 'value': 'value1'},
+                {'name': 'key2', 'value': 'value1'},
+            ]
+        }
+    }
     config.update_env_var(config_dict, 'key', value='value2')
     assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'key')['value'] == 'value2',\
         'env var was not updated'
@@ -46,36 +52,31 @@ def test_update_env_var_new_key():
     config_dict = {'spec': {'env': []}}
     config.update_env_var(config_dict, 'key', value='value2')
     assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'key')['value'] == 'value2',\
-        'env var was not updated'
+        'env var was not added'
 
     value_from = {"secretKeyRef": {"name": "secret1", "key": "secret-key1"}}
     config.update_env_var(config_dict, 'key2', value_from=value_from)
     assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'key2')['valueFrom'] == value_from,\
-        'env var was not updated'
+        'env var was not added'
 
 
 def test_set_secrets_dict():
     config_dict = {'spec': {'env': []}}
     secrets = {
-        'name1': {"secret_key_ref": {"name": "secret1", "key": "secret-key1"}},
-        'name2': {"secret_key_ref": {"name": "secret2", "key": "secret-key2"}},
+        'name1': {"secretKeyRef": {"name": "secret1", "key": "secret-key1"}},
+        'name2': {"secretKeyRef": {"name": "secret2", "key": "secret-key2"}},
     }
     config.set_secrets_dict(config_dict, secrets)
 
-    # verify changed to CamelCase
-    expected_value_from1 = {"secretKeyRef": {"name": "secret1", "key": "secret-key1"}}
-    expected_value_from2 = {"secretKeyRef": {"name": "secret2", "key": "secret-key2"}}
-    assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'name1')['valueFrom'] == expected_value_from1,\
-        'unexpected value from'
-    assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'name2')['valueFrom'] == expected_value_from2,\
-        'unexpected value from'
+    assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'name1')['valueFrom'] == secrets['name1']
+    assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'name2')['valueFrom'] == secrets['name2']
 
 
 def test_set_secrets_dict_missing_entries():
     config_dict = {'spec': {'env': []}}
     secrets = {
-        'name1': {"secret_key_ref": {"key": "secret-key1"}},
-        'name2': {"secret_key_ref": {"name": "secret2"}},
+        'name1': {"secretKeyRef": {"key": "secret-key1"}},
+        'name2': {"secretKeyRef": {"name": "secret2"}},
     }
     with pytest.raises(Exception) as exc:
         config.set_secrets_dict(config_dict, secrets)
