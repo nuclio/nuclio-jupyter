@@ -145,7 +145,7 @@ def test_deploy_code(requests):
     assert func['status']['state'] == 'ready', 'not ready'
 
 
-def test_deploy_with_secret_env_vars(requests):
+def test_deploy_with_external_source_env(requests):
     # define my function code template
     code = '''
     def handler(context, event):
@@ -153,13 +153,13 @@ def test_deploy_with_secret_env_vars(requests):
         return 'something'
     '''
 
-    # deploy code with extra configuration (env vars, secrets)
+    # deploy code with extra configuration (env vars, external_source_env)
     name = 'ENV1'
-    secret = {name: {'secretKeyRef': {'name': 'secret1', 'key': 'secret-key1'}}}
-    expected_output_secret = {'name': name, 'valueFrom': secret[name]}
+    external_source_env = {name: {'secretKeyRef': {'name': 'secret1', 'key': 'secret-key1'}}}
+    expected_output_env = {'name': name, 'valueFrom': external_source_env[name]}
     env_var = {'MYENV_VAR': 'something'}
     expected_output_env_var = {'name': 'MYENV_VAR', 'value': 'something'}
-    spec = ConfigSpec(env=env_var, secrets=secret)
+    spec = ConfigSpec(env=env_var, external_source_env=external_source_env)
     function_names = set(functions)
     deploy.deploy_code(code, name='myfunc2', project='test-project',
                        verbose=True, spec=spec)
@@ -168,7 +168,7 @@ def test_deploy_with_secret_env_vars(requests):
     assert len(new_function_names) == len(function_names) + 1, 'not deployed'
     name = first(new_function_names - function_names)
     func = functions[name]
-    assert expected_output_secret in func['spec']['env'], 'secret is not in function spec'
+    assert expected_output_env in func['spec']['env'], 'secret is not in function spec'
     assert expected_output_env_var in func['spec']['env'], 'env var is not in function spec'
 
 

@@ -203,7 +203,7 @@ def set_env(config, env):
             raise ValueError(
                 'cannot parse environment value from: {}'.format(line))
 
-        # TODO: change to allow magic secrets
+        # TODO: allow external source env with magic
         update_env_var(config, key, value)
 
 
@@ -212,23 +212,60 @@ def set_env_dict(config, env={}):
         update_env_var(config, k, value=str(v))
 
 
-def set_secrets_dict(config, secrets={}):
-    for k, v in secrets.items():
+def set_external_source_env_dict(config, external_source_env={}):
+    """
+    adds external env references based on kubernetes.client.models.v1_env_var_source to config.
+    currently supports only secret_key_ref and config_map_key_ref.
+    https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/V1EnvVarSource.md
+    """
+    for k, v in external_source_env.items():
         secret_key_ref = get_item_attr(v, 'secretKeyRef', {})
-        name = get_item_attr(secret_key_ref, 'name', '')
-        secret_key = get_item_attr(secret_key_ref, 'key', '')
-        if not name or not secret_key:
-            message = f'Env variable from secret must not be nameless nor keyless: {v}'
-            logger.info(message)
-            raise Exception(message)
+        if secret_key_ref:
+            set_secret_entry(config, k, secret_key_ref)
+            continue
 
-        value_from = {
-            'secretKeyRef': {
-                "name": name,
-                "key": secret_key
-            }
+        config_map_key_ref = get_item_attr(v, 'configMapKeyRef', {})
+        if config_map_key_ref:
+            set_config_map_entry(config, k, config_map_key_ref)
+            continue
+
+        message = 'currently only external source env secretKeyRef | configMapKeyRef are supported'
+        logger.warning(message, key=k, value=v)
+        raise Exception(message)
+
+
+def set_secret_entry(config, key, secret_key_ref):
+    name = get_item_attr(secret_key_ref, 'name', '')
+    secret_key = get_item_attr(secret_key_ref, 'key', '')
+    if not name or not secret_key:
+        message = f'env variable from secret must not be nameless nor keyless: {secret_key_ref}'
+        logger.warning(message)
+        raise Exception(message)
+
+    value_from = {
+        'secretKeyRef': {
+            "name": name,
+            "key": secret_key
         }
-        update_env_var(config, k, value_from=value_from)
+    }
+    update_env_var(config, key, value_from=value_from)
+
+
+def set_config_map_entry(config, key, config_map_key_ref):
+    name = get_item_attr(config_map_key_ref, 'name', '')
+    config_map_key = get_item_attr(config_map_key_ref, 'key', '')
+    if not name or not config_map_key:
+        message = f'env variable from config map must not be nameless nor keyless: {config_map_key_ref}'
+        logger.warning(message)
+        raise Exception(message)
+
+    value_from = {
+        'configMapKeyRef': {
+            "name": name,
+            "key": config_map_key
+        }
+    }
+    update_env_var(config, key, value_from=value_from)
 
 
 def update_env_var(config, key, value=None, value_from=None):
@@ -265,21 +302,21 @@ def fill_config(config, extra_config={}, env={}, cmd=[], mount: Volume = None):
 class ConfigSpec:
     """Function configuration spec
 
-    env         - dictionary of environment variables {"key1": val1, ..}
-    secrets     - dictionary of names to value_from variables
-                    e.g. {"name1": {"secret_key_ref": {"name": "secret1", "key": "secret-key1"}}, ..}
-    config      - function spec parameters dictionary {"config_key": config, ..}
-                    e.g. {"config spec.build.baseImage" : "python:3.6-jessie"}
-    cmd         - string list with build commands
-                    e.g. ["pip install requests", "apt-get wget -y"]
-    mount       - Volume object for remote mount into a function
+    env                         - dictionary of environment variables {"key1": val1, ..}
+    external_source_env         - dictionary of names to value_from variables
+                                e.g. {"name1": {"secret_key_ref": {"name": "secret1", "key": "secret-key1"}}, ..}
+    config                      - function spec parameters dictionary {"config_key": config, ..}
+                                e.g. {"config spec.build.baseImage" : "python:3.6-jessie"}
+    cmd                         - string list with build commands
+                                e.g. ["pip install requests", "apt-get wget -y"]
+    mount                       - Volume object for remote mount into a function
 
     """
 
     def __init__(self, env={}, config={}, cmd=[],
-                 mount: Volume = None, v3io=False, secrets={}):
+                 mount: Volume = None, v3io=False, external_source_env={}):
         self.env = env
-        self.secrets = secrets
+        self.external_source_env = external_source_env
         self.extra_config = config
         self.cmd = cmd
         self.mounts = []
@@ -295,8 +332,8 @@ class ConfigSpec:
                 update_in(config, k, v, isinstance(current, list))
         if self.env:
             set_env_dict(config, self.env)
-        if self.secrets:
-            set_secrets_dict(config, self.secrets)
+        if self.external_source_env:
+            set_external_source_env_dict(config, self.external_source_env)
         if self.cmd:
             set_commands(config, self.cmd)
         for mount in self.mounts:
@@ -315,8 +352,8 @@ class ConfigSpec:
         self.env[name] = value
         return self
 
-    def set_secret(self, name, value_from):
-        self.secrets[name] = value_from
+    def set_external_source_env(self, name, value_from):
+        self.external_source_env[name] = value_from
         return self
 
     def set_config(self, key, value):
