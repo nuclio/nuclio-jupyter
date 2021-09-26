@@ -18,7 +18,7 @@ from os import path, environ
 import yaml
 from IPython import get_ipython
 
-from .utils import parse_env, logger, get_item_attr
+from .utils import parse_env, logger
 from .archive import url2repo
 from .triggers import HttpTrigger
 
@@ -213,59 +213,17 @@ def set_env_dict(config, env={}):
 
 
 def set_external_source_env_dict(config, external_source_env={}):
-    """
-    adds external env references based on kubernetes.client.models.v1_env_var_source to config.
-    currently supports only secret_key_ref and config_map_key_ref.
-    https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/V1EnvVarSource.md
-    """
+    """expects env vars to be a dict or have attr to_dict()"""
     for k, v in external_source_env.items():
-        secret_key_ref = get_item_attr(v, 'secretKeyRef', {})
-        if secret_key_ref:
-            set_secret_entry(config, k, secret_key_ref)
-            continue
+        if isinstance(v, dict):
+            value_from = v
+        elif hasattr(v, 'to_dict'):
+            value_from = v.to_dict()
+        else:
+            raise Exception(f'external source env requires value_from to be either a dict '
+                            f'or an object with to_dict() attr, instead got: {v}')
 
-        config_map_key_ref = get_item_attr(v, 'configMapKeyRef', {})
-        if config_map_key_ref:
-            set_config_map_entry(config, k, config_map_key_ref)
-            continue
-
-        message = 'currently only external source env secretKeyRef | configMapKeyRef are supported'
-        logger.warning(message, key=k, value=v)
-        raise Exception(message)
-
-
-def set_secret_entry(config, key, secret_key_ref):
-    name = get_item_attr(secret_key_ref, 'name', '')
-    secret_key = get_item_attr(secret_key_ref, 'key', '')
-    if not name or not secret_key:
-        message = f'env variable from secret must not be nameless nor keyless: {secret_key_ref}'
-        logger.warning(message)
-        raise Exception(message)
-
-    value_from = {
-        'secretKeyRef': {
-            "name": name,
-            "key": secret_key
-        }
-    }
-    update_env_var(config, key, value_from=value_from)
-
-
-def set_config_map_entry(config, key, config_map_key_ref):
-    name = get_item_attr(config_map_key_ref, 'name', '')
-    config_map_key = get_item_attr(config_map_key_ref, 'key', '')
-    if not name or not config_map_key:
-        message = f'env variable from config map must not be nameless nor keyless: {config_map_key_ref}'
-        logger.warning(message)
-        raise Exception(message)
-
-    value_from = {
-        'configMapKeyRef': {
-            "name": name,
-            "key": config_map_key
-        }
-    }
-    update_env_var(config, key, value_from=value_from)
+        update_env_var(config, k, value_from=value_from)
 
 
 def update_env_var(config, key, value=None, value_from=None):
@@ -274,8 +232,8 @@ def update_env_var(config, key, value=None, value_from=None):
     elif value_from:
         item = {'name': key, 'valueFrom': value_from}
     else:
-        message = 'Env var requires either value or value_from'
-        logger.info(message, config=config, key=key)
+        message = 'env var requires either value or value_from'
+        logger.warning(message, config=config, key=key)
         raise Exception(message)
 
     # find key existence in env
@@ -305,6 +263,7 @@ class ConfigSpec:
     env                         - dictionary of environment variables {"key1": val1, ..}
     external_source_env         - dictionary of names to value_from variables
                                 e.g. {"name1": {"secret_key_ref": {"name": "secret1", "key": "secret-key1"}}, ..}
+                                value_from can be either a dict or an object with to_dict() attr.
     config                      - function spec parameters dictionary {"config_key": config, ..}
                                 e.g. {"config spec.build.baseImage" : "python:3.6-jessie"}
     cmd                         - string list with build commands
