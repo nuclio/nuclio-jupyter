@@ -254,8 +254,8 @@ class ConfigSpec:
     """Function configuration spec
 
     env                         - dictionary of environment variables {"key1": val1, ..}
-    external_source_env         - dictionary of names to "value_from" dictionary
-                                e.g. {"name1": {"secret_key_ref": {"name": "secret1", "key": "secret-key1"}}, ..}
+    external_source_env         - dictionary of names to "valueFrom" dictionary
+                                e.g. {"name1": {"secretKeyRef": {"name": "secret1", "key": "secret-key1"}}, ..}
     config                      - function spec parameters dictionary {"config_key": config, ..}
                                 e.g. {"config spec.build.baseImage" : "python:3.6-jessie"}
     cmd                         - string list with build commands
