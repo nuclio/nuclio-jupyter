@@ -213,17 +213,8 @@ def set_env_dict(config, env={}):
 
 
 def set_external_source_env_dict(config, external_source_env={}):
-    """expects env vars to be a dict or have attr to_dict()"""
     for k, v in external_source_env.items():
-        if isinstance(v, dict):
-            value_from = v
-        elif hasattr(v, 'to_dict'):
-            value_from = v.to_dict()
-        else:
-            raise Exception(f'external source env requires value_from to be either a dict '
-                            f'or an object with to_dict() attr, instead got: {v}')
-
-        update_env_var(config, k, value_from=value_from)
+        update_env_var(config, k, value_from=v)
 
 
 def update_env_var(config, key, value=None, value_from=None):
@@ -244,13 +235,15 @@ def update_env_var(config, key, value=None, value_from=None):
         config['spec']['env'].append(item)
 
 
-def fill_config(config, extra_config={}, env={}, cmd=[], mount: Volume = None):
+def fill_config(config, extra_config={}, env={}, cmd=[], mount: Volume = None, external_source_env={}):
     if config:
         for k, v in extra_config.items():
             current = get_in(config, k)
             update_in(config, k, v, isinstance(current, list))
     if env:
         set_env_dict(config, env)
+    if external_source_env:
+        set_external_source_env_dict(config, external_source_env)
     if cmd:
         set_commands(config, cmd)
     if mount:
@@ -261,9 +254,8 @@ class ConfigSpec:
     """Function configuration spec
 
     env                         - dictionary of environment variables {"key1": val1, ..}
-    external_source_env         - dictionary of names to value_from variables
+    external_source_env         - dictionary of names to "value_from" dictionary
                                 e.g. {"name1": {"secret_key_ref": {"name": "secret1", "key": "secret-key1"}}, ..}
-                                value_from can be either a dict or an object with to_dict() attr.
     config                      - function spec parameters dictionary {"config_key": config, ..}
                                 e.g. {"config spec.build.baseImage" : "python:3.6-jessie"}
     cmd                         - string list with build commands
