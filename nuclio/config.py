@@ -18,7 +18,7 @@ from os import path, environ
 import yaml
 from IPython import get_ipython
 
-from .utils import parse_env
+from .utils import parse_env, logger
 from .archive import url2repo
 from .triggers import HttpTrigger
 
@@ -203,37 +203,47 @@ def set_env(config, env):
             raise ValueError(
                 'cannot parse environment value from: {}'.format(line))
 
+        # TODO: allow external source env with magic
         update_env_var(config, key, value)
 
 
 def set_env_dict(config, env={}):
     for k, v in env.items():
-        update_env_var(config, k, str(v))
+        update_env_var(config, k, value=str(v))
 
 
-def update_env_var(config, key, value):
-    i = 0
-    found = False
-    for v in config['spec']['env']:
-        if v['name'] == key:
-            found = True
-            break
-        i += 1
+def set_external_source_env_dict(config, external_source_env={}):
+    for k, v in external_source_env.items():
+        update_env_var(config, k, value_from=v)
 
-    item = {'name': key, 'value': value}
-    if found:
-        config['spec']['env'][i] = item
+
+def update_env_var(config, key, value=None, value_from=None):
+    if value:
+        item = {'name': key, 'value': value}
+    elif value_from:
+        item = {'name': key, 'valueFrom': value_from}
+    else:
+        message = 'env var requires either value or value_from'
+        logger.warning(message, config=config, key=key)
+        raise Exception(message)
+
+    # find key existence in env
+    location = next((idx for idx, env_var in enumerate(config['spec']['env']) if env_var['name'] == key), None)
+    if location is not None:
+        config['spec']['env'][location] = item
     else:
         config['spec']['env'].append(item)
 
 
-def fill_config(config, extra_config={}, env={}, cmd=[], mount: Volume = None):
+def fill_config(config, extra_config={}, env={}, cmd=[], mount: Volume = None, external_source_env={}):
     if config:
         for k, v in extra_config.items():
             current = get_in(config, k)
             update_in(config, k, v, isinstance(current, list))
     if env:
         set_env_dict(config, env)
+    if external_source_env:
+        set_external_source_env_dict(config, external_source_env)
     if cmd:
         set_commands(config, cmd)
     if mount:
@@ -243,18 +253,21 @@ def fill_config(config, extra_config={}, env={}, cmd=[], mount: Volume = None):
 class ConfigSpec:
     """Function configuration spec
 
-    env    - dictionary of environment variables {"key1": val1, ..}
-    config - function spec parameters dictionary {"config_key": config, ..}
-            e.g. {"config spec.build.baseImage" : "python:3.6-jessie"}
-    cmd    - string list with build commands
-            e.g. ["pip install requests", "apt-get wget -y"]
-    mount  - Volume object for remote mount into a function
+    env                         - dictionary of environment variables {"key1": val1, ..}
+    external_source_env         - dictionary of names to "valueFrom" dictionary
+                                e.g. {"name1": {"secretKeyRef": {"name": "secret1", "key": "secret-key1"}}, ..}
+    config                      - function spec parameters dictionary {"config_key": config, ..}
+                                e.g. {"config spec.build.baseImage" : "python:3.6-jessie"}
+    cmd                         - string list with build commands
+                                e.g. ["pip install requests", "apt-get wget -y"]
+    mount                       - Volume object for remote mount into a function
 
     """
 
     def __init__(self, env={}, config={}, cmd=[],
-                 mount: Volume = None, v3io=False):
+                 mount: Volume = None, v3io=False, external_source_env={}):
         self.env = env
+        self.external_source_env = external_source_env
         self.extra_config = config
         self.cmd = cmd
         self.mounts = []
@@ -270,6 +283,8 @@ class ConfigSpec:
                 update_in(config, k, v, isinstance(current, list))
         if self.env:
             set_env_dict(config, self.env)
+        if self.external_source_env:
+            set_external_source_env_dict(config, self.external_source_env)
         if self.cmd:
             set_commands(config, self.cmd)
         for mount in self.mounts:
@@ -286,6 +301,10 @@ class ConfigSpec:
 
     def set_env(self, name, value):
         self.env[name] = value
+        return self
+
+    def set_external_source_env(self, name, value_from):
+        self.external_source_env[name] = value_from
         return self
 
     def set_config(self, key, value):
