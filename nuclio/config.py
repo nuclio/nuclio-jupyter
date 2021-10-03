@@ -18,7 +18,7 @@ from os import path, environ
 import yaml
 from IPython import get_ipython
 
-from .utils import parse_env, logger
+from .utils import parse_env
 from .archive import url2repo
 from .triggers import HttpTrigger
 
@@ -223,9 +223,7 @@ def update_env_var(config, key, value=None, value_from=None):
     elif value_from:
         item = {'name': key, 'valueFrom': value_from}
     else:
-        message = 'env var requires either value or value_from'
-        logger.warning(message, config=config, key=key)
-        raise Exception(message)
+        raise Exception(f'env var {key} requires either value or value_from')
 
     # find key existence in env
     location = next((idx for idx, env_var in enumerate(config['spec']['env']) if env_var['name'] == key), None)
