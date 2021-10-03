@@ -218,9 +218,9 @@ def set_external_source_env_dict(config, external_source_env={}):
 
 
 def update_env_var(config, key, value=None, value_from=None):
-    if value:
+    if value is not None:
         item = {'name': key, 'value': value}
-    elif value_from:
+    elif value_from is not None:
         item = {'name': key, 'valueFrom': value_from}
     else:
         raise Exception(f'either value or value_from required for env var: {key}')
