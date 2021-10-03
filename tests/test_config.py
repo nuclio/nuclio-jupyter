@@ -26,7 +26,7 @@ def get_env_var_from_list_by_key(env, key):
 
 def test_update_env_var_missing_value():
     config_dict = {'spec': {'env': []}}
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match='either value or value_from required for env var: name'):
         config.update_env_var(config_dict, 'name')
 
 
@@ -72,21 +72,3 @@ def test_set_external_source_env_dict():
     assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'name1')['valueFrom'] == secrets['name1']
     assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'name2')['valueFrom'] == secrets['name2']
     assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'name3')['valueFrom'] == secrets['name3']
-
-
-def test_set_external_source_env_dict_missing_entries():
-    config_dict = {'spec': {'env': []}}
-    secrets = {
-        'name1': {"secretKeyRef": {"key": "secret-key1"}},
-        'name2': {"secretKeyRef": {"name": "secret2"}},
-    }
-    with pytest.raises(Exception) as exc:
-        config.set_external_source_env_dict(config_dict, secrets)
-        value_from = secrets['name1']
-        assert str(exc) == f'Env variable from secret must not be nameless nor keyless: {value_from}'
-
-    del secrets['name1']
-    with pytest.raises(Exception) as exc:
-        config.set_external_source_env_dict(config_dict, secrets)
-        value_from = secrets['name2']
-        assert str(exc) == f'Env variable from secret must not be nameless nor keyless: {value_from}'
