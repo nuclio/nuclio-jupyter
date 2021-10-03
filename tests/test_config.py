@@ -26,9 +26,8 @@ def get_env_var_from_list_by_key(env, key):
 
 def test_update_env_var_missing_value():
     config_dict = {'spec': {'env': []}}
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(Exception, match='either value or value_from required for env var: name'):
         config.update_env_var(config_dict, 'name')
-    assert str(exc.value) == 'either value or value_from required for env var: name'
 
 
 def test_update_env_var_existing_key():
