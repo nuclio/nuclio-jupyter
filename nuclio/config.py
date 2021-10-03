@@ -223,7 +223,7 @@ def update_env_var(config, key, value=None, value_from=None):
     elif value_from:
         item = {'name': key, 'valueFrom': value_from}
     else:
-        raise Exception(f'env var {key} requires either value or value_from')
+        raise Exception(f'either value or value_from required for env var: {key}')
 
     # find key existence in env
     location = next((idx for idx, env_var in enumerate(config['spec']['env']) if env_var['name'] == key), None)
