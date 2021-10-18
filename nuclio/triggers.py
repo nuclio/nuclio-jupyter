@@ -96,7 +96,7 @@ class HttpTrigger(NuclioTrigger):
             ] = "true"
             self._struct["annotations"][
                 "nginx.ingress.kubernetes.io/canary-weight"
-            ] = str(host)
+            ] = str(canary)
 
         return self
 
