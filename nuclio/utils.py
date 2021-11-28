@@ -56,6 +56,7 @@ class env_keys:
     env_files = 'NUCLIO_ENV_FILES'
     default_archive = 'NUCLIO_ARCHIVE_PATH'
     function_name = 'NUCLIO_FUNCTION_NAME'
+    ignored_tags = 'NUCLIO_IGNORED_TAGS'
 
 
 def list2dict(lines: list):
@@ -117,6 +118,7 @@ def parse_export_line(args):
     parser.add_argument('--archive', '-a', action='store_true', default=False)
     parser.add_argument('--verbose', '-v', action='store_true', default=False)
     parser.add_argument('--kind', default=None)
+    parser.add_argument('--ignored-tags', default='')
 
     if isinstance(args, str):
         args = path.expandvars(args)
