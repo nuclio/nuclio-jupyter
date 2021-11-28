@@ -76,7 +76,7 @@ log = create_logger()
 
 
 def tags_to_ignore():
-    ignored_tags = environ.get(env_keys.ignored_tags, [])
+    ignored_tags = environ.get(env_keys.ignored_tags) or []
     if ignored_tags:
         ignored_tags = ignored_tags.split(";")
     return ignored_tags + [default_ignored_tag]
@@ -180,7 +180,7 @@ class NuclioExporter(Exporter):
         for cell in filter(is_code_cell, cells):
             code_in_cell_with_annotation = ''
             code = cell['source']
-            tags = get_in(cell, 'metadata.tags', [])
+            tags = get_in(cell, 'metadata.tags')
             if has_ignore(code) or ignore_tagged_cell(tags, ignored_tags):
                 continue
 
