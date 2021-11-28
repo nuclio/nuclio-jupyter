@@ -233,7 +233,7 @@ class V3IOStreamTrigger(NuclioTrigger):
         access_key = access_key if access_key else environ.get("V3IO_ACCESS_KEY")
         if not access_key:
             raise ValueError(
-                "access_key must be set " "(via argument or environ V3IO_ACCESS_KEY)"
+                "access_key must be set (via argument or environ V3IO_ACCESS_KEY)"
             )
         struct["password"] = access_key
 
