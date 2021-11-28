@@ -49,7 +49,7 @@ is_return = re.compile(rf'{annotation_prefix}return').search
 has_ignore = re.compile(rf'{annotation_prefix}ignore').search
 has_start = re.compile(rf'{annotation_prefix}start-code[ \t]*(?P<name>([\S]*))?').search
 has_end = re.compile(rf'{annotation_prefix}end-code[ \t]*(?P<name>([\S]*))?').search
-default_ignored_tag = 'mlrun-ignore'
+default_ignored_tags = 'mlrun-ignore;nuclio-ignore'
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 line_magic = '%nuclio'
@@ -79,14 +79,12 @@ def tags_to_ignore():
     ignored_tags = environ.get(env_keys.ignored_tags) or []
     if ignored_tags:
         ignored_tags = ignored_tags.split(";")
-    return ignored_tags + [default_ignored_tag]
+    return ignored_tags + default_ignored_tags.split(";")
 
 
 def ignore_tagged_cell(tags, tags_to_ignore):
-    for tag in tags or []:
-        if tag in tags_to_ignore:
-            return True
-    return False
+    intersected_tags = set(tags or []).intersection(tags_to_ignore)
+    return len(intersected_tags) > 0
 
 
 class NuclioExporter(Exporter):

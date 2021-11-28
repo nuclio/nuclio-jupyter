@@ -51,3 +51,9 @@ def test_http_trigger_host():
     http_trigger = HttpTrigger(host='something', paths=['/here'])
     assert http_trigger.get_ingresses['0'].get('host') == 'something'
     assert http_trigger.get_ingresses['0'].get('paths') == ['/here']
+
+
+def test_http_trigger_extra():
+    http_trigger = HttpTrigger(annotations={"x": "123"}, extra_attributes={"y": "456"})
+    assert http_trigger._struct["annotations"]["x"] == "123"
+    assert http_trigger._struct["attributes"]["y"] == "456"
