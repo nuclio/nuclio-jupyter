@@ -114,7 +114,7 @@ class CronTrigger(NuclioTrigger):
         self, interval="", schedule="", body="", headers=None, extra_attributes=None
     ):
         super(CronTrigger, self).__init__(
-            {"kind": self.kind, "attributes": {},}
+            {"kind": self.kind, "attributes": {}}
         )
         headers = headers or {}
         if interval:
