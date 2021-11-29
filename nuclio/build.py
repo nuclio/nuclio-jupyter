@@ -32,7 +32,7 @@ from .config import (update_in, new_config, ConfigSpec, load_config,
 
 def build_file(filename='', name='', handler='', archive=False, project='',
                tag="", spec: ConfigSpec = None, files=[], output_dir='',
-               verbose=False, kind=None):
+               verbose=False, kind=None, ignored_tags=""):
 
     dont_embed = (len(files) > 0) or output_dir != '' or archive
 
@@ -54,7 +54,7 @@ def build_file(filename='', name='', handler='', archive=False, project='',
             # override with local file path
             filename = tmpfile.name
 
-        config, code = build_notebook(filename, dont_embed, tag, name)
+        config, code = build_notebook(filename, dont_embed, tag, name, ignored_tags=ignored_tags)
         nb_files = config['metadata']['annotations'].get(meta_keys.extra_files)
         ext = '.py'
         if nb_files:
@@ -147,7 +147,7 @@ def archive_path(archive, project, name, tag=''):
     return archive, url_target
 
 
-def build_notebook(nb_file, no_embed=False, tag="", name=""):
+def build_notebook(nb_file, no_embed=False, tag="", name="", ignored_tags=""):
 
     # Pass argument to exporter via environment
     env = os.environ.copy()
@@ -159,6 +159,7 @@ def build_notebook(nb_file, no_embed=False, tag="", name=""):
         env[env_keys.code_target_path] = py_filepath
     env[env_keys.drop_nb_outputs] = 'y'
     env[env_keys.function_name] = name
+    env[env_keys.ignored_tags] = ignored_tags
 
     cmd = [
         executable, '-m', 'nbconvert',

@@ -49,6 +49,7 @@ is_return = re.compile(rf'{annotation_prefix}return').search
 has_ignore = re.compile(rf'{annotation_prefix}ignore').search
 has_start = re.compile(rf'{annotation_prefix}start-code[ \t]*(?P<name>([\S]*))?').search
 has_end = re.compile(rf'{annotation_prefix}end-code[ \t]*(?P<name>([\S]*))?').search
+default_ignored_tags = 'mlrun-ignore;nuclio-ignore'
 handler_decl = 'def {}(context, event):'
 indent_prefix = '    '
 line_magic = '%nuclio'
@@ -72,6 +73,18 @@ def create_logger():
 
 
 log = create_logger()
+
+
+def tags_to_ignore():
+    ignored_tags = environ.get(env_keys.ignored_tags) or []
+    if ignored_tags:
+        ignored_tags = ignored_tags.split(";")
+    return ignored_tags + default_ignored_tags.split(";")
+
+
+def ignore_tagged_cell(tags, tags_to_ignore):
+    intersected_tags = set(tags or []).intersection(tags_to_ignore)
+    return len(intersected_tags) > 0
 
 
 class NuclioExporter(Exporter):
@@ -142,6 +155,7 @@ class NuclioExporter(Exporter):
         code_cells = 'code_cells'
         nameless_annotation = ''
         target_function_name = environ.get(env_keys.function_name)
+        ignored_tags = tags_to_ignore()
         seen_function_name = nameless_annotation
 
         function_buffers = {
@@ -164,7 +178,8 @@ class NuclioExporter(Exporter):
         for cell in filter(is_code_cell, cells):
             code_in_cell_with_annotation = ''
             code = cell['source']
-            if has_ignore(code):
+            tags = get_in(cell, 'metadata.tags')
+            if has_ignore(code) or ignore_tagged_cell(tags, ignored_tags):
                 continue
 
             match = has_start(code)

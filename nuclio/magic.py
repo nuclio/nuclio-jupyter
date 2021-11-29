@@ -368,6 +368,8 @@ def build(line, cell, return_dir=False):
         Name of handler function (if other than 'handler')
     -e, --env key=value
         add/override environment variable, can be repeated
+    --ignored-tags tag1;tag2
+        cell tags to ignore
     -v, --verbose
         emit more logs
 
@@ -408,7 +410,8 @@ def build(line, cell, return_dir=False):
                                     spec=spec, output_dir=output, tag=args.tag,
                                     archive=args.archive, project=args.project,
                                     verbose=args.verbose,
-                                    kind=args.kind)
+                                    kind=args.kind,
+                                    ignored_tags=args.ignored_tags)
 
     log('notebook {} exported'.format(name))
     return config, code

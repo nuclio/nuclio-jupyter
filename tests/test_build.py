@@ -72,6 +72,20 @@ def test_build_file_nb():
     assert maxRep == 2, 'failed to set replicas, {}'.format(maxRep)
 
 
+def test_build_file_nb_ignored_tags():
+    filepath = '{}/tags-test.ipynb'.format(here)
+    filepath = filepath.replace("\\", "/")  # handle windows
+    name, config, code = build_file(filepath)
+    print("code:", code)
+    assert code.find("import nuclio") > 0, "missing code section"
+    assert code.find("test1") == -1, "did not ignore 'nuclio-ignore' (default)"
+
+    name, config, code = build_file(filepath, ignored_tags="my-ignore-tag")
+    print("code:", code)
+    assert code.find("import nuclio") > 0, "missing code section"
+    assert code.find("test3") == -1, "did not ignore 'my-ignore-tag'"
+
+
 def test_build_url(url_filepath):
     name, config, code = build_file(url_filepath,
                                     name='javatst',
