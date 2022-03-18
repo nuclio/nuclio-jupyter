@@ -28,7 +28,7 @@ jobs:
           python -m pipenv install --dev
 
       - id: cache-pipenv
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ~/.local/share/virtualenvs
           key: ${{ runner.os }}-pipenv-${{ hashFiles('**/Pipfile.lock') }}
@@ -56,7 +56,7 @@ jobs:
           python -m pipenv install --dev
 
       - id: cache-pipenv
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ~/.local/share/virtualenvs
           key: ${{ runner.os }}-pipenv-${{ hashFiles('**/Pipfile.lock') }}

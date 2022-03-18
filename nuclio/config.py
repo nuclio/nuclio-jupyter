@@ -43,7 +43,7 @@ _function_config = {
         'annotations': {},
     },
     'spec': {
-        'runtime': 'python:3.6',
+        'runtime': 'python',
         'handler': None,
         'env': [],
         'volumes': [],
@@ -255,7 +255,7 @@ class ConfigSpec:
     external_source_env         - dictionary of names to "valueFrom" dictionary
                                 e.g. {"name1": {"secretKeyRef": {"name": "secret1", "key": "secret-key1"}}, ..}
     config                      - function spec parameters dictionary {"config_key": config, ..}
-                                e.g. {"config spec.build.baseImage" : "python:3.6-jessie"}
+                                e.g. {"config spec.build.baseImage" : "python:3.7"}
     cmd                         - string list with build commands
                                 e.g. ["pip install requests", "apt-get wget -y"]
     mount                       - Volume object for remote mount into a function

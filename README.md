@@ -125,7 +125,7 @@ we can use local environment variables in those commands with `${VAR_NAME}`, see
 ```
 %nuclio cmd pip install textblob
 %nuclio env TO_LANG=fr
-%nuclio config spec.build.baseImage = "python:3.6-jessie"
+%nuclio config spec.build.baseImage = "python:3.7-buster"
 ```
 
 magic commands only accept constant values or local environment variables as parameters 
@@ -205,7 +205,7 @@ metadata:
   name: nuclio-example
 spec:
   build:
-    baseImage: python:3.6-jessie
+    baseImage: python:3.7-buster
     commands:
     - pip install textblob
     noBaseImagesPull: true
@@ -213,12 +213,12 @@ spec:
   - name: TO_LANG
     value: fr
   handler: handler:handler
-  runtime: python:3.6
+  runtime: python
 ```
 
 ## Exporting functions using Jupyter UI
 in many cases we just want to export the function into a YAML/Zip file and loaded manually to nuclio (e.g. via nuclio UI).
-this package automatically register it self as a Jupyter converter, which allow exporting a notebook into nuclio format,
+this package automatically register itself as a Jupyter converter, which allow exporting a notebook into nuclio format,
 see example below, choose `File/Download as/Nuclio` in Jupyter notebook 
 > Note: you might need to mark the notebook as `Trusted` in order for the Nuclio option to show
 
@@ -289,7 +289,7 @@ methods can be nested, example:
 ```python
 # nuclio: ignore
 spec = nuclio.ConfigSpec(cmd=build_commands)\
-    .set_config('build.baseImage', 'python:3.6-jessie')\
+    .set_config('build.baseImage', 'python:3.7-buster')\
     .add_volume(local='User', remote='~/')
 
 spec.with_v3io()

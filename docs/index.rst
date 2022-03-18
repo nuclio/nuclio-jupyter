@@ -75,7 +75,7 @@ And ``function.yaml``
    kind: Function
    metadata: {}
    spec:
-     runtime: python:3.6
+     runtime: python
      handler: handler:handler
      env:
        - name: API_KEY
