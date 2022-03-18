@@ -9,7 +9,7 @@
   "spec": {
     "description": "Showcases unstructured logging and a structured response.",
     "handler": "main:handler",
-    "runtime": "python:3.6",
+    "runtime": "python",
     "resources": {},
     "image": "docker-registry.iguazio.app.ygmcdllkcwae.dev.trl.iguazio.com:80/nuclio/processor-helw:latest",
     "imageHash": "1546546171683541925",
@@ -106,7 +106,7 @@
               "platform": {},
               "resources": {},
               "runRegistry": "docker-registry.iguazio.app.ygmcdllkcwae.dev.trl.iguazio.com:80",
-              "runtime": "python:3.6",
+              "runtime": "python",
               "version": -1
             }
           }
