@@ -148,14 +148,14 @@ class KafkaTrigger(NuclioTrigger):
                 "kind": self.kind,
                 "maxWorkers": 1,
                 "attributes": {
-                    "Topics": topics,
-                    "Brokers": brokers,
-                    "ConsumerGroup": consumer_group,
-                    "InitialOffset": initial_offset,
-                    "SessionTimeout": "10s",
-                    "HeartbeatInterval": "3s",
-                    "WorkerAllocationMode": "pool",
-                    "FetchDefault": 1048576,
+                    "topics": topics,
+                    "brokers": brokers,
+                    "consumerGroup": consumer_group,
+                    "initialOffset": initial_offset,
+                    "sessionTimeout": "10s",
+                    "heartbeatInterval": "3s",
+                    "workerAllocationMode": "pool",
+                    "fetchDefault": 1048576,
                 },
             }
         )
