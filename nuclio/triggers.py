@@ -113,6 +113,22 @@ class CronTrigger(NuclioTrigger):
     def __init__(
         self, interval="", schedule="", body="", headers=None, extra_attributes=None
     ):
+        """Attach cron trigger to nuclio function
+        :param interval:    e.g. '1h', '30m', '10s'
+        :param schedule:    Regular cron string as per https://pypi.org/project/croniter/
+        :param body:        Set project and workflow nuclio event body
+        :param headers:     Set nuclio event headers
+
+        Examples::
+        fn = mlrun.new_function('fn_name', kind='nuclio', image='mlrun/mlrun')
+        fn.add_trigger(
+            'trigger_name',
+            CronTrigger(
+                schedule='* * 1 * *',
+                body=json.dumps({'project_url': '~/project.yaml', 'workflow': 'main'}),
+                headers={'X-Nuclio-Target': 'fn_name'}
+        ))
+        """
         super(CronTrigger, self).__init__(
             {"kind": self.kind, "attributes": {}}
         )
