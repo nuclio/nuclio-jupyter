@@ -14,8 +14,6 @@ requests = ">=2.20.1"
 # nbconvert is not compatible with tornado 6 (which is in alpha)
 #tornado = ">=5"
 boto3 = ">=1.9"
-# TODO remove this requirement once jupyter/nbconvert solves the issue https://github.com/jupyter/nbconvert/issues/1736
-jinja2 = "~=3.0.0"
 
 [dev-packages]
 flake8 = "*"
