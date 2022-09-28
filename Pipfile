@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 ipython = ">=5.5"
 #jupyterlab = ">=0.35.4"
-nbconvert = ">=5.4"
+nbconvert = ">=6.4.5"
 notebook = ">=5.2.0"
 # pyyaml 6.0 added backwards incompatible change https://github.com/yaml/pyyaml/issues/576
 pyyaml = ">=3.13, <6.0.0"
