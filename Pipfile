@@ -14,6 +14,10 @@ requests = ">=2.20.1"
 # nbconvert is not compatible with tornado 6 (which is in alpha)
 #tornado = ">=5"
 boto3 = ">=1.9"
+# for some reason when installing nuclio-jupyter on a venv that already had lower version of jinja2 it didn't upgrade
+# it to >=3.0.0 although it was installing nbconvert 7.0.0 which requires jinja2 >=3.0.0
+# therefore adding it explictly
+jinja2 = ">=3.0.0"
 
 [dev-packages]
 flake8 = "*"
