@@ -191,11 +191,11 @@ class KafkaTrigger(NuclioTrigger):
         )
         partitions = partitions or []
         if partitions:
-            self._struct["attributes"]["Partitions"] = partitions
+            self._struct["attributes"]["partitions"] = partitions
         self._add_extra_attrs(extra_attributes)
 
     def sasl(self, user="", password=""):
-        self._struct["attributes"]["Sasl"] = {
+        self._struct["attributes"]["sasl"] = {
             "enable": True,
             "user": user,
             "password": password,
