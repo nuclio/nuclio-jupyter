@@ -172,11 +172,6 @@ class KafkaTrigger(NuclioTrigger):
         consumer_group="kafka",
         initial_offset="earliest",
         extra_attributes=None,
-        sasl=None,
-        tls=None,
-        ca_cert=None,
-        access_key=None,
-        access_certitificate=None,
     ):
         super(KafkaTrigger, self).__init__(
             {
@@ -197,25 +192,8 @@ class KafkaTrigger(NuclioTrigger):
         partitions = partitions or []
         if partitions:
             self._struct["attributes"]["partitions"] = partitions
-
-        if sasl:
-            self._struct["attributes"]["sasl"] = sasl
-
-        if tls:
-            self._struct["attributes"]["tls"] = tls
-
-        if ca_cert:
-            self._struct["attributes"]["caCert"] = ca_cert
-
-        if access_key:
-            self._struct["attributes"]["accessKey"] = access_key
-
-        if access_certitificate:
-            self._struct["attributes"]["accessCertificate"] = access_certitificate
-
         self._add_extra_attrs(extra_attributes)
 
-    # legacy - use constructor instead
     def sasl(self, user="", password=""):
         self._struct["attributes"]["sasl"] = {
             "enable": True,
