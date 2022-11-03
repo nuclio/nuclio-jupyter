@@ -18,7 +18,7 @@ from os import path, environ
 import yaml
 from IPython import get_ipython
 
-from .utils import parse_env
+from .utils import parse_env, logger
 from .archive import url2repo
 from .triggers import HttpTrigger
 
