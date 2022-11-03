@@ -217,7 +217,7 @@ def set_external_source_env_dict(config, external_source_env={}):
         update_env_var(config, k, value_from=v)
 
 
-def update_env_var(config, key, value=None, value_from=None):
+def create_or_update_env_var(config, key, value=None, value_from=None):
     if value is not None:
         item = {'name': key, 'value': value}
     elif value_from is not None:
@@ -225,12 +225,23 @@ def update_env_var(config, key, value=None, value_from=None):
     else:
         raise Exception(f'either value or value_from required for env var: {key}')
 
+    config["spec"].setdefault("env", [])
+
     # find key existence in env
-    location = next((idx for idx, env_var in enumerate(config['spec']['env']) if env_var['name'] == key), None)
+    try:
+        location = [env["name"] for env in config["spec"]["env"]].index(key)
+    except ValueError:
+        location = None
+
     if location is not None:
         config['spec']['env'][location] = item
     else:
         config['spec']['env'].append(item)
+
+
+def update_env_var(config, key, value=None, value_from=None):
+    logger.warning('This function is deprecated, please use create_or_update_env_var instead')
+    create_or_update_env_var(config, key, value=value, value_from=value_from)
 
 
 def fill_config(config, extra_config={}, env={}, cmd=[], mount: Volume = None, external_source_env={}):
