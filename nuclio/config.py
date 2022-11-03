@@ -195,7 +195,7 @@ def set_env(config, env):
             for key in ['V3IO_FRAMESD', 'V3IO_USERNAME',
                         'V3IO_ACCESS_KEY', 'V3IO_API']:
                 if key in environ:
-                    update_env_var(config, key, environ[key])
+                    create_or_update_env_var(config, key, environ[key])
             continue
 
         key, value = parse_env(line)
@@ -204,17 +204,17 @@ def set_env(config, env):
                 'cannot parse environment value from: {}'.format(line))
 
         # TODO: allow external source env with magic
-        update_env_var(config, key, value)
+        create_or_update_env_var(config, key, value)
 
 
 def set_env_dict(config, env={}):
     for k, v in env.items():
-        update_env_var(config, k, value=str(v))
+        create_or_update_env_var(config, k, value=str(v))
 
 
 def set_external_source_env_dict(config, external_source_env={}):
     for k, v in external_source_env.items():
-        update_env_var(config, k, value_from=v)
+        create_or_update_env_var(config, k, value_from=v)
 
 
 def create_or_update_env_var(config, key, value=None, value_from=None):
@@ -240,7 +240,7 @@ def create_or_update_env_var(config, key, value=None, value_from=None):
 
 
 def update_env_var(config, key, value=None, value_from=None):
-    logger.warning('This function is deprecated, please use create_or_update_env_var instead')
+    # This function is deprecated, use create_or_update_env_var instead
     create_or_update_env_var(config, key, value=value, value_from=value_from)
 
 
