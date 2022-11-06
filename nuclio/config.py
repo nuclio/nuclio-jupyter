@@ -18,7 +18,7 @@ from os import path, environ
 import yaml
 from IPython import get_ipython
 
-from .utils import parse_env
+from .utils import parse_env, logger
 from .archive import url2repo
 from .triggers import HttpTrigger
 
@@ -240,7 +240,10 @@ def create_or_update_env_var(config, key, value=None, value_from=None):
 
 
 def update_env_var(config, key, value=None, value_from=None):
-    # This function is deprecated, use create_or_update_env_var instead
+    logger.warning(
+        "update_env_var is deprecated, use create_or_update_env_var instead"
+        "This will be deprecated in 0.9.4, and will be removed in 1.0.0",
+    )
     create_or_update_env_var(config, key, value=value, value_from=value_from)
 
 
