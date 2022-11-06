@@ -27,10 +27,10 @@ def get_env_var_from_list_by_key(env, key):
 def test_update_env_var_missing_value():
     config_dict = {'spec': {'env': []}}
     with pytest.raises(Exception, match='either value or value_from required for env var: name'):
-        config.update_env_var(config_dict, 'name')
+        config.create_or_update_env_var(config_dict, 'name')
 
 
-def test_update_env_var_existing_key():
+def test_create_or_update_env_var_existing_key():
     config_dict = {'spec': {
             'env': [
                 {'name': 'key', 'value': 'value1'},
@@ -38,24 +38,24 @@ def test_update_env_var_existing_key():
             ]
         }
     }
-    config.update_env_var(config_dict, 'key', value='value2')
+    config.create_or_update_env_var(config_dict, 'key', value='value2')
     assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'key')['value'] == 'value2',\
         'env var was not updated'
 
     value_from = {"secretKeyRef": {"name": "secret1", "key": "secret-key1"}}
-    config.update_env_var(config_dict, 'key2', value_from=value_from)
+    config.create_or_update_env_var(config_dict, 'key2', value_from=value_from)
     assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'key2')['valueFrom'] == value_from,\
         'env var was not updated'
 
 
-def test_update_env_var_new_key():
+def test_create_or_update_env_var_new_key():
     config_dict = {'spec': {'env': []}}
-    config.update_env_var(config_dict, 'key', value='value2')
+    config.create_or_update_env_var(config_dict, 'key', value='value2')
     assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'key')['value'] == 'value2',\
         'env var was not added'
 
     value_from = {"secretKeyRef": {"name": "secret1", "key": "secret-key1"}}
-    config.update_env_var(config_dict, 'key2', value_from=value_from)
+    config.create_or_update_env_var(config_dict, 'key2', value_from=value_from)
     assert get_env_var_from_list_by_key(config_dict['spec']['env'], 'key2')['valueFrom'] == value_from,\
         'env var was not added'
 

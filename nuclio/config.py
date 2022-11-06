@@ -18,7 +18,7 @@ from os import path, environ
 import yaml
 from IPython import get_ipython
 
-from .utils import parse_env
+from .utils import parse_env, logger
 from .archive import url2repo
 from .triggers import HttpTrigger
 
@@ -195,7 +195,7 @@ def set_env(config, env):
             for key in ['V3IO_FRAMESD', 'V3IO_USERNAME',
                         'V3IO_ACCESS_KEY', 'V3IO_API']:
                 if key in environ:
-                    update_env_var(config, key, environ[key])
+                    create_or_update_env_var(config, key, environ[key])
             continue
 
         key, value = parse_env(line)
@@ -204,20 +204,20 @@ def set_env(config, env):
                 'cannot parse environment value from: {}'.format(line))
 
         # TODO: allow external source env with magic
-        update_env_var(config, key, value)
+        create_or_update_env_var(config, key, value)
 
 
 def set_env_dict(config, env={}):
     for k, v in env.items():
-        update_env_var(config, k, value=str(v))
+        create_or_update_env_var(config, k, value=str(v))
 
 
 def set_external_source_env_dict(config, external_source_env={}):
     for k, v in external_source_env.items():
-        update_env_var(config, k, value_from=v)
+        create_or_update_env_var(config, k, value_from=v)
 
 
-def update_env_var(config, key, value=None, value_from=None):
+def create_or_update_env_var(config, key, value=None, value_from=None):
     if value is not None:
         item = {'name': key, 'value': value}
     elif value_from is not None:
@@ -225,12 +225,27 @@ def update_env_var(config, key, value=None, value_from=None):
     else:
         raise Exception(f'either value or value_from required for env var: {key}')
 
+    config['spec'].setdefault('env', [])
+
     # find key existence in env
-    location = next((idx for idx, env_var in enumerate(config['spec']['env']) if env_var['name'] == key), None)
+    env_names = [env['name'] for env in config['spec']['env']]
+    try:
+        location = env_names.index(key)
+    except ValueError:
+        location = None
+
     if location is not None:
         config['spec']['env'][location] = item
     else:
         config['spec']['env'].append(item)
+
+
+def update_env_var(config, key, value=None, value_from=None):
+    logger.warning(
+        'update_env_var is deprecated, use create_or_update_env_var instead'
+        'This will be deprecated in 0.9.4, and will be removed in 1.0.0',
+    )
+    create_or_update_env_var(config, key, value=value, value_from=value_from)
 
 
 def fill_config(config, extra_config={}, env={}, cmd=[], mount: Volume = None, external_source_env={}):
