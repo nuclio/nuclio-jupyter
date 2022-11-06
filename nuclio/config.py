@@ -225,11 +225,12 @@ def create_or_update_env_var(config, key, value=None, value_from=None):
     else:
         raise Exception(f'either value or value_from required for env var: {key}')
 
-    config["spec"].setdefault("env", [])
+    config['spec'].setdefault('env', [])
 
     # find key existence in env
+    env_names = [env['name'] for env in config['spec']['env']]
     try:
-        location = [env["name"] for env in config["spec"]["env"]].index(key)
+        location = env_names.index(key)
     except ValueError:
         location = None
 
@@ -241,8 +242,8 @@ def create_or_update_env_var(config, key, value=None, value_from=None):
 
 def update_env_var(config, key, value=None, value_from=None):
     logger.warning(
-        "update_env_var is deprecated, use create_or_update_env_var instead"
-        "This will be deprecated in 0.9.4, and will be removed in 1.0.0",
+        'update_env_var is deprecated, use create_or_update_env_var instead'
+        'This will be deprecated in 0.9.4, and will be removed in 1.0.0',
     )
     create_or_update_env_var(config, key, value=value, value_from=value_from)
 
