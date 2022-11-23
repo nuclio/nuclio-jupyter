@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from unittest import mock
 
 from nuclio import Context, Event
 
@@ -27,4 +28,6 @@ def test_handler():
 
 
 def test_inject_context():
-    context  # noqa - Make sure it's there
+    with mock.patch('IPython.get_ipython') as ipy:
+        ipy.side_effect = 'ipykernel.zmqshell.ZMQInteractiveShell'
+        context  # noqa - Make sure it's there
