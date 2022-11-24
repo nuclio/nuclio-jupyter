@@ -28,6 +28,6 @@ def test_handler():
 
 
 def test_inject_context():
-    with mock.patch('IPython.get_ipython') as ipy:
-        ipy.side_effect = 'ipykernel.zmqshell.ZMQInteractiveShell'
+    with mock.patch('nuclio.request._running_in_jupyter_notebook') as ipy:
+        ipy.return_value = lambda: True
         context  # noqa - Make sure it's there
