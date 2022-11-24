@@ -64,7 +64,6 @@ install_requires = list(load_deps('packages'))
 tests_require = list(load_deps('dev-packages'))
 
 
-
 setup(
     name='nuclio-jupyter',
     version=version(),
