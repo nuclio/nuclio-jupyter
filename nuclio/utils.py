@@ -14,6 +14,7 @@
 import logging
 import json
 import re
+import requests
 from os import path, environ
 import shlex
 from argparse import ArgumentParser
@@ -41,7 +42,15 @@ logger = create_logger()
 
 
 class DeployError(Exception):
-    pass
+
+    def __init__(self, message, response=None):
+        self.message = message
+        self.err = None
+        if response:
+            self.err = requests.HTTPError(response=response)
+
+    def __str__(self):
+        return self.message
 
 
 class BuildError(Exception):
