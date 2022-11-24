@@ -105,6 +105,16 @@ class mock_requests:
 
 class mock_requests_error(mock_requests):
     @staticmethod
+    def get(url, **kwargs):
+        path = urlparse(url).path
+        if path == projects_prefix or path == projects_prefix + '/':
+            return Response(projects)
+        name = path[len(api_prefix):]
+        if name[0] == '/':
+            name = name[1:]
+        return Response({'error': '{} not found'.format(name)}, ok=False)
+
+    @staticmethod
     def post(url, **kwargs):
         return Response({'error': 'something went wrong'}, ok=False)
 
