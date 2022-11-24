@@ -304,11 +304,11 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
 
     except OSError as err:
         log('ERROR: %s', str(err))
-        raise DeployError('error: cannot {} to {}'.format(verb, api_url))
+        raise DeployError('error: cannot {} to {}'.format(verb, api_url), response=resp)
 
     if not resp.ok:
         log('ERROR: %s', resp.text)
-        raise DeployError('failed {} {}'.format(verb, name))
+        raise DeployError('failed {} {}'.format(verb, name), response=resp)
 
     log('deploying ...')
 
@@ -320,7 +320,7 @@ def deploy_config(config, dashboard_url='', name='', project='', tag='',
                                                  auth_info=auth_info)
         if state != 'ready':
             log('ERROR: {}'.format(resp.text))
-            raise DeployError('cannot deploy ' + resp.text)
+            raise DeployError('cannot deploy ' + resp.text, response=resp)
 
         internal_invocation_urls, external_invocation_urls = _resolve_function_addresses(api_address,
                                                                                          name,
@@ -452,7 +452,7 @@ def deploy_progress(api_address, name, verbose=False, return_function_config=Fal
     while True:
         resp = requests.get(url, verify=VERIFY_CERT, auth=auth_info.to_requests_auth())
         if not resp.ok:
-            raise DeployError('error: cannot poll {} status'.format(name))
+            raise DeployError('error: cannot poll {} status'.format(name), response=resp)
 
         resp_as_json = resp.json()
         function_status = resp_as_json.get('status')
@@ -486,7 +486,7 @@ def get_deploy_status(api_address,
     address = ''
     resp = get_function(api_address, name, auth_info)
     if not resp.ok:
-        raise DeployError('error: failed getting function {}'.format(name))
+        raise DeployError('error: failed getting function {}'.format(name), response=resp)
 
     function_config = resp.json()
     function_status = function_config.get('status', {})
@@ -515,7 +515,7 @@ def get_function_status(api_address, name, auth_info: AuthInfo = None):
     url = '{}/functions/{}'.format(api_address, name)
     resp = requests.get(url, verify=VERIFY_CERT, auth=auth_info.to_requests_auth())
     if not resp.ok:
-        raise DeployError('error: cannot poll {} status'.format(name))
+        raise DeployError('error: cannot poll {} status'.format(name), response=resp)
 
     resp_as_json = resp.json()
     return resp_as_json.get('status', {})
@@ -589,7 +589,7 @@ def find_or_create_project(api_url, project, create_new=False, auth_info: AuthIn
             return k
 
     if not create_new:
-        raise DeployError('project name {} not found'.format(project))
+        raise DeployError('project name {} not found'.format(project), response=resp)
 
     # create a new project
     headers = {'Content-Type': 'application/json'}
@@ -604,10 +604,12 @@ def find_or_create_project(api_url, project, create_new=False, auth_info: AuthIn
     except OSError as err:
         logger.info('ERROR: %s', str(err))
         raise DeployError(
-            'error: cannot create project {} on {}'.format(project, apipath))
+            'error: cannot create project {} on {}'.format(project, apipath),
+            response=resp,
+        )
 
     if not resp.ok:
-        raise DeployError('failed to create project {}'.format(project))
+        raise DeployError('failed to create project {}'.format(project), response=resp)
 
     logger.info('project name not found created new (%s)', project)
     return resp.json()['metadata']['name']
@@ -630,7 +632,8 @@ def list_functions(dashboard_url='', namespace='', auth_info: AuthInfo = None):
     except OSError as err:
         logger.error('ERROR: %s', str(err))
         raise DeployError(
-            'error: cannot list functions at {}'.format(api_address))
+            'error: cannot list functions at {} - {}'.format(api_address, str(err)),
+        )
 
     if not resp.ok:
         logger.warning(f'failed to list functions, {resp.text}')
@@ -656,11 +659,11 @@ def delete_func(name, dashboard_url='', namespace='', auth_info: AuthInfo = None
                                auth=auth_info.to_requests_auth())
     except OSError as err:
         logger.error('ERROR: %s', str(err))
-        raise DeployError('error: cannot del {} at {}'.format(name, api_url))
+        raise DeployError('error: cannot del {} at {}'.format(name, api_url), response=resp)
 
     if not resp.ok:
         logger.error('ERROR: %s', resp.text)
-        raise DeployError('failed to delete {}'.format(name))
+        raise DeployError('failed to delete {}'.format(name), response=resp)
     print('Delete successful')
 
 

@@ -103,9 +103,21 @@ class mock_requests:
         return Response({'ok': True})
 
 
+class mock_requests_error(mock_requests):
+    @staticmethod
+    def post(url, **kwargs):
+        return Response({'error': 'something went wrong'}, ok=False)
+
+
 @pytest.fixture
 def requests():
     with patch(deploy, requests=mock_requests):
+        yield
+
+
+@pytest.fixture
+def requests_error():
+    with patch(deploy, requests=mock_requests_error):
         yield
 
 
@@ -170,6 +182,22 @@ def test_deploy_with_external_source_env(requests):
     func = functions[name]
     assert expected_output_env in func['spec']['env'], 'secret is not in function spec'
     assert expected_output_env_var in func['spec']['env'], 'env var is not in function spec'
+
+
+def test_deploy_error(requests_error):
+    code = '''
+        def handler(context, event):
+            context.logger.info('text')
+            return 'something'
+        '''
+
+    func_name = 'myfunc'
+    try:
+        deploy.deploy_code(code, name=func_name, project='test-project')
+    except deploy.DeployError as e:
+        assert e.message == 'failed creating {}'.format(func_name)
+        assert e.err.response.ok is False
+        assert e.err.response.data == {'error': 'something went wrong'}
 
 
 class MockLogger:
