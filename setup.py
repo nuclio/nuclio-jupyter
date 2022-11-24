@@ -64,6 +64,7 @@ install_requires = list(load_deps('packages'))
 tests_require = list(load_deps('dev-packages'))
 
 
+
 setup(
     name='nuclio-jupyter',
     version=version(),
@@ -84,8 +85,9 @@ setup(
         'Operating System :: Microsoft :: Windows',
         'Operating System :: MacOS',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Programming Language :: Python',
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Software Development :: Libraries',
