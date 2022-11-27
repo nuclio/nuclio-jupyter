@@ -243,3 +243,4 @@ def _running_in_jupyter_notebook():
     except ImportError:
         pass
     return False
+

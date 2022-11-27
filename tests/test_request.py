@@ -30,13 +30,14 @@ def test_handler():
     assert out == 'Hi Dave. How are you?'
 
 
+def test_context_not_injected():
+    with pytest.raises(NameError):
+        context # noqa - Make sure it's not there
+
+
 def test_inject_context():
     with mock.patch('nuclio.request._running_in_jupyter_notebook') as ipy:
         ipy.return_value = True
         inject_context()
         context  # noqa - Make sure it's there
-
-
-def test_context_not_injected():
-    with pytest.raises(NameError):
-        context # noqa - Make sure it's not there
+        
