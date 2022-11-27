@@ -33,4 +33,3 @@ def test_inject_context():
         ipy.return_value = True
         inject_context()
         context  # noqa - Make sure it's there
-
