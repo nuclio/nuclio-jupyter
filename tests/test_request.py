@@ -13,6 +13,8 @@
 # limitations under the License.
 from unittest import mock
 
+import pytest
+
 from nuclio import Context, Event
 from nuclio.request import inject_context
 
@@ -33,3 +35,8 @@ def test_inject_context():
         ipy.return_value = True
         inject_context()
         context  # noqa - Make sure it's there
+
+
+def test_context_not_injected():
+    with pytest.raises(NameError):
+        context # noqa - Make sure it's not there
