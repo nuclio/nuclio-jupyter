@@ -32,7 +32,7 @@ def test_handler():
 
 def test_context_not_injected():
     with pytest.raises(NameError):
-        context # noqa - Make sure it's not there
+        context  # noqa - Make sure it's not there
 
 
 def test_inject_context():
@@ -40,4 +40,3 @@ def test_inject_context():
         ipy.return_value = True
         inject_context()
         context  # noqa - Make sure it's there
-        
