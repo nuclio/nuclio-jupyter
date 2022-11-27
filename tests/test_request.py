@@ -14,6 +14,7 @@
 from unittest import mock
 
 from nuclio import Context, Event
+from nuclio.request import inject_context
 
 
 def handler(context, event):
@@ -29,5 +30,7 @@ def test_handler():
 
 def test_inject_context():
     with mock.patch('nuclio.request._running_in_jupyter_notebook') as ipy:
-        ipy.return_value = lambda: True
+        ipy.return_value = True
+        inject_context()
         context  # noqa - Make sure it's there
+
