@@ -225,7 +225,21 @@ class Event(object):
 
 
 def inject_context():
-    # add context, only if not inside nuclio
-    if not os.environ.get('NUCLIO_FUNCTION_INSTANCE'):
+
+    # add context, only if not inside nuclio and inside jupyter notebook
+    if _running_in_jupyter_notebook() and not os.environ.get('NUCLIO_FUNCTION_INSTANCE'):
         import builtins
         builtins.context = Context()
+
+
+def _running_in_jupyter_notebook():
+    try:
+        import IPython
+
+        ipy = IPython.get_ipython()
+        # if its IPython terminal ignore (cant show html)
+        if ipy and "Terminal" not in str(type(ipy)):
+            return True
+    except ImportError:
+        pass
+    return False

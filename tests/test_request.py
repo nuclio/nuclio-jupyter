@@ -11,8 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from unittest import mock
+
+import pytest
 
 from nuclio import Context, Event
+from nuclio.request import inject_context
 
 
 def handler(context, event):
@@ -26,5 +30,13 @@ def test_handler():
     assert out == 'Hi Dave. How are you?'
 
 
+def test_context_not_injected():
+    with pytest.raises(NameError):
+        context  # noqa - Make sure it's not there
+
+
 def test_inject_context():
-    context  # noqa - Make sure it's there
+    with mock.patch('nuclio.request._running_in_jupyter_notebook') as ipy:
+        ipy.return_value = True
+        inject_context()
+        context  # noqa - Make sure it's there
