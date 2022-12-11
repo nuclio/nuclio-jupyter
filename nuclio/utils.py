@@ -225,4 +225,4 @@ def notebook_file_name(ikernel):
                 )
 
     # vscode jupyter plugin communicates directly with ipykernel and doesn't execute a server
-    return ikernel.__dict__.get('user_ns', {}).get('__vsc_ipynb_file__')
+    return ikernel.user_ns.get("__vsc_ipynb_file__")
