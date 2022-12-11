@@ -223,3 +223,6 @@ def notebook_file_name(ikernel):
                     srv.get('notebook_dir') or srv.get('root_dir'),
                     relative_path
                 )
+
+    # vscode jupyter plugin communicates directly with ipykernel and doesn't execute a server
+    return ikernel.__dict__.get('user_ns', {}).get('__vsc_ipynb_file__')
