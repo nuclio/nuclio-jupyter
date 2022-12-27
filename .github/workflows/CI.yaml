@@ -30,9 +30,9 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.7'
 
@@ -58,22 +58,17 @@ jobs:
       matrix:
         python-version: ['3.7', '3.8', '3.9']
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pipenv'
 
       - name: Install pipenv
         run: |
-          python -m pip install --upgrade pipenv wheel
+          curl https://raw.githubusercontent.com/pypa/pipenv/master/get-pipenv.py | python
           python -m pipenv install --dev
-
-      - id: cache-pipenv
-        uses: actions/cache@v2
-        with:
-          path: ~/.local/share/virtualenvs
-          key: ${{ runner.os }}-pipenv-${{ hashFiles('**/Pipfile.lock') }}
 
       - name: Run test
         run: |
