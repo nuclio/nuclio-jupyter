@@ -46,7 +46,7 @@ class DeployError(Exception):
     def __init__(self, message, response=None):
         self.message = message
         self.err = None
-        if response:
+        if response is not None:
             self.err = requests.HTTPError(response=response)
 
     def __str__(self):
