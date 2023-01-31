@@ -74,15 +74,28 @@ def get_in(obj, keys):
     return obj
 
 
+def split_by_dots_with_escaping(key: str):
+    """
+    splits the key by dots, taking escaping into account so that the final key can contain dots
+    """
+    last_key_start_index = key.find("\\")
+    if last_key_start_index > 0:
+        last_key = key[last_key_start_index + 1 : -1]
+        parts = key[:last_key_start_index].split(".")
+    else:
+        parts = key.split(".")
+        last_key = parts[-1]
+    return parts, last_key
+
+
 def update_in(obj, key, value, append=False):
-    parts = key.split('.') if isinstance(key, str) else key
+    parts, last_key = split_by_dots_with_escaping(key) if isinstance(key, str) else key
     for part in parts[:-1]:
         sub = obj.get(part, missing)
         if sub is missing:
             sub = obj[part] = {}
         obj = sub
 
-    last_key = parts[-1]
     if last_key not in obj:
         if append:
             obj[last_key] = []
