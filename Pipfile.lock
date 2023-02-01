@@ -428,11 +428,11 @@
         },
         "notebook": {
             "hashes": [
-                "sha256:2a67037730e2b2991f5d684ecb07255bbb191f49234888e71e1fabf8e50679a6",
-                "sha256:5d999285fd449898c4dfa0b7880dd881f317c653eb221e8d51d0b5400751ce35"
+                "sha256:6268c9ec9048cff7a45405c990c29ac9ca40b0bc3ec29263d218c5e01f2b4e86",
+                "sha256:8c07a3bb7640e371f8a609bdbb2366a1976c6a2589da8ef917f761a61e3ad8b1"
             ],
             "index": "pypi",
-            "version": "==6.4.1"
+            "version": "==6.4.12"
         },
         "packaging": {
             "hashes": [
