@@ -52,3 +52,8 @@ README.html: README.md
 .PHONY: magic-help
 magic-help:
 	ipython --no-term-title docs/gen_magic.py > docs/magic.rst
+
+.PHONY: install-requirements
+install-requirements:
+	pipenv install --dev
+

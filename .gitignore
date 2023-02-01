@@ -7,5 +7,5 @@ __pycache__
 README.html
 _t
 .idea
-venv
+*venv*
 .vscode
