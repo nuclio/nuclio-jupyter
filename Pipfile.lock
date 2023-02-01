@@ -1468,11 +1468,11 @@
         },
         "wheel": {
             "hashes": [
-                "sha256:78b5b185f0e5763c26ca1e324373aadd49182ca90e825f7853f4b2509215dc0e",
-                "sha256:e11eefd162658ea59a60a0f6c7d493a7190ea4b9a85e335b33489d9f17e0245e"
+                "sha256:7a95f9a8dc0924ef318bd55b616112c70903192f524d120acc614f59547a9e1f",
+                "sha256:ea041edf63f4ccba53ad6e035427997b3bb10ee88a4cd014ae82aeb9eea77bb9"
             ],
             "index": "pypi",
-            "version": "==0.36.2"
+            "version": "==0.38.1"
         },
         "zipp": {
             "hashes": [
