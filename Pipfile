@@ -4,10 +4,9 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-ipython = ">=5.5"
-#jupyterlab = ">=0.35.4"
+ipython = "~=7.0"
 nbconvert = ">=6.4.5"
-notebook = ">=5.2.0"
+notebook = ">=6.4"
 # pyyaml 6.0 added backwards incompatible change https://github.com/yaml/pyyaml/issues/576
 pyyaml = ">=3.13, <6.0.0"
 requests = ">=2.20.1"
@@ -19,6 +18,7 @@ boto3 = ">=1.9"
 flake8 = "*"
 pytest = "*"
 pyyaml = "*"
-sphinx = "*"
+# sphinx >= 4.4 requires importlib-metadata > 4.4.0 when python < 3.8, which isn't compatible with any flake8 versions
+sphinx = "~=4.3.0"
 twine = "*"
 wheel = "*"
