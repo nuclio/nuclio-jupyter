@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
+
 from nuclio import config
 
 
@@ -26,3 +28,31 @@ def test_update_in():
     assert obj['a']['b']['d'] == [3]
     config.update_in(obj, 'a.b.d', 4, append=True)
     assert obj['a']['b']['d'] == [3, 4]
+
+
+@pytest.mark.parametrize(
+    "keys,val",
+    [
+        (
+            ["meta", "label", "tags.data.com/env"],
+            "value",
+        ),
+        (
+            ["spec", "handler"],
+            [1, 2, 3],
+        ),
+        (["metadata", "test", "labels", "test.data"], 1),
+        (["metadata", "ֿ״test", "lables\"", "test.data"], 1),
+        (["metadata.test", "test.test", "labels", "test.data"], True),
+        (["metadata", "test.middle.com", "labels", "test.data"], "data"),
+    ],
+)
+def test_update_in_with_dotted_keys(keys, val):
+    obj = {}
+    config.update_in(
+        obj, ".".join([key if "." not in key else f"\\{key}\\" for key in keys]), val
+    )
+    print(obj)
+    for key in keys:
+        obj = obj.get(key)
+    assert obj == val
