@@ -29,6 +29,7 @@ def test_update_in():
     config.update_in(obj, 'a.b.d', 4, append=True)
     assert obj['a']['b']['d'] == [3, 4]
 
+
 @pytest.mark.parametrize(
     "keys,val",
     [
