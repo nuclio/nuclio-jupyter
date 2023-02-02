@@ -22,7 +22,7 @@ def test_update_in():
     config.update_in(obj, 'a.b.c', 3)
     assert obj['a']['b']['c'] == 3
 
-    config.update_in(obj, 'a.b.d', 3, append=True)
-    assert obj['a']['b']['d'] == [3]
-    config.update_in(obj, 'a.b.d', 4, append=True)
-    assert obj['a']['b']['d'] == [3, 4]
+    config.update_in(obj, 'a.\\b.c\\.d', 3, append=True)
+    assert obj['a']['b.c']['d'] == [3]
+    config.update_in(obj, 'a.\\b.c\\.d', 4, append=True)
+    assert obj['a']['b.c']['d'] == [3, 4]
