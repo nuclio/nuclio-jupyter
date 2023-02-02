@@ -47,7 +47,7 @@ def test_update_in():
         (["metadata", "test.middle.com", "labels", "test.data"], "data"),
     ],
 )
-def test_update_in_for_key_with_dots(keys, val):
+def test_update_in_with_dotted_keys(keys, val):
     obj = {}
     config.update_in(
         obj, ".".join([key if "." not in key else f"\\{key}\\" for key in keys]), val
