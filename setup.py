@@ -61,6 +61,11 @@ with open('README.md') as fp:
     long_desc = fp.read()
 
 install_requires = list(load_deps('packages'))
+ipython_requirements = [
+    'ipython~=7.0; python_version<"3.8"',
+    'ipython~=8.0; python_version>="3.8"',
+]
+install_requires += ipython_requirements
 tests_require = list(load_deps('dev-packages'))
 
 
