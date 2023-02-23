@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-ipython = "~=7.0"
+ipython = ">=7.0"
 nbconvert = ">=6.4.5"
 notebook = ">=6.4"
 # pyyaml 6.0 added backwards incompatible change https://github.com/yaml/pyyaml/issues/576
