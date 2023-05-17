@@ -13,7 +13,7 @@
 # limitations under the License.
 import pytest
 
-from nuclio.triggers import HttpTrigger, V3IOStreamTrigger, Constants
+from nuclio.triggers import HttpTrigger, V3IOStreamTrigger, KafkaTrigger, Constants
 
 
 def test_access_key_must_be_set():
@@ -29,6 +29,48 @@ def test_create_v3io_stream_trigger():
 
     v3io_stream_trigger = V3IOStreamTrigger(access_key="abc")
     assert v3io_stream_trigger.get_url == Constants.default_webapi_address
+
+
+def test_create_v3io_stream_trigger_with_explicit_ack_mode():
+    for explicit_ack_mode in [
+        None,
+        "enable",
+        "explicitOnly",
+    ]:
+        if not explicit_ack_mode:
+            trigger = V3IOStreamTrigger(
+                url="some-url",
+                access_key="123",
+            )
+            assert not trigger._struct.get("explicitAckMode", None)
+        else:
+            trigger = V3IOStreamTrigger(
+                url="some-url",
+                access_key="123",
+                explicit_ack_mode=explicit_ack_mode,
+            )
+            assert trigger._struct.get("explicitAckMode") == explicit_ack_mode
+
+
+def test_create_kafka_trigger_with_explicit_ack_mode():
+    for explicit_ack_mode in [
+        None,
+        "enable",
+        "explicitOnly",
+    ]:
+        if not explicit_ack_mode:
+            trigger = KafkaTrigger(
+                brokers="some-brokers",
+                topics=["some-topic"],
+            )
+            assert not trigger._struct.get("explicitAckMode", None)
+        else:
+            trigger = KafkaTrigger(
+                brokers="some-brokers",
+                topics=["some-topic"],
+                explicit_ack_mode=explicit_ack_mode,
+            )
+            assert trigger._struct.get("explicitAckMode") == explicit_ack_mode
 
 
 def test_cast_http_trigger_port_to_int():

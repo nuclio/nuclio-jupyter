@@ -171,6 +171,7 @@ class KafkaTrigger(NuclioTrigger):
         partitions=None,
         consumer_group="kafka",
         initial_offset="earliest",
+        explicit_ack_mode=None,
         extra_attributes=None,
     ):
         super(KafkaTrigger, self).__init__(
@@ -192,6 +193,8 @@ class KafkaTrigger(NuclioTrigger):
         partitions = partitions or []
         if partitions:
             self._struct["attributes"]["partitions"] = partitions
+        if explicit_ack_mode:
+            self._struct["explicitAckMode"] = explicit_ack_mode
         self._add_extra_attrs(extra_attributes)
 
     def sasl(self, user="", password=""):
@@ -224,6 +227,7 @@ class V3IOStreamTrigger(NuclioTrigger):
         consumerGroup: str = "default",
         sequenceNumCommitInterval: str = "1s",
         heartbeatInterval: str = "3s",
+        explicit_ack_mode: str = None,
         extra_attributes=None,
     ):
         if url and not container and not path:
@@ -260,6 +264,8 @@ class V3IOStreamTrigger(NuclioTrigger):
             struct["attributes"]["partitions"] = partitions
         if pollingIntervalMS:
             struct["attributes"]["pollingIntervalMs"] = pollingIntervalMS
+        if explicit_ack_mode:
+            struct["explicitAckMode"] = explicit_ack_mode
         access_key = access_key if access_key else environ.get("V3IO_ACCESS_KEY")
         if not access_key:
             raise ValueError(
