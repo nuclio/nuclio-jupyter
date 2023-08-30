@@ -15,6 +15,7 @@
 import typing
 from os import environ
 
+from utils import logger
 
 class Constants(object):
     default_webapi_address = "http://v3io-webapi:8081"
@@ -204,6 +205,7 @@ class KafkaTrigger(NuclioTrigger):
                 extra_attributes = {"workerAllocationMode": "static"}
             else:
                 extra_attributes["workerAllocationMode"] = "static"
+            logger.warn("workerAllocationMode was automatically set to 'static' because explicitAckMode is enabled")
 
         self._add_extra_attrs(extra_attributes)
 
@@ -281,6 +283,7 @@ class V3IOStreamTrigger(NuclioTrigger):
                 extra_attributes = {"workerAllocationMode": "static"}
             else:
                 extra_attributes["workerAllocationMode"] = "static"
+            logger.warn("workerAllocationMode was automatically set to 'static' because explicitAckMode is enabled")
 
         access_key = access_key if access_key else environ.get("V3IO_ACCESS_KEY")
         if not access_key:
