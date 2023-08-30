@@ -15,7 +15,7 @@
 import typing
 from os import environ
 
-from utils import logger
+from .utils import logger
 
 
 class Constants(object):
