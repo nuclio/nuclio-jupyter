@@ -17,6 +17,7 @@ from os import environ
 
 from utils import logger
 
+
 class Constants(object):
     default_webapi_address = "http://v3io-webapi:8081"
 
