@@ -203,9 +203,8 @@ class KafkaTrigger(NuclioTrigger):
             self._struct["explicitAckMode"] = explicit_ack_mode
             # workerAllocationMode conflicts with explicit_ack_mode, so we should force static one in that case
             if not extra_attributes:
-                extra_attributes = {"workerAllocationMode": "static"}
-            else:
-                extra_attributes["workerAllocationMode"] = "static"
+                extra_attributes = {}
+            extra_attributes.setdefault("workerAllocationMode", "static")
             logger.warn("workerAllocationMode was automatically set to 'static' because explicitAckMode is enabled")
 
         self._add_extra_attrs(extra_attributes)
@@ -281,9 +280,8 @@ class V3IOStreamTrigger(NuclioTrigger):
             struct["explicitAckMode"] = explicit_ack_mode
             # workerAllocationMode conflicts with explicit_ack_mode, so we should force static one in that case
             if not extra_attributes:
-                extra_attributes = {"workerAllocationMode": "static"}
-            else:
-                extra_attributes["workerAllocationMode"] = "static"
+                extra_attributes = {}
+            extra_attributes.setdefault("workerAllocationMode", "static")
             logger.warn("workerAllocationMode was automatically set to 'static' because explicitAckMode is enabled")
 
         access_key = access_key if access_key else environ.get("V3IO_ACCESS_KEY")
