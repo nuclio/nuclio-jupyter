@@ -22,6 +22,3 @@ pyyaml = "*"
 sphinx = "~=4.3.0"
 twine = "*"
 wheel = "*"
-toml= "0.10.2"
-pipfile= "0.0.2"
-
