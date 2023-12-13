@@ -194,8 +194,8 @@ from mlrun.runtimes import nuclio_init_hook
 def init_context(context):
     nuclio_init_hook(context, globals(), '{}')
 
-def handler(context, event):
-    return context.mlrun_handler(context, event)
+async def handler(context, event):
+    return await context.mlrun_handler(context, event)
 '''
 
 
