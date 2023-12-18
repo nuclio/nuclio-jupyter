@@ -23,7 +23,7 @@ nuclio can run in the cloud as a managed offering, or on any Kubernetes cluster 
 nuclio and this package are an integral part of [iguazio managed data science platform](https://www.iguazio.com/), you can see many end to end usage examples and notebooks in [iguazio tutorial](https://github.com/v3io/tutorials) repo.
 
 #### How does it work?
-nuclio take code + [function spec](https://github.com/nuclio/nuclio/blob/master/docs/reference/function-configuration/function-configuration-reference.md) + optional file artifacts and automatically convert them to auto-scaling services over Kubernetes.
+nuclio takes code + [function spec](https://github.com/nuclio/nuclio/blob/master/docs/reference/function-configuration/function-configuration-reference.md) + optional file artifacts and automatically convert them to auto-scaling services over Kubernetes.
 the artifacts can be provided as a YAML file (with embedded code), as Dockerfiles, or as archives (Git or Zip).
 function spec allow you to [define everything](https://github.com/nuclio/nuclio/blob/master/docs/reference/function-configuration/function-configuration-reference.md) from CPU/Mem/GPU requirements, package dependencies, environment variables, secrets, shared volumes, API gateway config, and more.<br>
 
