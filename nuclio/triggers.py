@@ -173,6 +173,7 @@ class KafkaTrigger(NuclioTrigger):
         partitions=None,
         consumer_group="kafka",
         initial_offset="earliest",
+        max_workers: int = 1,
         explicit_ack_mode=None,
         extra_attributes=None,
         session_timeout: str = "10s",
@@ -183,7 +184,7 @@ class KafkaTrigger(NuclioTrigger):
         super(KafkaTrigger, self).__init__(
             {
                 "kind": self.kind,
-                "maxWorkers": 1,
+                "maxWorkers": max_workers,
                 "attributes": {
                     "topics": topics,
                     "brokers": brokers,
