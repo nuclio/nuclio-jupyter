@@ -173,13 +173,13 @@ class KafkaTrigger(NuclioTrigger):
         partitions=None,
         consumer_group="kafka",
         initial_offset="earliest",
-        max_workers: int = 1,
         explicit_ack_mode=None,
         extra_attributes=None,
         session_timeout: str = "10s",
         heartbeat_interval: str = "3s",
         worker_allocation_mode: str = "pool",
         fetch_default: int = 1048576,
+        max_workers: int = 1,
     ):
         super(KafkaTrigger, self).__init__(
             {
