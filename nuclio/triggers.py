@@ -179,11 +179,12 @@ class KafkaTrigger(NuclioTrigger):
         heartbeat_interval: str = "3s",
         worker_allocation_mode: str = "pool",
         fetch_default: int = 1048576,
+        max_workers: int = 1,
     ):
         super(KafkaTrigger, self).__init__(
             {
                 "kind": self.kind,
-                "maxWorkers": 1,
+                "maxWorkers": max_workers,
                 "attributes": {
                     "topics": topics,
                     "brokers": brokers,
