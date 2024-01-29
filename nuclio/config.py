@@ -174,6 +174,11 @@ class Volume:
                 'name': self.name,
                 'secret': {'secretName': self.remote}
             }
+        elif self.type == 'configMap':
+            vol = {
+                'name': self.name,
+                'configMap': {'name': self.remote}
+            }
         else:
             raise Exception('unknown volume type {}'.format(self.type))
 
