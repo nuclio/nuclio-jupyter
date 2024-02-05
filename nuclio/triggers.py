@@ -225,24 +225,66 @@ class V3IOStreamTrigger(NuclioTrigger):
     def __init__(
         self,
         url: str = None,
-        seekTo: str = "latest",
+        seek_to: str = "latest",
         partitions: list = None,
-        pollingIntervalMS: int = 500,
-        readBatchSize: int = 64,
-        maxWorkers: int = 1,
+        polling_interval_ms: int = 500,
+        read_batch_size: int = 64,
+        max_workers: int = 1,
         access_key: str = None,
-        sessionTimeout: str = "10s",
+        session_timeout: str = "10s",
         name: str = None,
         container: str = None,
         path: str = None,
-        workerAllocationMode: str = "pool",
+        worker_allocation_mode: str = "pool",
         webapi: str = Constants.default_webapi_address,
-        consumerGroup: str = "default",
-        sequenceNumCommitInterval: str = "1s",
-        heartbeatInterval: str = "3s",
+        consumer_group: str = "default",
+        sequence_num_commit_interval: str = "1s",
+        heartbeat_interval: str = "3s",
         explicit_ack_mode: str = None,
         extra_attributes=None,
+        **deprecated_kwargs,
     ):
+        # TODO: delete deprecated arguments
+        deprecation_warning_template = "Deprecated argument '{old_arg_name}' will be removed in a future version. " \
+                                       "Please use '{new_arg_name}' instead."
+
+        if "seekTo" in deprecated_kwargs:
+            logger.warn(deprecation_warning_template.format(old_arg_name="seekTo",
+                                                            new_arg_name="seek_to"))
+            seek_to = deprecated_kwargs.get("seekTo")
+        if "pollingIntervalMS" in deprecated_kwargs:
+            logger.warn(deprecation_warning_template.format(old_arg_name="pollingIntervalMS",
+                                                            new_arg_name="polling_interval_ms"))
+            polling_interval_ms = deprecated_kwargs.get("pollingIntervalMS")
+        if "readBatchSize" in deprecated_kwargs:
+            logger.warn(deprecation_warning_template.format(old_arg_name="readBatchSize",
+                                                            new_arg_name="read_batch_size"))
+            read_batch_size = deprecated_kwargs.get("readBatchSize")
+        if "maxWorkers" in deprecated_kwargs:
+            logger.warn(deprecation_warning_template.format(old_arg_name="max_workers",
+                                                            new_arg_name="max_workers"))
+            max_workers = deprecated_kwargs.get("maxWorkers")
+        if "sessionTimeout" in deprecated_kwargs:
+            logger.warn(deprecation_warning_template.format(old_arg_name="sessionTimeout",
+                                                            new_arg_name="session_timeout"))
+            session_timeout = deprecated_kwargs.get("sessionTimeout")
+        if "workerAllocationMode" in deprecated_kwargs:
+            logger.warn(deprecation_warning_template.format(old_arg_name="workerAllocationMode",
+                                                            new_arg_name="worker_allocation_mode"))
+            worker_allocation_mode = deprecated_kwargs.get("workerAllocationMode")
+        if "consumerGroup" in deprecated_kwargs:
+            logger.warn(deprecation_warning_template.format(old_arg_name="consumerGroup",
+                                                            new_arg_name="consumer_group"))
+            consumer_group = deprecated_kwargs.get("consumerGroup")
+        if "sequenceNumCommitInterval" in deprecated_kwargs:
+            logger.warn(deprecation_warning_template.format(old_arg_name="sequenceNumCommitInterval",
+                                                            new_arg_name="sequence_num_commit_interval"))
+            sequence_num_commit_interval = deprecated_kwargs.get("sequenceNumCommitInterval")
+        if "heartbeatInterval" in deprecated_kwargs:
+            logger.warn(deprecation_warning_template.format(old_arg_name="heartbeatInterval",
+                                                            new_arg_name="heartbeat_interval"))
+            heartbeat_interval = deprecated_kwargs.get("heartbeatInterval")
+
         if url and not container and not path:
             struct = {
                 "kind": self.kind,
@@ -256,27 +298,27 @@ class V3IOStreamTrigger(NuclioTrigger):
                 "attributes": {
                     "containerName": container,
                     "streamPath": path,
-                    "consumerGroup": consumerGroup,
-                    "sequenceNumberCommitInterval": sequenceNumCommitInterval,
-                    "workerAllocationMode": workerAllocationMode,
-                    "sessionTimeout": sessionTimeout,
-                    "heartbeatInterval": heartbeatInterval,
+                    "consumerGroup": consumer_group,
+                    "sequenceNumberCommitInterval": sequence_num_commit_interval,
+                    "workerAllocationMode": worker_allocation_mode,
+                    "sessionTimeout": session_timeout,
+                    "heartbeatInterval": heartbeat_interval,
                 },
             }
 
             if name:
                 struct["name"] = name
 
-        if maxWorkers:
-            struct["maxWorkers"] = maxWorkers
-        if seekTo:
-            struct["attributes"]["seekTo"] = seekTo
-        if readBatchSize:
-            struct["attributes"]["readBatchSize"] = readBatchSize
+        if max_workers:
+            struct["maxWorkers"] = max_workers
+        if seek_to:
+            struct["attributes"]["seekTo"] = seek_to
+        if read_batch_size:
+            struct["attributes"]["readBatchSize"] = read_batch_size
         if partitions:
             struct["attributes"]["partitions"] = partitions
-        if pollingIntervalMS:
-            struct["attributes"]["pollingIntervalMs"] = pollingIntervalMS
+        if polling_interval_ms:
+            struct["attributes"]["pollingIntervalMs"] = polling_interval_ms
         if explicit_ack_mode:
             struct["explicitAckMode"] = explicit_ack_mode
             # workerAllocationMode conflicts with explicit_ack_mode, so we should force static one in that case

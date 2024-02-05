@@ -99,3 +99,8 @@ def test_http_trigger_extra():
     http_trigger = HttpTrigger(annotations={"x": "123"}, extra_attributes={"y": "456"})
     assert http_trigger._struct["annotations"]["x"] == "123"
     assert http_trigger._struct["attributes"]["y"] == "456"
+
+
+def test_renamed_deprecated_values():
+    trigger = V3IOStreamTrigger(seekTo="test", access_key="abc")
+    assert trigger._struct["attributes"]["seekTo"] == "test"
