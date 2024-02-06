@@ -244,8 +244,8 @@ class V3IOStreamTrigger(NuclioTrigger):
         extra_attributes=None,
         **deprecated_kwargs,
     ):
-        # TODO: delete deprecated arguments
-        deprecation_warning_template = "Deprecated argument '{old_arg_name}' will be removed in a future version. " \
+        # TODO: delete deprecated arguments in 0.10.0
+        deprecation_warning_template = "Deprecated argument '{old_arg_name}' will be removed in 0.10.0 version. " \
                                        "Please use '{new_arg_name}' instead."
 
         if "seekTo" in deprecated_kwargs:
