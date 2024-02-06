@@ -261,7 +261,7 @@ class V3IOStreamTrigger(NuclioTrigger):
                                                             new_arg_name="read_batch_size"))
             read_batch_size = deprecated_kwargs.get("readBatchSize")
         if "maxWorkers" in deprecated_kwargs:
-            logger.warn(deprecation_warning_template.format(old_arg_name="max_workers",
+            logger.warn(deprecation_warning_template.format(old_arg_name="maxWorkers",
                                                             new_arg_name="max_workers"))
             max_workers = deprecated_kwargs.get("maxWorkers")
         if "sessionTimeout" in deprecated_kwargs:
