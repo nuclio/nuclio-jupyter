@@ -102,8 +102,11 @@ def test_http_trigger_extra():
 
 
 def test_renamed_deprecated_values():
-    trigger = V3IOStreamTrigger(seekTo="test", access_key="abc", maxWorkers=5, worker_allocation_mode="static")
+    trigger = V3IOStreamTrigger(seekTo="test",
+                                access_key="abc",
+                                maxWorkers=5,
+                                worker_allocation_mode="static",
+                                )
     assert trigger._struct["attributes"]["seekTo"] == "test"
     assert trigger._struct["attributes"]["workerAllocationMode"] == "static"
     assert trigger._struct["maxWorkers"] == 5
-
