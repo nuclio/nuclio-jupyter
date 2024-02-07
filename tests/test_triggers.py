@@ -101,12 +101,47 @@ def test_http_trigger_extra():
     assert http_trigger._struct["attributes"]["y"] == "456"
 
 
-def test_renamed_deprecated_values():
+def test_renamed_deprecated_values_old_names():
     trigger = V3IOStreamTrigger(seekTo="test",
                                 access_key="abc",
                                 maxWorkers=5,
-                                worker_allocation_mode="static",
+                                workerAllocationMode="static",
+                                consumerGroup="cg1",
+                                readBatchSize=128,
+                                sessionTimeout="11s",
+                                sequenceNumCommitInterval="2s",
+                                heartbeatInterval="5s",
+                                pollingIntervalMS=100,
                                 )
     assert trigger._struct["attributes"]["seekTo"] == "test"
     assert trigger._struct["attributes"]["workerAllocationMode"] == "static"
+    assert trigger._struct["attributes"]["consumerGroup"] == "cg1"
+    assert trigger._struct["attributes"]["readBatchSize"] == 128
+    assert trigger._struct["attributes"]["sessionTimeout"] == "11s"
+    assert trigger._struct["attributes"]["sequenceNumberCommitInterval"] == "2s"
+    assert trigger._struct["attributes"]["heartbeatInterval"] == "5s"
+    assert trigger._struct["attributes"]["pollingIntervalMs"] == 100
+    assert trigger._struct["maxWorkers"] == 5
+
+
+def test_renamed_deprecated_values_new_names():
+    trigger = V3IOStreamTrigger(seek_to="test",
+                                access_key="abc",
+                                maxWorkers=5,
+                                worker_allocation_mode="static",
+                                consumer_group="cg1",
+                                read_batch_size=128,
+                                session_timeout="11s",
+                                sequence_num_commit_interval="2s",
+                                heartbeat_interval="5s",
+                                polling_interval_ms=100,
+                                )
+    assert trigger._struct["attributes"]["seekTo"] == "test"
+    assert trigger._struct["attributes"]["workerAllocationMode"] == "static"
+    assert trigger._struct["attributes"]["consumerGroup"] == "cg1"
+    assert trigger._struct["attributes"]["readBatchSize"] == 128
+    assert trigger._struct["attributes"]["sessionTimeout"] == "11s"
+    assert trigger._struct["attributes"]["sequenceNumberCommitInterval"] == "2s"
+    assert trigger._struct["attributes"]["heartbeatInterval"] == "5s"
+    assert trigger._struct["attributes"]["pollingIntervalMs"] == 100
     assert trigger._struct["maxWorkers"] == 5
