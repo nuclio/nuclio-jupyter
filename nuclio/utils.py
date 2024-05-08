@@ -155,6 +155,7 @@ def normalize_name(name):
     # [a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?
     name = re.sub(r'\s+', '-', name)
     name = name.replace('_', '-')
+    name = name.replace('.', '')
     return name.lower()
 
 
