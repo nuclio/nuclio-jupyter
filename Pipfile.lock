@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "a9c2c12f17058a1ab7773d024331c45210602cfb26b9f1cafbc88e69ed1fef35"
+            "sha256": "7bdf0f5dd3bb381bf032e873a8ac303466b32446d9a2dcc69023fb6384cbc574"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -106,19 +106,19 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:1d854b5880e185db546b4c759fcb664bf3326275064d2b44229cc217e8be9d7e",
-                "sha256:79b93f3370ea96ce838042bc2eac0c996aee204b01e7e6452eb77abcbe697d6a"
+                "sha256:0e966b8a475ecb06cc0846304454b8da2473d4c8198a45dfb2c5304871986883",
+                "sha256:5f278b95fb2b32f3d09d950759a05664357ba35d81107bab1537c4ddd212cd8c"
             ],
             "index": "pypi",
-            "version": "==1.34.101"
+            "version": "==1.33.13"
         },
         "botocore": {
             "hashes": [
-                "sha256:01f3802d25558dd7945d83884bf6885e2f84e1ff27f90b5f09614966fe18c18f",
-                "sha256:f145e8b4b8fc9968f5eb695bdc2fcc8e675df7fbc3c56102dc1f5471be6baf35"
+                "sha256:aeadccf4b7c674c7d47e713ef34671b834bc3e89723ef96d994409c9f54666e6",
+                "sha256:fb577f4cb175605527458b04571451db1bd1a2036976b626206036acd4496617"
             ],
-            "markers": "python_version >= '3.8'",
-            "version": "==1.34.101"
+            "markers": "python_version >= '3.7'",
+            "version": "==1.33.13"
         },
         "certifi": {
             "hashes": [
@@ -450,7 +450,6 @@
             "version": "==2.4"
         },
         "jsonschema": {
-            "extras": [],
             "hashes": [
                 "sha256:5b22d434a45935119af990552c862e5d6d564e8f6601206b305a61fdf661a2b7",
                 "sha256:ff4cfd6b1367a40e7bc6411caec72effadd3db0bbe5017de188f2d6108335802"
@@ -1053,11 +1052,11 @@
         },
         "s3transfer": {
             "hashes": [
-                "sha256:5683916b4c724f799e600f41dd9e10a9ff19871bf87623cc8f491cb4f5fa0a19",
-                "sha256:ceb252b11bcf87080fb7850a224fb6e05c8a776bab8f2b64b7f25b969464839d"
+                "sha256:368ac6876a9e9ed91f6bc86581e319be08188dc60d50e0d56308ed5765446283",
+                "sha256:c9e56cbe88b28d8e197cf841f1f0c130f246595e77ae5b5a05b69fe7cb83de76"
             ],
-            "markers": "python_version >= '3.8'",
-            "version": "==0.10.1"
+            "markers": "python_version >= '3.7'",
+            "version": "==0.8.2"
         },
         "send2trash": {
             "hashes": [
