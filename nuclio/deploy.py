@@ -541,7 +541,7 @@ def process_resp(resp, last_time, verbose=False, log_message=False):
     logs = status.get('logs', [])
 
     message = status.get('message', '')
-    if state == 'error' and message != '':
+    if state in ['error', 'unhealthy'] and message != '':
         message = f'Failed to deploy. Details:\n{message}'
         if log_message:
             logger.info(message)
