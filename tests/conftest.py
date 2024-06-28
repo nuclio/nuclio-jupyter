@@ -23,7 +23,6 @@ import nuclio
 
 here = dirname(abspath(__file__))
 environ['ENV_FILE'] = '{}/env.txt'.format(here)
-is_travis = 'TRAVIS' in environ
 
 
 @pytest.fixture

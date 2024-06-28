@@ -56,4 +56,3 @@ magic-help:
 .PHONY: install-requirements
 install-requirements:
 	pipenv install --dev
-

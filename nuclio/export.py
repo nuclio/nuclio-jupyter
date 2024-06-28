@@ -328,7 +328,7 @@ def exporter_name():
 
 
 def gen_config(config):
-    return header() + yaml.dump(config, default_flow_style=False)
+    return header() + yaml.safe_dump(config, default_flow_style=False)
 
 
 def parse_magic_line(line):
