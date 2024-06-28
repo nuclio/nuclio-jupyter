@@ -9,9 +9,8 @@ nbconvert = ">=6.4.5"
 notebook = ">=6.4, <7.0.0"
 pyyaml = ">=3.13, <7"
 requests = ">=2.20.1"
-# nbconvert is not compatible with tornado 6 (which is in alpha)
-#tornado = ">=5"
 boto3 = ">=1.9"
+importlib-metadata = "<8.0.0"
 
 [dev-packages]
 flake8 = "*"
