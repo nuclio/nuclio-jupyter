@@ -230,12 +230,14 @@ def set_env(config, env):
         create_or_update_env_var(config, key, value)
 
 
-def set_env_dict(config, env={}):
+def set_env_dict(config, env=None):
+    env = env or {}
     for k, v in env.items():
         create_or_update_env_var(config, k, value=str(v))
 
 
-def set_external_source_env_dict(config, external_source_env={}):
+def set_external_source_env_dict(config, external_source_env=None):
+    external_source_env = external_source_env or {}
     for k, v in external_source_env.items():
         create_or_update_env_var(config, k, value_from=v)
 
@@ -271,7 +273,11 @@ def update_env_var(config, key, value=None, value_from=None):
     create_or_update_env_var(config, key, value=value, value_from=value_from)
 
 
-def fill_config(config, extra_config={}, env={}, cmd=[], mount: Volume = None, external_source_env={}):
+def fill_config(config, extra_config=None, env=None, cmd=None, mount: Volume = None, external_source_env=None):
+    extra_config = extra_config or {}
+    env = env or {}
+    cmd = cmd or []
+    external_source_env = external_source_env or {}
     if config:
         for k, v in extra_config.items():
             current = get_in(config, k)
@@ -300,12 +306,12 @@ class ConfigSpec:
 
     """
 
-    def __init__(self, env={}, config={}, cmd=[],
-                 mount: Volume = None, v3io=False, external_source_env={}):
-        self.env = env
-        self.external_source_env = external_source_env
-        self.extra_config = config
-        self.cmd = cmd
+    def __init__(self, env=None, config=None, cmd=None,
+                 mount: Volume = None, v3io=False, external_source_env=None):
+        self.env = env or {}
+        self.external_source_env = external_source_env or {}
+        self.extra_config = config or {}
+        self.cmd = cmd or []
         self.mounts = []
         if mount:
             self.mounts.append(mount)

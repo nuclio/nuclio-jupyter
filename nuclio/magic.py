@@ -337,10 +337,10 @@ def handler(line, cell):
 
 def save_handler(config_file, out_dir):
     with open(config_file) as fp:
-        config = yaml.load(fp)
+        config_ = yaml.safe_load(fp)
 
-    py_code = b64decode(config['spec']['build']['functionSourceCode'])
-    py_module = config['spec']['handler'].split(':')[0]
+    py_code = b64decode(config_['spec']['build']['functionSourceCode'])
+    py_module = config_['spec']['handler'].split(':')[0]
     with open('{}/{}.py'.format(out_dir, py_module), 'wb') as out:
         out.write(py_code)
 
@@ -468,9 +468,9 @@ def print_handler_code(notebook_file=None):
     if not notebook_file:
         raise ValueError('cannot find notebook file name')
 
-    line = notebook_file = shlex.quote(notebook_file)
-    config, code = build(line, None, return_dir=True)
-    config_yaml = yaml.dump(config, default_flow_style=False)
+    line = shlex.quote(notebook_file)
+    config_, code = build(line, None, return_dir=True)
+    config_yaml = yaml.safe_dump(config_, default_flow_style=False)
     print('Config:\n{}'.format(config_yaml))
     print('Code:\n{}'.format(code))
 

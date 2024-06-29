@@ -90,7 +90,7 @@ def build_file(filename='', name='', handler='', archive=False, project='',
 
     log = logger.info if verbose else logger.debug
     log('Code:\n{}'.format(code))
-    log('Config:\n{}'.format(yaml.dump(config, default_flow_style=False)))
+    log('Config:\n{}'.format(yaml.safe_dump(config, default_flow_style=False)))
 
     if archive or files:
         output, url_target = archive_path(output_dir, project, name, tag)
@@ -106,7 +106,7 @@ def build_file(filename='', name='', handler='', archive=False, project='',
             upload_file(zip_path, output, True)
             config = get_archive_config(name, output)
             config = extend_config(config, None, tag, filename)
-            config_text = yaml.dump(config, default_flow_style=False)
+            config_text = yaml.safe_dump(config, default_flow_style=False)
             log('Archive Config:\n{}'.format(config_text))
 
     elif output_dir:
@@ -116,7 +116,7 @@ def build_file(filename='', name='', handler='', archive=False, project='',
 
         config['metadata'].pop("name", None)
         put_data('{}/function.yaml'.format(output_dir),
-                 yaml.dump(config, default_flow_style=False))
+                 yaml.safe_dump(config, default_flow_style=False))
         update_in(config, 'metadata.name', name)
 
         # make sure we dont overwrite the source code
