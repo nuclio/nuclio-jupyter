@@ -84,9 +84,11 @@ def build_file(filename='', name='', handler='', archive=False, project='',
         code = add_kind_footer(kind, config, code)
 
     name = normalize_name(name or filebase)
+    # Avoid import issues if the filename is the same as an existing Python library by adding a Nuclio suffix
+    normalized_filebase = normalize_name(filebase) + '-nuclio'
     update_in(config, 'metadata.name', name)
     config = extend_config(config, spec, tag, filename)
-    set_handler(config, normalize_name(filebase), '' if kind else handler, ext)
+    set_handler(config, normalized_filebase, '' if kind else handler, ext)
 
     log = logger.info if verbose else logger.debug
     log('Code:\n{}'.format(code))
