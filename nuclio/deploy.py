@@ -196,7 +196,7 @@ def deploy_zip(source='', name='', project='', tag='', dashboard_url='',
 
     if verbose:
         logger.info('Config:\n{}'.format(
-            yaml.dump(config, default_flow_style=False)))
+            yaml.safe_dump(config, default_flow_style=False)))
 
     return deploy_config(config, dashboard_url, name=name, project=project,
                          tag=tag, verbose=verbose, create_new=create_project,
@@ -218,7 +218,7 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
     if verbose:
         logger.info('Code:\n{}'.format(code))
         logger.info('Config:\n{}'.format(
-            yaml.dump(newconfig, default_flow_style=False)))
+            yaml.safe_dump(newconfig, default_flow_style=False)))
 
     if archive:
         archive, url_target = archive_path(archive, name=name,
@@ -235,7 +235,7 @@ def deploy_code(code, dashboard_url='', name='', project='', handler='',
         newconfig = get_archive_config(name, archive)
         if verbose:
             logger.info('Archive Config:\n{}'.format(
-                yaml.dump(newconfig, default_flow_style=False)))
+                yaml.safe_dump(newconfig, default_flow_style=False)))
 
     newconfig = extend_config(newconfig, None, tag, 'code')
     update_in(newconfig, 'metadata.name', name)
@@ -541,7 +541,7 @@ def process_resp(resp, last_time, verbose=False, log_message=False):
     logs = status.get('logs', [])
 
     message = status.get('message', '')
-    if state == 'error' and message != '':
+    if state in ['error', 'unhealthy'] and message != '':
         message = f'Failed to deploy. Details:\n{message}'
         if log_message:
             logger.info(message)

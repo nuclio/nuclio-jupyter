@@ -25,12 +25,13 @@ from urllib.parse import urlparse, ParseResult
 from shutil import copyfile
 
 
-def build_zip(zip_path, config, code, files=[], ext='.py', handler='handler'):
+def build_zip(zip_path, config, code, files=None, ext='.py', handler='handler'):
+    files = files or []
     z = zipfile.ZipFile(zip_path, "w")
     config['spec']['build'].pop("functionSourceCode", None)
     config['metadata'].pop("name", None)
     z.writestr(handler + ext, code)
-    z.writestr('function.yaml', yaml.dump(config, default_flow_style=False))
+    z.writestr('function.yaml', yaml.safe_dump(config, default_flow_style=False))
     for f in files:
         if not path.isfile(f):
             raise Exception('file name {} not found'.format(f))
@@ -43,7 +44,8 @@ def load_zip_config(zip_path):
     return data['handler.py'], data['function.yaml']
 
 
-def get_from_zip(zip_path, files=[]):
+def get_from_zip(zip_path, files=None):
+    files = files or []
     files_data = {}
     with zipfile.ZipFile(zip_path) as myzip:
         for f in files:

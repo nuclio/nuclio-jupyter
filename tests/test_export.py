@@ -62,7 +62,7 @@ def test_export():
 
 def cases_from_yml_file(file_path: str):
     with open(file_path) as f:
-        for case in yaml.load_all(f):
+        for case in yaml.safe_load_all(f):
             yield pytest.param(case, id=case["name"])
 
 
