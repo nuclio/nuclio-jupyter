@@ -9,7 +9,7 @@ nbconvert = ">=6.4.5"
 notebook = ">=6.4, <7.0.0"
 pyyaml = ">=3.13, <7"
 requests = ">=2.31.0"
-boto3 = ">=1.28.0, <1.29.0"
+boto3 = ">=1.28.0"
 importlib-metadata = "<8.0.0"
 ipython = ">=7.27.0"
 
