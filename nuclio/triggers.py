@@ -180,11 +180,13 @@ class KafkaTrigger(NuclioTrigger):
         worker_allocation_mode: str = "pool",
         fetch_default: int = 1048576,
         max_workers: int = 1,
+        worker_termination_timeout: str = "10s",
     ):
         super(KafkaTrigger, self).__init__(
             {
                 "kind": self.kind,
                 "maxWorkers": max_workers,
+                "workerTerminationTimeout": worker_termination_timeout,
                 "attributes": {
                     "topics": topics,
                     "brokers": brokers,
