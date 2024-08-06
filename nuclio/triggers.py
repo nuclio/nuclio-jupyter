@@ -244,6 +244,7 @@ class V3IOStreamTrigger(NuclioTrigger):
         heartbeat_interval: str = "3s",
         explicit_ack_mode: str = None,
         extra_attributes=None,
+        worker_termination_timeout: str = "10s",
         **deprecated_kwargs,
     ):
         # TODO: delete deprecated arguments in 0.10.0
@@ -297,6 +298,7 @@ class V3IOStreamTrigger(NuclioTrigger):
             struct = {
                 "kind": self.kind,
                 "url": webapi,
+                "workerTerminationTimeout": worker_termination_timeout,
                 "attributes": {
                     "containerName": container,
                     "streamPath": path,
