@@ -180,11 +180,13 @@ class KafkaTrigger(NuclioTrigger):
         worker_allocation_mode: str = "pool",
         fetch_default: int = 1048576,
         max_workers: int = 1,
+        worker_termination_timeout: str = "10s",
     ):
         super(KafkaTrigger, self).__init__(
             {
                 "kind": self.kind,
                 "maxWorkers": max_workers,
+                "workerTerminationTimeout": worker_termination_timeout,
                 "attributes": {
                     "topics": topics,
                     "brokers": brokers,
@@ -242,6 +244,7 @@ class V3IOStreamTrigger(NuclioTrigger):
         heartbeat_interval: str = "3s",
         explicit_ack_mode: str = None,
         extra_attributes=None,
+        worker_termination_timeout: str = "10s",
         **deprecated_kwargs,
     ):
         # TODO: delete deprecated arguments in 0.10.0
@@ -295,6 +298,7 @@ class V3IOStreamTrigger(NuclioTrigger):
             struct = {
                 "kind": self.kind,
                 "url": webapi,
+                "workerTerminationTimeout": worker_termination_timeout,
                 "attributes": {
                     "containerName": container,
                     "streamPath": path,
