@@ -97,6 +97,10 @@ setup(
     ],
     setup_requires=['pytest-runner'],
     tests_require=tests_require,
+    extras_require={
+        # Keeping just for BC as jupyter-server is now required
+        "jupyter-server": [],
+    },
     entry_points={
         'nbconvert.exporters': [
             'nuclio=nuclio.export:NuclioExporter',
