@@ -11,6 +11,7 @@ boto3 = ">=1.28.0"
 importlib-metadata = "<8.0.0"
 ipython = ">=7.27.0"
 jupyter_server = ">=2.0.0"
+ipykernel = ">=6.0.0"
 
 [dev-packages]
 flake8 = "*"

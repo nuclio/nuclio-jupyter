@@ -189,8 +189,10 @@ def notebook_file_name(ikernel):
     if not (ikernel and ikernel.config['IPKernelApp']):
         return
 
-    kernel_id = re.search('kernel-(.*).json',
-                          ipykernel.connect.get_connection_file()).group(1)
+    kernel_id = re.search(
+        'kernel-(.*).json',
+        ipykernel.connect.get_connection_file(),
+    ).group(1)
 
     # list jupyter servers (jpserver-*.json)
     servers = list_running_servers()
