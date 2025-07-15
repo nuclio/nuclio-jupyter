@@ -17,7 +17,6 @@ import shutil
 from unittest import mock
 
 import pytest
-from nuclio.archive import S3Repo
 
 from nuclio.build import build_file
 from nuclio.config import ConfigSpec, meta_keys, get_in
@@ -104,6 +103,7 @@ def test_build_file_from_s3():
 
         # Verify that the returned code is a string, meaning the bytes were decoded properly
         assert isinstance(code, str)
+
 
 def test_build_url(url_filepath):
     name, config, code = build_file(url_filepath,
