@@ -14,8 +14,10 @@
 
 import os
 import shutil
+from unittest import mock
 
 import pytest
+from nuclio.archive import S3Repo
 
 from nuclio.build import build_file
 from nuclio.config import ConfigSpec, meta_keys, get_in
@@ -85,6 +87,23 @@ def test_build_file_nb_ignored_tags():
     assert code.find("import nuclio") > 0, "missing code section"
     assert code.find("test3") == -1, "did not ignore 'my-ignore-tag'"
 
+
+def test_build_file_from_s3():
+    # Prepare a fake S3 object response returning bytes
+    fake_body = mock.MagicMock()
+    fake_body.read.return_value = b"print('hello world')"
+    fake_obj = mock.MagicMock()
+    fake_obj.get.return_value = {'Body': fake_body}
+
+    with mock.patch('nuclio.archive.boto3.resource') as mock_boto3_resource:
+        mock_s3_resource = mock.MagicMock()
+        mock_boto3_resource.return_value = mock_s3_resource
+        mock_s3_resource.Object.return_value = fake_obj
+
+        _, _, code = build_file('s3://bucket/key.py', name='s3func')
+
+        # Verify that the returned code is a string, meaning the bytes were decoded properly
+        assert isinstance(code, str)
 
 def test_build_url(url_filepath):
     name, config, code = build_file(url_filepath,

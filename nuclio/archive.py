@@ -197,7 +197,8 @@ class S3Repo(ExternalRepo):
 
     def get(self):
         obj = self.s3.Object(self.bucket, self.key)
-        return obj.get()['Body'].read()
+        bytes = obj.get()['Body'].read()
+        return bytes.decode("utf-8")
 
     def put(self, data):
         self.s3.Object(self.bucket, self.key).put(Body=data)
