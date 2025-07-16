@@ -87,10 +87,11 @@ def test_build_file_nb_ignored_tags():
     assert code.find("test3") == -1, "did not ignore 'my-ignore-tag'"
 
 
-def test_build_file_from_s3():
+@pytest.mark.parametrize("mocked_content", [b"print('hello from bytes')", "print('hello from str')"])
+def test_build_file_from_s3(mocked_content):
     # Prepare a fake S3 object response returning bytes
     fake_body = mock.MagicMock()
-    fake_body.read.return_value = b"print('hello world')"
+    fake_body.read.return_value = mocked_content
     fake_obj = mock.MagicMock()
     fake_obj.get.return_value = {'Body': fake_body}
 
@@ -102,7 +103,7 @@ def test_build_file_from_s3():
         _, _, code = build_file('s3://bucket/key.py', name='s3func')
 
         # Verify that the returned code is a string, meaning the bytes were decoded properly
-        assert isinstance(code, str)
+        assert isinstance(code, str), "Expected code to be a string, got {}".format(type(code))
 
 
 def test_build_url(url_filepath):
