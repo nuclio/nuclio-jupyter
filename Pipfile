@@ -5,13 +5,13 @@ name = "pypi"
 
 [packages]
 nbconvert = ">=6.4.5"
-# notebook.notebookapp has been deprecated since 7.0.0
-notebook = ">=6.4, <7.0.0"
 pyyaml = ">=3.13, <7"
 requests = ">=2.32.4"
 boto3 = ">=1.28.0"
 importlib-metadata = "<8.0.0"
 ipython = ">=7.27.0"
+jupyter_server = ">=2.0.0"
+ipykernel = ">=5.0.0"
 
 [dev-packages]
 flake8 = "*"

@@ -19,7 +19,6 @@ from os import path, environ
 import shlex
 from argparse import ArgumentParser
 from sys import stdout
-from itertools import chain
 
 import ipykernel
 from urllib.parse import urlencode, urljoin
@@ -177,40 +176,26 @@ def str2nametag(input):
 # https://github.com/jupyter/notebook/issues/1000#issuecomment-359875246
 def notebook_file_name(ikernel):
     """Return the full path of the jupyter notebook."""
-
     # the following code won't work when the notebook is being executed
     # through running `jupyter nbconvert --execute` this env var enables to
     # overcome it
-    from notebook.notebookapp import list_running_servers \
-        as nb_list_running_servers
-    # installing jupyter-server is optional (only when doing pip install
-    # nuclio-jupyter[jupyter-server]) therefore don't fail on import error
-    jupyter_server_supported = False
-    try:
-        from jupyter_server.serverapp import list_running_servers \
-            as jp_list_running_servers
-    except ImportError:
-        pass
-    else:
-        jupyter_server_supported = True
-
     file_name = environ.get('JUPYTER_NOTEBOOK_FILE_NAME')
     if file_name is not None:
         return file_name
+
+    from jupyter_server.serverapp import list_running_servers
 
     # Check that we're running under notebook
     if not (ikernel and ikernel.config['IPKernelApp']):
         return
 
-    kernel_id = re.search('kernel-(.*).json',
-                          ipykernel.connect.get_connection_file()).group(1)
+    kernel_id = re.search(
+        'kernel-(.*).json',
+        ipykernel.connect.get_connection_file(),
+    ).group(1)
 
-    # list both notebook servers (nbserver-*.json) and the newer
-    # jupyter servers (jpserver-*.json), remove nb_list_running_servers()
-    # when fully moving to jupyter servers.
-    servers = nb_list_running_servers()
-    if jupyter_server_supported:
-        servers = chain(nb_list_running_servers(), jp_list_running_servers())
+    # list jupyter servers (jpserver-*.json)
+    servers = list_running_servers()
     for srv in servers:
         query = {'token': srv.get('token', '')}
         url = urljoin(srv['url'], 'api/sessions') + '?' + urlencode(query)
@@ -218,12 +203,7 @@ def notebook_file_name(ikernel):
             if session['kernel']['id'] == kernel_id:
                 relative_path = session['notebook']['path']
 
-                # remove srv.get('notebook_dir') when fully moving to
-                # jupyter servers.
-                return path.join(
-                    srv.get('notebook_dir') or srv.get('root_dir'),
-                    relative_path
-                )
+                return path.join(srv.get('root_dir'), relative_path)
 
     # vscode jupyter plugin communicates directly with ipykernel and doesn't execute a server
     return ikernel.user_ns.get("__vsc_ipynb_file__")

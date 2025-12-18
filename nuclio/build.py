@@ -66,7 +66,7 @@ def build_file(filename='', name='', handler='', archive=False, project='',
 
     elif ext in ['.py', '.go', '.js', '.java', '.sh']:
         code = url2repo(filename).get()
-        config, _ = code2config(code, ext)
+        config, code = code2config(code, ext)
         is_source = True
 
     elif ext == '.yaml':
@@ -215,6 +215,8 @@ def add_kind_footer(kind, config, code, always=False):
 
 def code2config(code, ext='.py', kind=None):
     config = new_config()
+    if isinstance(code, bytes):
+        code = code.decode('utf-8')
     if ext == '.go':
         config['spec']['runtime'] = 'golang'
     elif ext == '.js':
