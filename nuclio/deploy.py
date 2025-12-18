@@ -28,7 +28,8 @@ from .archive import get_archive_config, build_zip, upload_file, is_archive
 from .build import code2config, build_file, archive_path
 from .auth import AuthInfo
 
-VERIFY_CERT = False
+# False by default for backwards compatibility
+VERIFY_CERT = os.getenv("NUCLIO_VERIFY_CERT", "false").lower() == "true"
 
 
 class ReturnAddressModes(object):
