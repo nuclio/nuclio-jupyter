@@ -202,10 +202,10 @@ def handler(context, event):
     return context.mlrun_handler(context, event)
 
 async def async_handler(context, event):
-    mlrun_handler = context.mlrun_handler(context, event)
-    if asyncio.iscoroutine(mlrun_handler):
-        return await mlrun_handler
-    return mlrun_handler
+    result = context.mlrun_handler(context, event)
+    if asyncio.iscoroutine(result):
+        return await result
+    return result
 '''
 
 
