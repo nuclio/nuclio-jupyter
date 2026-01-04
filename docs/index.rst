@@ -105,35 +105,20 @@ copy&paste it to `the nuclio dashboard`_.
 .. _Kaggle Notebooks: https://www.kaggle.com/kernels
 .. _the nuclio dashboard: https://nuclio.io/docs/latest/introduction/#dashboard
 
-Try It Out
-~~~~~~~~~~
-
-You can build a docker image and try it out
-
-.. code-block:: bash
-
-    $ docker build -t jupyter-nuclio .
-    $ docker run -p 8888:8888 jupyter-nuclio
-
-Then open your browser at http://localhost:8888 
-
 Developing
 ----------
 
-We're using pipenv_ as package manager. To install dependencies run
+To install dependencies run
 
 .. code-block:: bash
 
-    $ pipenv sync -d
+    $ pip install -e ".[dev]"
 
 To run the tests run
     
 .. code-block:: bash
 
-    $ pipenv run python -m pytest -v tests
-
-
-.. _pipenv: https://docs.pipenv.org
+    $ python -m pytest -v tests
 
 
 API Reference

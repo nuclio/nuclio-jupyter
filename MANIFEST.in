@@ -1,4 +1,4 @@
-# Copyright 2018 Iguazio
+# Copyright 2026 Iguazio
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-include README.md LICENSE.txt Makefile
-include Pipfile Pipfile.lock
+include README.md LICENSE.txt Makefile pyproject.toml
 recursive-include tests *
 prune tests/.ipynb_checkpoints/
-recursive-include doc *
 global-exclude *.sw?

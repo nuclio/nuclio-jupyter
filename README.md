@@ -628,20 +628,6 @@ if we want to print out the debug level logs we can type the following
 this logging level only apply to the notebook/emulation, to change the function runtime 
 log level you should use the `config` or nuclio UI.
 
-### using Docker
-
-You can build a docker image and try it out
-
-#### Build
-
-    $ docker build -t jupyter-nuclio .
-
-#### Run
-
-    $ docker run -p 8888:8888 jupyter-nuclio
-
-Then open your browser at http://localhost:8888
-
 ## Links
 
 * [iguazio tutorial repo](https://github.com/v3io/tutorials) - hosts many usage examples

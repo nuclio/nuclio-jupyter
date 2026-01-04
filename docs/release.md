@@ -13,18 +13,12 @@
 
 1. Edit `nuclio/__init__.py` and bump version
 
-2. Commit with message `Bump 0.x.y` and push to `upstream/development`
+2. Commit with message `Bump 0.x.y` and push to `upstream/master`
 
 3. Checkout `master` branch:  
    `git checkout master`
 
-4. Merge development into master and push:
-```
-git merge upstream/development
-git push upstream master
-```
-
-5. Upload package to PyPI:
+4. Upload package to PyPI:
    1. Run `. ./venv/bin/activate && make upload`
    2. Enter your PyPI token when prompted
 

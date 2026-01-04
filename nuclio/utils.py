@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import errno
 import json
 import re
 import requests
+import os
 from os import path, environ
 import shlex
 from argparse import ArgumentParser
@@ -176,14 +178,10 @@ def str2nametag(input):
 # https://github.com/jupyter/notebook/issues/1000#issuecomment-359875246
 def notebook_file_name(ikernel):
     """Return the full path of the jupyter notebook."""
-    # the following code won't work when the notebook is being executed
-    # through running `jupyter nbconvert --execute` this env var enables to
-    # overcome it
+
     file_name = environ.get('JUPYTER_NOTEBOOK_FILE_NAME')
     if file_name is not None:
         return file_name
-
-    from jupyter_server.serverapp import list_running_servers
 
     # Check that we're running under notebook
     if not (ikernel and ikernel.config['IPKernelApp']):
@@ -195,15 +193,45 @@ def notebook_file_name(ikernel):
     ).group(1)
 
     # list jupyter servers (jpserver-*.json)
-    servers = list_running_servers()
-    for srv in servers:
+    for srv in _get_running_servers():
         query = {'token': srv.get('token', '')}
         url = urljoin(srv['url'], 'api/sessions') + '?' + urlencode(query)
         for session in json.load(urlopen(url)):
             if session['kernel']['id'] == kernel_id:
                 relative_path = session['notebook']['path']
-
                 return path.join(srv.get('root_dir'), relative_path)
 
     # vscode jupyter plugin communicates directly with ipykernel and doesn't execute a server
     return ikernel.user_ns.get("__vsc_ipynb_file__")
+
+
+def _get_running_servers():
+    """ Minimal copy of jupyter_server.serverapp.list_running_servers """
+    runtime_dir = environ.get("JUPYTER_RUNTIME_DIR")
+    for file_name in os.listdir(runtime_dir):
+        if re.match("jpserver-(.+).json", file_name):
+            with open(os.path.join(runtime_dir, file_name), encoding="utf-8") as f:
+                # Handle race condition where file is being written.
+                try:
+                    info = json.load(f)
+                except json.JSONDecodeError:
+                    continue
+
+            # can communicate with the server
+            if ("pid" in info) and _check_pid(info["pid"]):
+                yield info
+
+
+def _check_pid(pid: int) -> bool:
+    """Copy of IPython.utils.process.check_pid"""
+    try:
+        os.kill(pid, 0)
+    except OSError as err:
+        if err.errno == errno.ESRCH:
+            return False
+        elif err.errno == errno.EPERM:
+            # Don't have permission to signal the process - probably means it exists
+            return True
+        raise
+    else:
+        return True

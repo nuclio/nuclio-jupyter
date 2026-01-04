@@ -1,4 +1,4 @@
-# Copyright 2018 Iguazio
+# Copyright 2026 Iguazio
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,31 +19,25 @@ all:
 	$(error please pick a target)
 
 .PHONY: upload
-upload:
-	rm -rf dist
-	python setup.py sdist bdist_wheel
-	pipenv run twine upload dist/*
+upload: build
+	python -m twine upload dist/*
+
+.PHONY: build
+build: clean_pyc flake8
+	python -m build
 
 .PHONY: clean_pyc
 clean_pyc:
 	find nuclio -name '*.pyc' -exec rm {} \;
 	find tests -name '*.pyc' -exec rm {} \;
 
-.PHONY: flask8
+.PHONY: flake8
 flake8:
-	pipenv run flake8 nuclio tests
+	python -m flake8 nuclio tests
 
 .PHONY: test
 test: clean_pyc flake8
-	pipenv run python -m pytest --disable-warnings -v tests
-
-.PHONY: build-docker
-build-docker:
-	docker build -t $(image_tag) .
-
-.PHONY: upload-docker
-upload-docker: build-docker
-	docker push $(image_tag)
+	python -m pytest --disable-warnings -v tests
 
 # Testing markdown
 README.html: README.md
@@ -55,4 +49,4 @@ magic-help:
 
 .PHONY: install-requirements
 install-requirements:
-	pipenv install --dev
+	pip install -e ".[dev]"

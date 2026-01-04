@@ -20,7 +20,6 @@ import requests
 from os import path, remove, environ
 import shlex
 from argparse import ArgumentParser
-import boto3
 from urllib.parse import urlparse, ParseResult
 from shutil import copyfile
 
@@ -181,6 +180,7 @@ class FileRepo(ExternalRepo):
 
 class S3Repo(ExternalRepo):
     def __init__(self, urlobj: ParseResult):
+        import boto3
         self.kind = 's3'
         self.bucket = urlobj.hostname
         self.key = urlobj.path[1:]
