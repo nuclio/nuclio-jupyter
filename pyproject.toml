@@ -1,0 +1,83 @@
+# Copyright 2026 Iguazio
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+[build-system]
+requires = ["setuptools>=80.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nuclio-jupyter"
+version = "0.12.0"
+description = "Convert Jupyter notebook to nuclio"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [
+    { name = "Iguazio" }
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "nbconvert>=6.4.5",
+    "pyyaml>=3.13,<7",
+    "requests>=2.32.4",
+    "importlib-metadata<8.0.0",
+    "ipython>=7.27.0",
+    "ipykernel>=5.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "flake8",
+    "pytest",
+    "pyyaml",
+    "sphinx~=4.3.0",
+    "twine",
+    "wheel",
+]
+# Keeping boto3 as optional for backward compatibility
+boto3 = [
+    "boto3>=1.28.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/nuclio/nuclio-jupyter"
+Repository = "https://github.com/nuclio/nuclio-jupyter"
+
+[project.scripts]
+nuclio = "nuclio.__main__:main"
+
+[project.entry-points."nbconvert.exporters"]
+nuclio = "nuclio.export:NuclioExporter"
+
+[tool.setuptools]
+packages = ["nuclio"]
+zip-safe = false
+include-package-data = true
+
+[tool.pytest.ini_options]
+addopts = "-v --disable-warnings"
+python_files = ["tests/*.py"]

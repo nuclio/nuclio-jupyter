@@ -89,17 +89,22 @@ def test_build_file_nb_ignored_tags():
 
 @pytest.mark.parametrize("mocked_content", [b"print('hello from bytes')", "print('hello from str')"])
 def test_build_file_from_s3(mocked_content):
+    import sys
+
     # Prepare a fake S3 object response returning bytes
     fake_body = mock.MagicMock()
     fake_body.read.return_value = mocked_content
     fake_obj = mock.MagicMock()
     fake_obj.get.return_value = {'Body': fake_body}
 
-    with mock.patch('nuclio.archive.boto3.resource') as mock_boto3_resource:
-        mock_s3_resource = mock.MagicMock()
-        mock_boto3_resource.return_value = mock_s3_resource
-        mock_s3_resource.Object.return_value = fake_obj
+    # Create a mock boto3 module since it's optional and may not be installed
+    mock_boto3 = mock.MagicMock()
+    mock_s3_resource = mock.MagicMock()
+    mock_boto3.resource.return_value = mock_s3_resource
+    mock_s3_resource.Object.return_value = fake_obj
 
+    # Patch sys.modules to inject mock boto3 before it's imported in S3Repo
+    with mock.patch.dict(sys.modules, {'boto3': mock_boto3}):
         _, _, code = build_file('s3://bucket/key.py', name='s3func')
 
         # Verify that the returned code is a string, meaning the bytes were decoded properly
