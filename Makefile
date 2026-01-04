@@ -49,4 +49,4 @@ magic-help:
 
 .PHONY: install-requirements
 install-requirements:
-	pip install -e ".[dev]"
+	pip install -e ".[dev,boto3]"
