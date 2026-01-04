@@ -11,7 +11,7 @@
 
 ## Release Steps
 
-1. Edit `nuclio/__init__.py` and bump version
+1. Bump version in both `nuclio/__init__.py` and `pyproject.toml`
 
 2. Commit with message `Bump 0.x.y` and push to `upstream/master`
 
