@@ -58,7 +58,7 @@ dev = [
     "twine",
     "wheel",
 ]
-# Keeping just for BC as jupyter-server is now required
+# Keeping boto3 as optional for backward compatibility
 boto3 = [
     "boto3>=1.28.0",
 ]
