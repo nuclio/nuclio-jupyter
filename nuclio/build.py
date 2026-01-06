@@ -198,10 +198,8 @@ import asyncio
 def init_context(context):
     nuclio_init_hook(context, globals(), '{}')
 
-def handler(context, event):
-    return context.mlrun_handler(context, event)
 
-async def async_handler(context, event):
+async def handler(context, event):
     result = context.mlrun_handler(context, event)
     if asyncio.iscoroutine(result):
         return await result
