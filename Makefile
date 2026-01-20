@@ -31,6 +31,9 @@ clean_pyc:
 	find nuclio -name '*.pyc' -exec rm {} \;
 	find tests -name '*.pyc' -exec rm {} \;
 
+clean: clean_pyc
+	rm -rf dist build *.egg-info
+
 .PHONY: flake8
 flake8:
 	python -m flake8 nuclio tests
