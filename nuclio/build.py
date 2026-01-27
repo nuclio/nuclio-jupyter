@@ -195,6 +195,7 @@ mlrun_footer = '''
 from mlrun.runtimes import nuclio_init_hook
 import asyncio
 import inspect
+import nuclio_sdk
 
 def init_context(context):
     nuclio_init_hook(context, globals(), '{}')
@@ -202,16 +203,12 @@ def init_context(context):
 
 async def handler(context, event):
     result = context.mlrun_handler(context, event)
-    if inspect.isasyncgen(result):
-        async for chunk in result:
-            yield chunk
-    elif inspect.isgenerator(result):
-        for chunk in result:
-            yield chunk
-    elif asyncio.iscoroutine(result):
-        yield await result
+    if asyncio.iscoroutine(result):
+        return await result
+    elif inspect.isgenerator(result) or inspect.isasyncgen(result):
+        return nuclio_sdk.Response(body=result)
     else:
-        yield result
+        return result
 '''
 
 
