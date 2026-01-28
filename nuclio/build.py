@@ -195,7 +195,6 @@ mlrun_footer = '''
 from mlrun.runtimes import nuclio_init_hook
 import asyncio
 import inspect
-import nuclio_sdk
 
 def init_context(context):
     nuclio_init_hook(context, globals(), '{}')
@@ -206,7 +205,7 @@ async def handler(context, event):
     if asyncio.iscoroutine(result):
         return await result
     elif inspect.isgenerator(result) or inspect.isasyncgen(result):
-        return nuclio_sdk.Response(body=result)
+        return context.Response(body=result)
     else:
         return result
 '''
