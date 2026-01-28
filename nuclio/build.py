@@ -194,6 +194,7 @@ def build_notebook(nb_file, no_embed=False, tag="", name="", ignored_tags=""):
 mlrun_footer = '''
 from mlrun.runtimes import nuclio_init_hook
 import asyncio
+import inspect
 
 def init_context(context):
     nuclio_init_hook(context, globals(), '{}')
@@ -203,7 +204,10 @@ async def handler(context, event):
     result = context.mlrun_handler(context, event)
     if asyncio.iscoroutine(result):
         return await result
-    return result
+    elif inspect.isgenerator(result) or inspect.isasyncgen(result):
+        return context.Response(body=result)
+    else:
+        return result
 '''
 
 
